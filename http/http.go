@@ -1,4 +1,4 @@
-package zfs
+package http
 
 import (
 	"context"
@@ -16,14 +16,14 @@ import (
 )
 
 const (
-	authenticationTokenHeader   = "X-HTTPConfig-HTTP-AUTH"
+	authenticationTokenHeader   = "X-ZFS-Auth-Token"
 	authenticationTokenGETParam = "authToken"
 )
 
-// HTTP is the main object for serving the HTTPConfig HTTP server
+// HTTP is the main object for serving the ZFS HTTP server
 type HTTP struct {
 	router     *httprouter.Router
-	config     HTTPConfig
+	config     Config
 	httpSocket net.Listener
 	httpServer *http.Server
 	logger     *logrus.Entry
@@ -32,8 +32,8 @@ type HTTP struct {
 
 type handle func(http.ResponseWriter, *http.Request, httprouter.Params, *logrus.Entry)
 
-// NewHTTP creates a new HTTP server for HTTPConfig interactions
-func NewHTTP(ctx context.Context, conf HTTPConfig, logger *logrus.Entry) (*HTTP, error) {
+// NewHTTP creates a new HTTP server for ZFS interactions
+func NewHTTP(ctx context.Context, conf Config, logger *logrus.Entry) (*HTTP, error) {
 	h := &HTTP{
 		router: httprouter.New(),
 		config: conf,

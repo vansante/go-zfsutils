@@ -1,11 +1,11 @@
-package zfs
+package http
 
 const (
 	defaultHTTPPort       = 7654
 	defaultBytesPerSecond = 50 * 1024 * 1024
 )
 
-type HTTPConfig struct {
+type Config struct {
 	ParentDataset string `json:"ParentDataset" yaml:"ParentDataset"`
 
 	Port                 int      `json:"Port" yaml:"Port"`
@@ -17,7 +17,7 @@ type HTTPConfig struct {
 }
 
 // ApplyDefaults sets all config values to their defaults (if they have one)
-func (c *HTTPConfig) ApplyDefaults() {
+func (c *Config) ApplyDefaults() {
 	c.SpeedBytesPerSecond = defaultBytesPerSecond
 	c.Port = defaultHTTPPort
 }
