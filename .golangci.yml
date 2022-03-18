@@ -1,0 +1,58 @@
+run:
+  # timeout for analysis, e.g. 30s, 5m, default is 1m
+  deadline: 2m
+
+  # exit code when at least one issue was found, default is 1
+  issues-exit-code: 1
+
+  # include test files or not, default is true
+  tests: false
+
+# all available settings of specific linters
+linters-settings:
+  funlen:
+    lines: 100
+    statements: 50
+  gocyclo:
+    min-complexity: 40
+  maligned:
+    suggest-new: true
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  depguard:
+  lll:
+    line-length: 150
+  nakedret:
+    max-func-lines: 0
+
+linters:
+  enable:
+    - asciicheck
+    - depguard
+    - dogsled
+    - exportloopref
+    - funlen
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofumpt
+    - goimports
+    - govet
+    - lll
+    - megacheck
+    - misspell
+    - nakedret
+    - prealloc
+    - revive
+    - unconvert
+    - unparam
+  disable:
+    - gosec
+  presets:
+    - bugs
+    - unused
+  fast: false
+
