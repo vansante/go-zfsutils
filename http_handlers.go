@@ -40,7 +40,7 @@ func DecodeReceiveProperties(in string) (ReceiveProperties, error) {
 
 // Encode encodes a set of ReceiveProperties
 func (r ReceiveProperties) Encode() string {
-	data, _ := json.Marshal(&r)
+	data, _ := json.Marshal(&r) // nolint: errchkjson
 	return base64.URLEncoding.EncodeToString(data)
 }
 
