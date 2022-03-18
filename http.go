@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"strconv"
+
+	"github.com/juju/ratelimit"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/sirupsen/logrus"
@@ -117,4 +121,36 @@ func (h *HTTP) authenticated(handle handle) httprouter.Handle {
 
 		handle(w, req, ps, logger)
 	}
+}
+
+func (h *HTTP) getSpeed(req *http.Request) int64 {
+	speed := h.config.SpeedBytesPerSecond
+	if !h.config.AllowSpeedOverride {
+		return speed
+	}
+	speedStr := req.URL.Query().Get(GETParamBytesPerSecond)
+	if speedStr == "" {
+		return speed
+	}
+	customSpeed, err := strconv.ParseInt(speedStr, 10, 64)
+	if err == nil {
+		return customSpeed
+	}
+	return speed
+}
+
+func (h *HTTP) getWriter(w http.ResponseWriter, req *http.Request) io.Writer {
+	speed := h.getSpeed(req)
+	if speed <= 0 {
+		return w
+	}
+	return ratelimit.Writer(w, ratelimit.NewBucketWithRate(1, speed))
+}
+
+func (h *HTTP) getReader(req *http.Request) io.Reader {
+	speed := h.getSpeed(req)
+	if speed <= 0 {
+		return req.Body
+	}
+	return ratelimit.Reader(req.Body, ratelimit.NewBucketWithRate(1, speed))
 }
