@@ -90,6 +90,20 @@ func Volumes(filter string, extraFields []string) ([]*Dataset, error) {
 	return ListByType(DatasetVolume, filter, extraFields)
 }
 
+// ListDatasetWithProperty returns a list of datasets which have the given ZFS property.
+func ListDatasetWithProperty(filter, prop string) (map[string]string, error) {
+	c := command{Command: Binary}
+	lines, err := c.Run("get", "-Hp", "-o", "name,value", "-r", "-s", "local", prop, filter)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]string, len(lines))
+	for _, line := range lines {
+		result[line[0]] = line[1]
+	}
+	return result, nil
+}
+
 // GetDataset retrieves a single ZFS dataset by name.
 // This dataset could be any valid ZFS dataset type, such as a clone, filesystem, snapshot, or volume.
 func GetDataset(name string, extraFields []string) (*Dataset, error) {

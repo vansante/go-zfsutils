@@ -167,6 +167,23 @@ func TestSnapshot(t *testing.T) {
 	})
 }
 
+func TestListDatasetWithProperty(t *testing.T) {
+	TestZPool(testZPool, func() {
+		const prop = "nl.test:bla"
+
+		f, err := CreateFilesystem(testZPool+"/list-test", noMountProps, nil)
+		require.NoError(t, err)
+		require.NoError(t, f.SetProperty(prop, "123"))
+
+		ls, err := ListDatasetWithProperty(testZPool+"/list-test", prop)
+		require.NoError(t, err)
+		require.Len(t, ls, 1)
+		require.Equal(t, map[string]string{
+			testZPool + "/list-test": "123",
+		}, ls)
+	})
+}
+
 func TestClone(t *testing.T) {
 	TestZPool(testZPool, func() {
 		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
