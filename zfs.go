@@ -1,4 +1,4 @@
-// Package zfs provides wrappers around the HTTPConfig command line tools.
+// Package zfs provides wrappers around the ZFS command line tools.
 package zfs
 
 import (
@@ -13,17 +13,17 @@ const (
 	Binary = "zfs"
 )
 
-// HTTPConfig dataset types, which can indicate if a dataset is a filesystem, snapshot, or volume.
+// ZFS dataset types, which can indicate if a dataset is a filesystem, snapshot, or volume.
 const (
 	DatasetFilesystem = "filesystem"
 	DatasetSnapshot   = "snapshot"
 	DatasetVolume     = "volume"
 )
 
-// Dataset is a HTTPConfig dataset.  A dataset could be a clone, filesystem, snapshot, or volume.
+// Dataset is a ZFS dataset.  A dataset could be a clone, filesystem, snapshot, or volume.
 // The Type struct member can be used to determine a dataset's type.
 //
-// The field definitions can be found in the HTTPConfig manual:
+// The field definitions can be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
 type Dataset struct {
 	Name          string
@@ -66,32 +66,32 @@ func zfsOutput(arg ...string) ([][]string, error) {
 	return c.Run(arg...)
 }
 
-// Datasets returns a slice of HTTPConfig datasets, regardless of type.
+// Datasets returns a slice of ZFS datasets, regardless of type.
 // A filter argument may be passed to select a dataset with the matching name, or empty string ("") may be used to select all datasets.
 func Datasets(filter string, extraFields []string) ([]*Dataset, error) {
 	return ListByType("all", filter, extraFields)
 }
 
-// Snapshots returns a slice of HTTPConfig snapshots.
+// Snapshots returns a slice of ZFS snapshots.
 // A filter argument may be passed to select a snapshot with the matching name, or empty string ("") may be used to select all snapshots.
 func Snapshots(filter string, extraFields []string) ([]*Dataset, error) {
 	return ListByType(DatasetSnapshot, filter, extraFields)
 }
 
-// Filesystems returns a slice of HTTPConfig filesystems.
+// Filesystems returns a slice of ZFS filesystems.
 // A filter argument may be passed to select a filesystem with the matching name, or empty string ("") may be used to select all filesystems.
 func Filesystems(filter string, extraFields []string) ([]*Dataset, error) {
 	return ListByType(DatasetFilesystem, filter, extraFields)
 }
 
-// Volumes returns a slice of HTTPConfig volumes.
+// Volumes returns a slice of ZFS volumes.
 // A filter argument may be passed to select a volume with the matching name, or empty string ("") may be used to select all volumes.
 func Volumes(filter string, extraFields []string) ([]*Dataset, error) {
 	return ListByType(DatasetVolume, filter, extraFields)
 }
 
-// GetDataset retrieves a single HTTPConfig dataset by name.
-// This dataset could be any valid HTTPConfig dataset type, such as a clone, filesystem, snapshot, or volume.
+// GetDataset retrieves a single ZFS dataset by name.
+// This dataset could be any valid ZFS dataset type, such as a clone, filesystem, snapshot, or volume.
 func GetDataset(name string, extraFields []string) (*Dataset, error) {
 	fields := append(dsPropList, extraFields...) // nolint: gocritic
 	out, err := zfsOutput("list", "-Hp", "-o", strings.Join(fields, ","), name)
@@ -110,7 +110,7 @@ func GetDataset(name string, extraFields []string) (*Dataset, error) {
 	return ds, nil
 }
 
-// Clone clones a HTTPConfig snapshot and returns a clone dataset.
+// Clone clones a ZFS snapshot and returns a clone dataset.
 // An error will be returned if the input dataset is not of snapshot type.
 func (d *Dataset) Clone(dest string, properties map[string]string) (*Dataset, error) {
 	if d.Type != DatasetSnapshot {
@@ -131,7 +131,7 @@ func (d *Dataset) Clone(dest string, properties map[string]string) (*Dataset, er
 	return GetDataset(dest, nil)
 }
 
-// Unmount unmounts currently mounted HTTPConfig file systems.
+// Unmount unmounts currently mounted ZFS file systems.
 func (d *Dataset) Unmount(force bool) (*Dataset, error) {
 	if d.Type == DatasetSnapshot {
 		return nil, errors.New("cannot unmount snapshots")
@@ -177,7 +177,7 @@ func (d *Dataset) UnloadKey(recursive bool) error {
 	return zfs(args...)
 }
 
-// Mount mounts HTTPConfig file systems.
+// Mount mounts ZFS file systems.
 func (d *Dataset) Mount(overlay bool, options []string) (*Dataset, error) {
 	if d.Type == DatasetSnapshot {
 		return nil, errors.New("cannot mount snapshots")
@@ -200,15 +200,16 @@ func (d *Dataset) Mount(overlay bool, options []string) (*Dataset, error) {
 	return GetDataset(d.Name, nil)
 }
 
-// ReceiveSnapshot receives a HTTPConfig stream from the input io.Reader.
+// ReceiveSnapshot receives a ZFS stream from the input io.Reader.
 // A new snapshot is created with the specified name, and streams the input data into the newly-created snapshot.
-func ReceiveSnapshot(input io.Reader, name string, resumable bool) (*Dataset, error) {
+func ReceiveSnapshot(input io.Reader, name string, resumable bool, properties map[string]string) (*Dataset, error) {
 	c := command{Command: Binary, Stdin: input}
 
 	args := []string{"receive"}
 	if resumable {
 		args = append(args, "-s")
 	}
+	args = append(args, propsSlice(properties)...)
 	args = append(args, name)
 
 	_, err := c.Run(args...)
@@ -230,7 +231,7 @@ func (d *Dataset) sendSnapshot(output io.Writer, options ...string) error {
 	return err
 }
 
-// SendSnapshot sends a HTTPConfig stream of a snapshot to the input io.Writer.
+// SendSnapshot sends a ZFS stream of a snapshot to the input io.Writer.
 // An error will be returned if the input dataset is not of snapshot type.
 func (d *Dataset) SendSnapshot(output io.Writer, raw bool) error {
 	var args []string
@@ -240,7 +241,7 @@ func (d *Dataset) SendSnapshot(output io.Writer, raw bool) error {
 	return d.sendSnapshot(output, args...)
 }
 
-// IncrementalSend sends a HTTPConfig stream of a snapshot to the input io.Writer using the baseSnapshot as the starting point.
+// IncrementalSend sends a ZFS stream of a snapshot to the input io.Writer using the baseSnapshot as the starting point.
 // An error will be returned if the input dataset is not of snapshot type.
 func (d *Dataset) IncrementalSend(output io.Writer, baseSnapshot *Dataset, raw bool) error {
 	if baseSnapshot.Type != DatasetSnapshot {
@@ -253,7 +254,7 @@ func (d *Dataset) IncrementalSend(output io.Writer, baseSnapshot *Dataset, raw b
 	return d.sendSnapshot(output, args...)
 }
 
-// ResumeSend resumes an interrupted HTTPConfig stream of a snapshot to the input io.Writer using the receive_resume_token.
+// ResumeSend resumes an interrupted ZFS stream of a snapshot to the input io.Writer using the receive_resume_token.
 // An error will be returned if the input dataset is not of snapshot type.
 func ResumeSend(output io.Writer, resumeToken string) error {
 	c := command{Command: Binary, Stdout: output}
@@ -262,9 +263,9 @@ func ResumeSend(output io.Writer, resumeToken string) error {
 	return err
 }
 
-// CreateVolume creates a new HTTPConfig volume with the specified name, size, and properties.
+// CreateVolume creates a new ZFS volume with the specified name, size, and properties.
 //
-// A full list of available HTTPConfig properties may be found in the HTTPConfig manual:
+// A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
 func CreateVolume(name string, size uint64, properties map[string]string, stdin io.Reader) (*Dataset, error) {
 	args := make([]string, 4, 5)
@@ -285,7 +286,7 @@ func CreateVolume(name string, size uint64, properties map[string]string, stdin 
 	return GetDataset(name, nil)
 }
 
-// Destroy destroys a HTTPConfig dataset.
+// Destroy destroys a ZFS dataset.
 // If the destroy bit flag is set, any descendents of the dataset will be recursively destroyed, including snapshots.
 // If the deferred bit flag is set, the snapshot is marked for deferred deletion.
 func (d *Dataset) Destroy(flags DestroyFlag) error {
@@ -312,9 +313,9 @@ func (d *Dataset) Destroy(flags DestroyFlag) error {
 	return err
 }
 
-// SetProperty sets a HTTPConfig property on the receiving dataset.
+// SetProperty sets a ZFS property on the receiving dataset.
 //
-// A full list of available HTTPConfig properties may be found in the HTTPConfig manual:
+// A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
 func (d *Dataset) SetProperty(key, val string) error {
 	prop := strings.Join([]string{key, val}, "=")
@@ -322,9 +323,9 @@ func (d *Dataset) SetProperty(key, val string) error {
 	return err
 }
 
-// GetProperty returns the current value of a HTTPConfig property from the receiving dataset.
+// GetProperty returns the current value of a ZFS property from the receiving dataset.
 //
-// A full list of available HTTPConfig properties may be found in the HTTPConfig manual:
+// A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
 func (d *Dataset) GetProperty(key string) (string, error) {
 	out, err := zfsOutput("get", "-Hp", "-o", "value", key, d.Name)
@@ -361,14 +362,14 @@ func (d *Dataset) Rename(name string, createParent, recursiveRenameSnapshots boo
 	return GetDataset(name, nil)
 }
 
-// Snapshots returns a slice of all HTTPConfig snapshots of a given dataset.
+// Snapshots returns a slice of all ZFS snapshots of a given dataset.
 func (d *Dataset) Snapshots(extraFields []string) ([]*Dataset, error) {
 	return Snapshots(d.Name, extraFields)
 }
 
-// CreateFilesystem creates a new HTTPConfig filesystem with the specified name and properties.
+// CreateFilesystem creates a new ZFS filesystem with the specified name and properties.
 //
-// A full list of available HTTPConfig properties may be found in the HTTPConfig manual:
+// A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
 func CreateFilesystem(name string, properties map[string]string, stdin io.Reader) (*Dataset, error) {
 	args := make([]string, 1, 4)
@@ -388,7 +389,7 @@ func CreateFilesystem(name string, properties map[string]string, stdin io.Reader
 	return GetDataset(name, nil)
 }
 
-// Snapshot creates a new HTTPConfig snapshot of the receiving dataset, using the specified name.
+// Snapshot creates a new ZFS snapshot of the receiving dataset, using the specified name.
 // Optionally, the snapshot can be taken recursively, creating snapshots of all descendent filesystems in a single, atomic operation.
 func (d *Dataset) Snapshot(name string, recursive bool) (*Dataset, error) {
 	args := make([]string, 1, 4)
@@ -406,9 +407,9 @@ func (d *Dataset) Snapshot(name string, recursive bool) (*Dataset, error) {
 	return GetDataset(snapName, nil)
 }
 
-// Rollback rolls back the receiving HTTPConfig dataset to a previous snapshot.
+// Rollback rolls back the receiving ZFS dataset to a previous snapshot.
 // Optionally, intermediate snapshots can be destroyed.
-// A HTTPConfig snapshot rollback cannot be completed without this option, if more recent snapshots exist.
+// A ZFS snapshot rollback cannot be completed without this option, if more recent snapshots exist.
 // An error will be returned if the input dataset is not of snapshot type.
 func (d *Dataset) Rollback(destroyMoreRecent bool) error {
 	if d.Type != DatasetSnapshot {
@@ -426,7 +427,7 @@ func (d *Dataset) Rollback(destroyMoreRecent bool) error {
 	return err
 }
 
-// Children returns a slice of children of the receiving HTTPConfig dataset.
+// Children returns a slice of children of the receiving ZFS dataset.
 // A recursion depth may be specified, or a depth of 0 allows unlimited recursion.
 func (d *Dataset) Children(depth uint64) ([]*Dataset, error) {
 	args := []string{"list"}

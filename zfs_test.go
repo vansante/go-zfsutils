@@ -8,13 +8,43 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
+var zfsPermissions = []string{
+	"canmount",
+	"clone",
+	"compression",
+	"create",
+	"destroy",
+	"encryption",
+	"keyformat",
+	"keylocation",
+	"load-key",
+	"mount",
+	"mountpoint",
+	"promote",
+	"readonly",
+	"receive",
+	"refquota",
+	"refreservation",
+	"rename",
+	"rollback",
+	"send",
+	"snapshot",
+	"userprop",
+	"volblocksize",
+	"volmode",
+	"volsize",
+}
+
 const testZPool = "go-test-zpool"
+
+var noMountProps = map[string]string{PropertyCanMount: PropertyOff}
 
 func sleep(delay int) {
 	time.Sleep(time.Duration(delay) * time.Second)
@@ -28,7 +58,7 @@ func zpoolTest(t *testing.T, fn func()) {
 	t.Helper()
 
 	args := []string{
-		"create", testZPool,
+		"zpool", "create", testZPool,
 	}
 
 	for i := 0; i < 3; i++ {
@@ -46,15 +76,23 @@ func zpoolTest(t *testing.T, fn func()) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "zpool", args...)
+	cmd := exec.CommandContext(ctx, "sudo", args...)
 	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
+
+	cmd = exec.CommandContext(ctx, "sudo",
+		"zfs", "allow", "everyone",
+		strings.Join(zfsPermissions, ","),
+		testZPool,
+	)
+	out, err = cmd.CombinedOutput()
 	require.NoError(t, err, string(out))
 
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		cmd := exec.CommandContext(ctx, "zpool", "destroy", testZPool)
+		cmd := exec.CommandContext(ctx, "sudo", "zpool", "destroy", testZPool)
 		_, err := cmd.Output()
 		require.NoError(t, err)
 	}()
@@ -139,7 +177,7 @@ func TestSnapshots(t *testing.T) {
 
 func TestFilesystems(t *testing.T) {
 	zpoolTest(t, func() {
-		f, err := CreateFilesystem(testZPool+"/filesystem-test", nil, nil)
+		f, err := CreateFilesystem(testZPool+"/filesystem-test", noMountProps, nil)
 		require.NoError(t, err)
 
 		filesystems, err := Filesystems("", nil)
@@ -156,7 +194,8 @@ func TestFilesystems(t *testing.T) {
 func TestCreateFilesystemWithProperties(t *testing.T) {
 	zpoolTest(t, func() {
 		props := map[string]string{
-			"compression": "lz4",
+			"compression":    "lz4",
+			PropertyCanMount: PropertyOff,
 		}
 
 		f, err := CreateFilesystem(testZPool+"/filesystem-test", props, nil)
@@ -196,7 +235,7 @@ func TestVolumes(t *testing.T) {
 
 func TestSnapshot(t *testing.T) {
 	zpoolTest(t, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", nil, nil)
+		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
 		filesystems, err := Filesystems("", nil)
@@ -219,7 +258,7 @@ func TestSnapshot(t *testing.T) {
 
 func TestClone(t *testing.T) {
 	zpoolTest(t, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", nil, nil)
+		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
 		filesystems, err := Filesystems("", nil)
@@ -235,7 +274,7 @@ func TestClone(t *testing.T) {
 		require.Equal(t, DatasetSnapshot, s.Type)
 		require.Equal(t, testZPool+"/snapshot-test@test", s.Name)
 
-		c, err := s.Clone(testZPool+"/clone-test", nil)
+		c, err := s.Clone(testZPool+"/clone-test", noMountProps)
 		require.NoError(t, err)
 		require.Equal(t, DatasetFilesystem, c.Type)
 		require.NoError(t, c.Destroy(DestroyDefault))
@@ -246,7 +285,7 @@ func TestClone(t *testing.T) {
 
 func TestSendSnapshot(t *testing.T) {
 	zpoolTest(t, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", nil, nil)
+		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
 		filesystems, err := Filesystems("", nil)
@@ -268,7 +307,7 @@ func TestSendSnapshot(t *testing.T) {
 
 func TestSendSnapshotResume(t *testing.T) {
 	zpoolTest(t, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", nil, nil)
+		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
 		s, err := f.Snapshot("test", false)
@@ -281,7 +320,7 @@ func TestSendSnapshotResume(t *testing.T) {
 			require.NoError(t, pipeWrtr.Close())
 		}()
 
-		_, err = ReceiveSnapshot(io.LimitReader(pipeRdr, 10*1024), testZPool+"/recv-test", true)
+		_, err = ReceiveSnapshot(io.LimitReader(pipeRdr, 10*1024), testZPool+"/recv-test", true, noMountProps)
 		require.Error(t, err)
 		var zfsErr *Error
 		require.True(t, errors.As(err, &zfsErr))
@@ -304,7 +343,7 @@ func TestSendSnapshotResume(t *testing.T) {
 			require.NoError(t, pipeWrtr.Close())
 		}()
 
-		_, err = ReceiveSnapshot(pipeRdr, testZPool+"/recv-test", true)
+		_, err = ReceiveSnapshot(pipeRdr, testZPool+"/recv-test", true, noMountProps)
 		require.NoError(t, err)
 
 		snaps, err := Snapshots(testZPool+"/recv-test", nil)
@@ -316,7 +355,7 @@ func TestSendSnapshotResume(t *testing.T) {
 
 func TestChildren(t *testing.T) {
 	zpoolTest(t, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", nil, nil)
+		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
 		s, err := f.Snapshot("test", false)
@@ -338,7 +377,7 @@ func TestChildren(t *testing.T) {
 
 func TestRollback(t *testing.T) {
 	zpoolTest(t, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", nil, nil)
+		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
 		filesystems, err := Filesystems("", nil)

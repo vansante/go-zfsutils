@@ -8,8 +8,4 @@ Because I needed many changes to support encrypted ZFS support and the module ha
 
 ## Testing
 
-To test this module run this on a system with ZFS tools enabled:
-
-- `sudo go test -v ./`
-
 Sudo permissions are required to run `zpool` commands unfortunately. The tests create a test zpool using some files in `/tmp`.

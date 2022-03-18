@@ -1,6 +1,7 @@
 package zfs
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,11 +17,32 @@ import (
 )
 
 const (
-	extraPropertiesGETParam  = "extraProps"
-	resumableGETParam        = "resumable"
-	bytesPerSecondGETParam   = "bytesPerSecond"
-	resumeReceiveTokenHeader = "X-Receive-Resume-Token"
+	GETParamExtraProperties   = "extraProps"
+	GETParamResumable         = "resumable"
+	GETParamReceiveProperties = "receiveProps"
+	GETParamBytesPerSecond    = "bytesPerSecond"
 )
+
+const HeaderResumeReceiveToken = "X-Receive-Resume-Token"
+
+type ReceiveProperties map[string]string
+
+// DecodeReceiveProperties decodes receive properties from an URL GET parameter
+func DecodeReceiveProperties(in string) (ReceiveProperties, error) {
+	data, err := base64.URLEncoding.DecodeString(in)
+	if err != nil {
+		return ReceiveProperties{}, err
+	}
+	var props ReceiveProperties
+	err = json.Unmarshal(data, &props)
+	return props, err
+}
+
+// Encode encodes a set of ReceiveProperties
+func (r ReceiveProperties) Encode() string {
+	data, _ := json.Marshal(&r)
+	return base64.URLEncoding.EncodeToString(data)
+}
 
 // SetProperties is used by the http api to set and unset zfs properties remotely
 type SetProperties struct {
@@ -38,7 +60,7 @@ func validIdentifier(name string) bool {
 }
 
 func zfsExtraProperties(req *http.Request) []string {
-	fieldsStr := req.URL.Query().Get(extraPropertiesGETParam)
+	fieldsStr := req.URL.Query().Get(GETParamExtraProperties)
 	if fieldsStr == "" {
 		return nil
 	}
@@ -184,15 +206,19 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, p
 	ds, dsErr := GetDataset(fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), []string{PropertyReceiveResumeToken})
 	if dsErr == nil {
 		if ds.ExtraProps[PropertyReceiveResumeToken] != "" {
-			w.Header().Set(resumeReceiveTokenHeader, ds.ExtraProps[PropertyReceiveResumeToken])
+			w.Header().Set(HeaderResumeReceiveToken, ds.ExtraProps[PropertyReceiveResumeToken])
 		}
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
 
-	resumable, _ := strconv.ParseBool(req.URL.Query().Get(resumableGETParam))
+	resumable, _ := strconv.ParseBool(req.URL.Query().Get(GETParamResumable))
+	props, _ := DecodeReceiveProperties(req.URL.Query().Get(GETParamReceiveProperties))
 
-	ds, err := ReceiveSnapshot(h.getReader(req), fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot), resumable)
+	ds, err := ReceiveSnapshot(h.getReader(req),
+		fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot),
+		resumable, props,
+	)
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleReceiveSnapshot: Error storing")
 		w.WriteHeader(http.StatusNotFound)
@@ -241,7 +267,7 @@ func (h *HTTP) getSpeed(req *http.Request) int64 {
 	if !h.config.AllowSpeedOverride {
 		return speed
 	}
-	speedStr := req.URL.Query().Get(bytesPerSecondGETParam)
+	speedStr := req.URL.Query().Get(GETParamBytesPerSecond)
 	if speedStr == "" {
 		return speed
 	}

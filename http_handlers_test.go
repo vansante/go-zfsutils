@@ -39,7 +39,7 @@ func httpTest(t *testing.T, fn func(server *httptest.Server)) {
 		}
 		h.registerRoutes()
 
-		ds, err := CreateFilesystem(testFilesystem, nil, nil)
+		ds, err := CreateFilesystem(testFilesystem, map[string]string{PropertyCanMount: PropertyOff}, nil)
 		require.NoError(t, err)
 		require.Equal(t, testFilesystem, ds.Name)
 
@@ -75,7 +75,7 @@ func TestHTTP_handleSetFilesystemProps(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%s/filesystems/%s?%s=%s&%s=%s",
 			server.URL, testFilesystemName,
 			authenticationTokenGETParam, testToken,
-			extraPropertiesGETParam, "nl.test:blaat,refquota",
+			GETParamExtraProperties, "nl.test:blaat,refquota",
 		), bytes.NewBuffer(data))
 
 		resp, err := http.DefaultClient.Do(req)
@@ -141,7 +141,7 @@ func TestHTTP_handleGetSnapshot(t *testing.T) {
 		require.EqualValues(t, http.StatusOK, resp.StatusCode)
 
 		testName := fmt.Sprintf("%s/%s", testZPool, "receive")
-		ds, err = ReceiveSnapshot(resp.Body, testName, false)
+		ds, err = ReceiveSnapshot(resp.Body, testName, false, map[string]string{PropertyCanMount: PropertyOff})
 		require.NoError(t, err)
 		require.Equal(t, testName, ds.Name)
 
@@ -170,7 +170,7 @@ func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
-			_, err = ReceiveSnapshot(pipeRdr, newFilesys, false)
+			_, err = ReceiveSnapshot(pipeRdr, newFilesys, false, map[string]string{PropertyCanMount: PropertyOff})
 			require.NoError(t, err)
 			wg.Done()
 		}()
@@ -191,7 +191,7 @@ func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
 		defer resp.Body.Close()
 		require.EqualValues(t, http.StatusOK, resp.StatusCode)
 
-		ds, err = ReceiveSnapshot(resp.Body, newFilesys, false)
+		ds, err = ReceiveSnapshot(resp.Body, newFilesys, false, map[string]string{PropertyCanMount: PropertyOff})
 		require.NoError(t, err)
 		require.Equal(t, newFilesys, ds.Name)
 
@@ -224,7 +224,7 @@ func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
 		require.EqualValues(t, http.StatusOK, resp.StatusCode)
 
 		testName := fmt.Sprintf("%s/%s", testZPool, "receive")
-		ds, err = ReceiveSnapshot(io.LimitReader(resp.Body, 29_636), testName, true)
+		ds, err = ReceiveSnapshot(io.LimitReader(resp.Body, 29_636), testName, true, map[string]string{PropertyCanMount: PropertyOff})
 		require.Error(t, err)
 		var recvErr *Error
 		require.True(t, errors.As(err, &recvErr))
@@ -248,7 +248,7 @@ func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
 		defer resp.Body.Close()
 		require.EqualValues(t, http.StatusOK, resp.StatusCode)
 
-		ds, err = ReceiveSnapshot(resp.Body, testName, true)
+		ds, err = ReceiveSnapshot(resp.Body, testName, true, map[string]string{PropertyCanMount: PropertyOff})
 		require.NoError(t, err)
 
 		snaps, err := Snapshots(testName, nil)
@@ -266,10 +266,11 @@ func TestHTTP_handleReceiveSnapshot(t *testing.T) {
 
 		const newFilesystem = "bla"
 		const newSnap = "recv"
-		req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s",
+		req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s&%s=%s",
 			server.URL, newFilesystem,
 			newSnap,
 			authenticationTokenGETParam, testToken,
+			GETParamReceiveProperties, ReceiveProperties{PropertyCanMount: PropertyOff}.Encode(),
 		), pipeRdr)
 		require.NoError(t, err)
 

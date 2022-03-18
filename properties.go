@@ -11,8 +11,11 @@ const (
 	PropertyRefQuota           = "refquota"
 	PropertyReceiveResumeToken = "receive_resume_token"
 
-	PropertyYes = "yes"
-	PropertyNo  = "no"
+	PropertyYes   = "yes"
+	PropertyOn    = "on"
+	PropertyNo    = "no"
+	PropertyOff   = "off"
+	PropertyUnset = "-"
 
 	KeyFormatPassphrase = "passphrase"
 	CanMountNoAuto      = "noauto"
