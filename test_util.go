@@ -87,10 +87,6 @@ func TestZPool(zpool string, fn func()) {
 	fn()
 }
 
-func sleep(delay int) {
-	time.Sleep(time.Duration(delay) * time.Second)
-}
-
 func pow2(x int) int64 {
 	return int64(math.Pow(2, float64(x)))
 }

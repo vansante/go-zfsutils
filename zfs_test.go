@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -129,7 +130,7 @@ func TestVolumes(t *testing.T) {
 		require.NoError(t, err)
 
 		// volumes are sometimes "busy" if you try to manipulate them right away
-		sleep(1)
+		time.Sleep(time.Second)
 
 		require.Equal(t, DatasetVolume, v.Type)
 		volumes, err := Volumes("", nil)
