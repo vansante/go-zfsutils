@@ -57,6 +57,11 @@ func pow2(x int) int64 {
 func zpoolTest(t *testing.T, fn func()) {
 	t.Helper()
 
+	cmd := exec.Command("zfs", "version")
+	out, err := cmd.Output()
+	require.NoError(t, err, "zfs not found?")
+	t.Logf("ZFS version: %s", strings.ReplaceAll(string(out), "\n", " "))
+
 	args := []string{
 		"zpool", "create", testZPool,
 	}
@@ -76,8 +81,8 @@ func zpoolTest(t *testing.T, fn func()) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "sudo", args...)
-	out, err := cmd.CombinedOutput()
+	cmd = exec.CommandContext(ctx, "sudo", args...)
+	out, err = cmd.CombinedOutput()
 	require.NoError(t, err, string(out))
 
 	cmd = exec.CommandContext(ctx, "sudo",
@@ -324,7 +329,7 @@ func TestSendSnapshotResume(t *testing.T) {
 		require.Error(t, err)
 		var zfsErr *Error
 		require.True(t, errors.As(err, &zfsErr))
-		require.True(t, zfsErr.Resumable())
+		require.True(t, zfsErr.Resumable(), zfsErr)
 
 		list, err := Filesystems(testZPool+"/recv-test", []string{PropertyReceiveResumeToken})
 		require.NoError(t, err)
