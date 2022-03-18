@@ -139,11 +139,11 @@ func TestDatasetGetProperty(t *testing.T) {
 		ds, err := GetDataset(testZPool, nil)
 		require.NoError(t, err)
 
-		prop, err := ds.GetProperty("readonly")
+		prop, err := ds.GetProperty(PropertyReadOnly)
 		require.NoError(t, err)
 		require.Equal(t, "off", prop)
 
-		prop, err = ds.GetProperty("compression")
+		prop, err = ds.GetProperty(PropertyCompression)
 		require.NoError(t, err)
 		require.Equal(t, "off", prop)
 	})
@@ -199,8 +199,8 @@ func TestFilesystems(t *testing.T) {
 func TestCreateFilesystemWithProperties(t *testing.T) {
 	zpoolTest(t, func() {
 		props := map[string]string{
-			"compression":    "lz4",
-			PropertyCanMount: PropertyOff,
+			PropertyCompression: "lz4",
+			PropertyCanMount:    PropertyOff,
 		}
 
 		f, err := CreateFilesystem(testZPool+"/filesystem-test", props, nil)

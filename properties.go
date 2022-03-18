@@ -1,15 +1,28 @@
 package zfs
 
 const (
+	PropertyAvailable          = "available"
 	PropertyCanMount           = "canmount"
+	PropertyCompression        = "compression"
 	PropertyEncryption         = "encryption"
 	PropertyKeyFormat          = "keyformat"
 	PropertyKeyStatus          = "keystatus"
 	PropertyKeyLocation        = "keylocation"
+	PropertyLogicalUsed        = "logicalused"
 	PropertyMounted            = "mounted"
 	PropertyMountPoint         = "mountpoint"
+	PropertyName               = "name"
+	PropertyOrigin             = "origin"
+	PropertyQuota              = "quota"
+	PropertyReferenced         = "referenced"
 	PropertyRefQuota           = "refquota"
+	PropertyReadOnly           = "readonly"
 	PropertyReceiveResumeToken = "receive_resume_token"
+	PropertyType               = "type"
+	PropertyUsed               = "used"
+	PropertyUsedByDataset      = "usedbydataset"
+	PropertyVolSize            = "volsize"
+	PropertyWritten            = "written"
 
 	PropertyYes   = "yes"
 	PropertyOn    = "on"

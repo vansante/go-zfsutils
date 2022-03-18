@@ -12,19 +12,19 @@ import (
 
 // List of HTTPConfig properties to retrieve from zfs list command by default
 var dsPropList = []string{
-	"name",
-	"origin",
-	"used",
-	"available",
-	"mountpoint",
-	"compression",
-	"type",
-	"volsize",
-	"quota",
-	"referenced",
-	"written",
-	"logicalused",
-	"usedbydataset",
+	PropertyName,
+	PropertyOrigin,
+	PropertyUsed,
+	PropertyAvailable,
+	PropertyMountPoint,
+	PropertyCompression,
+	PropertyType,
+	PropertyVolSize,
+	PropertyQuota,
+	PropertyReferenced,
+	PropertyWritten,
+	PropertyLogicalUsed,
+	PropertyUsedByDataset,
 }
 
 type command struct {
