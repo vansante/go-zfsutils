@@ -70,6 +70,7 @@ func (h *HTTP) registerRoutes() {
 	h.router.DELETE("/filesystems/:filesystem", h.authenticated(h.handleDestroyFilesystem))
 
 	h.router.GET("/filesystems/:filesystem/snapshots", h.authenticated(h.handleListSnapshots))
+	h.router.GET("/filesystems/:filesystem/resume-token", h.authenticated(h.handleGetResumeToken))
 
 	h.router.GET("/filesystems/:filesystem/snapshots/:snapshot", h.authenticated(h.handleGetSnapshot))
 	h.router.GET("/filesystems/:filesystem/snapshots/:snapshot/incremental/:basesnapshot", h.authenticated(h.handleGetSnapshotIncremental))
