@@ -80,5 +80,7 @@ func (r *Runner) createSnapshotsForDataset(ds *zfs.Dataset) error {
 	if err != nil {
 		return fmt.Errorf("error setting %s on snapshot %s: %w", createdProp, snap.Name, err)
 	}
+
+	r.Emitter.EmitEvent(CreatedSnapshotEvent, ds.Name, name, tm)
 	return nil
 }
