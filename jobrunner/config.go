@@ -3,12 +3,12 @@ package jobrunner
 import "github.com/vansante/go-zfs"
 
 const (
-	defaultDatasetType          = zfs.DatasetAll
+	defaultDatasetType          = zfs.DatasetFilesystem
 	defaultSnapshotNameTemplate = "backup_%UNIXTIME%"
 
 	defaultSnapshotIntervalMinutesProperty = "com.github.vansante:snapshot-interval-minutes"
 	defaultSnapshotCreatedAtProperty       = "com.github.vansante:snapshot-created-at"
-	defaultSendSnapshotToProperty          = "com.github.vansante:send-snapshot-to"
+	defaultSnapshotSendToProperty          = "com.github.vansante:snapshot-send-to"
 	defaultSnapshotSentAtProperty          = "com.github.vansante:snapshot-sent-at"
 	defaultSnapshotRetentionCountProperty  = "com.github.vansante:snapshot-retention-count"
 	defaultDeleteAtProperty                = "com.github.vansante:delete-at"
@@ -17,6 +17,7 @@ const (
 type Config struct {
 	ParentDataset                         string          `json:"ParentDataset" yaml:"ParentDataset"`
 	DatasetType                           zfs.DatasetType `json:"DatasetTypes" yaml:"DatasetTypes"`
+	AuthorisationToken                    string          `json:"AuthorisationToken" yaml:"AuthorisationToken"`
 	SnapshotNameTemplate                  string          `json:"SnapshotNameTemplate" yaml:"SnapshotNameTemplate"`
 	SnapshotRecursive                     bool            `json:"SnapshotRecursive" yaml:"SnapshotRecursive"`
 	IgnoreSnapshotsWithoutCreatedProperty bool            `json:"IgnoreSnapshotsWithoutCreatedProperty" yaml:"IgnoreSnapshotsWithoutCreatedProperty"`
@@ -28,7 +29,7 @@ type Config struct {
 type Properties struct {
 	SnapshotIntervalMinutes string `json:"SnapshotIntervalMinutes" yaml:"SnapshotIntervalMinutes"`
 	SnapshotCreatedAt       string `json:"SnapshotCreatedAt" yaml:"SnapshotCreatedAt"`
-	SendSnapshotTo          string `json:"SendSnapshotTo" yaml:"SendSnapshotTo"`
+	SnapshotSendTo          string `json:"SnapshotSendTo" yaml:"SnapshotSendTo"`
 	SnapshotSentAt          string `json:"SnapshotSentAt" yaml:"SnapshotSentAt"`
 	SnapshotRetentionCount  string `json:"SnapshotRetentionCount" yaml:"SnapshotRetentionCount"`
 	DeleteAt                string `json:"DeleteAt" yaml:"DeleteAt"`
@@ -41,7 +42,7 @@ func (c *Config) ApplyDefaults() {
 
 	c.Properties.SnapshotIntervalMinutes = defaultSnapshotIntervalMinutesProperty
 	c.Properties.SnapshotCreatedAt = defaultSnapshotCreatedAtProperty
-	c.Properties.SendSnapshotTo = defaultSendSnapshotToProperty
+	c.Properties.SnapshotSendTo = defaultSnapshotSendToProperty
 	c.Properties.SnapshotSentAt = defaultSnapshotSentAtProperty
 	c.Properties.SnapshotRetentionCount = defaultSnapshotRetentionCountProperty
 	c.Properties.DeleteAt = defaultDeleteAtProperty

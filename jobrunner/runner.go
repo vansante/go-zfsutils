@@ -10,6 +10,8 @@ import (
 
 const (
 	dateTimeFormat = time.RFC3339
+
+	requestTimeout = time.Second * 20
 )
 
 type Runner struct {
@@ -21,15 +23,38 @@ type Runner struct {
 }
 
 func (r *Runner) Run() error {
-
-	return nil
-}
-
-func (r *Runner) sendSnapshots() error {
+	err := r.createSnapshots()
+	if err != nil {
+		return err
+	}
+	err = r.sendSnapshots()
+	if err != nil {
+		return err
+	}
+	err = r.markPrunableSnapshots()
+	if err != nil {
+		return err
+	}
+	err = r.markPrunableRemoteSnapshots()
+	if err != nil {
+		return err
+	}
+	err = r.pruneSnapshots()
+	if err != nil {
+		return err
+	}
+	err = r.pruneFilesystems()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (r *Runner) markPrunableSnapshots() error {
+	return nil
+}
+
+func (r *Runner) markPrunableRemoteSnapshots() error {
 	return nil
 }
 

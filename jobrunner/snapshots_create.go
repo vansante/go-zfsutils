@@ -11,7 +11,7 @@ import (
 func (r *Runner) createSnapshots() error {
 	datasets, err := zfs.ListWithProperty(r.config.DatasetType, r.config.ParentDataset, r.config.Properties.SnapshotIntervalMinutes)
 	if err != nil {
-		return fmt.Errorf("error finding datasets: %w", err)
+		return fmt.Errorf("error finding snapshottable datasets: %w", err)
 	}
 
 	for dataset := range datasets {
@@ -19,7 +19,7 @@ func (r *Runner) createSnapshots() error {
 			r.config.Properties.SnapshotIntervalMinutes,
 		})
 		if err != nil {
-			return fmt.Errorf("error retrieving dataset for snapshot creation: %w", err)
+			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
 		err = r.createSnapshotsForDataset(ds)
 		if err != nil {
@@ -58,7 +58,7 @@ func (r *Runner) createSnapshotsForDataset(ds *zfs.Dataset) error {
 
 		created, err := parseDatasetTimeProperty(snap, createdProp)
 		if err != nil {
-			return fmt.Errorf("error parsing %s on snapshot %s: %w", r.config.Properties.SnapshotCreatedAt, snap.Name, err)
+			return fmt.Errorf("error parsing %s on snapshot %s: %w", createdProp, snap.Name, err)
 		}
 		if created.After(latestSnap) {
 			created = latestSnap
