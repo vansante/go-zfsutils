@@ -37,16 +37,14 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 	cmd := exec.Command(c.Command, arg...)
 
 	var stdout, stderr bytes.Buffer
+	cmd.Stdout = c.Stdout
+	cmd.Stderr = &stderr
 	if c.Stdout == nil {
 		cmd.Stdout = &stdout
-	} else {
-		cmd.Stdout = c.Stdout
 	}
-
 	if c.Stdin != nil {
 		cmd.Stdin = c.Stdin
 	}
-	cmd.Stderr = &stderr
 
 	joinedArgs := strings.Join(cmd.Args, " ")
 	err := cmd.Run()
