@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/vansante/go-zfs"
 
@@ -308,5 +309,111 @@ func TestHTTP_handleReceiveSnapshot(t *testing.T) {
 		require.NoError(t, pipeWrtr.Close())
 
 		wg.Wait()
+	})
+}
+
+func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
+	httpTest(t, func(server *httptest.Server) {
+		const snapName = "send"
+
+		ds, err := zfs.GetDataset(testFilesystem, nil)
+		require.NoError(t, err)
+		toBeSent, err := ds.Snapshot(snapName, false)
+		require.NoError(t, err)
+
+		const newFilesystem = "bla"
+		const newSnap = "recv"
+
+		newFullSnap := fmt.Sprintf("%s/%s@%s", testZPool, newFilesystem, newSnap)
+		pipeRdr, pipeWrtr := io.Pipe()
+
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+
+		go func() {
+			_, err := zfs.ReceiveSnapshot(io.LimitReader(pipeRdr, 28_725),
+				newFullSnap,
+				true, map[string]string{
+					zfs.PropertyCanMount: zfs.PropertyOff,
+				},
+			)
+			require.Error(t, err)
+			wg.Done()
+		}()
+
+		go func() {
+			time.Sleep(time.Second / 5)
+			require.NoError(t, pipeWrtr.Close())
+			wg.Done()
+		}()
+
+		err = toBeSent.SendSnapshot(pipeWrtr, true)
+		require.Error(t, err)
+		wg.Wait()
+
+		ds, err = zfs.GetDataset(fmt.Sprintf("%s/%s", testZPool, newFilesystem), []string{zfs.PropertyReceiveResumeToken})
+		require.NoError(t, err)
+		require.NotEmpty(t, ds.ExtraProps[zfs.PropertyReceiveResumeToken])
+		require.True(t, len(ds.ExtraProps[zfs.PropertyReceiveResumeToken]) > 100)
+
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/resume-token?%s=%s",
+			server.URL, newFilesystem,
+			authenticationTokenGETParam, testToken,
+		), nil)
+		require.NoError(t, err)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.Equal(t, http.StatusNoContent, resp.StatusCode)
+		token := resp.Header.Get(HeaderResumeReceiveToken)
+		require.True(t, len(token) > 100)
+
+		t.Logf("Got resume token: %s", ds.ExtraProps[zfs.PropertyReceiveResumeToken])
+
+		pipeRdr, pipeWrtr = io.Pipe()
+
+		// Now do a resume HTTP receive request
+		req, err = http.NewRequest(http.MethodPut, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s&%s=%s&%s=%s",
+			server.URL, newFilesystem,
+			newSnap,
+			authenticationTokenGETParam, testToken,
+			GETParamResumable, "true",
+			GETParamReceiveProperties, ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff}.Encode(),
+		), pipeRdr)
+		req.Header.Set(HeaderResumeReceiveToken, token)
+		require.NoError(t, err)
+
+		wg = sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+			require.EqualValues(t, http.StatusCreated, resp.StatusCode)
+
+			ds := zfs.Dataset{}
+			err = json.NewDecoder(resp.Body).Decode(&ds)
+			require.NoError(t, err)
+			name := fmt.Sprintf("%s/%s@%s", testZPool, newFilesystem, newSnap)
+			require.Equal(t, name, ds.Name)
+
+			snaps, err := zfs.Snapshots(fmt.Sprintf("%s/%s", testZPool, newFilesystem), nil)
+			require.NoError(t, err)
+			require.Len(t, snaps, 1)
+			require.Equal(t, name, snaps[0].Name)
+
+			wg.Done()
+		}()
+
+		err = zfs.ResumeSend(pipeWrtr, token)
+		require.NoError(t, err)
+		require.NoError(t, pipeWrtr.Close())
+
+		wg.Wait()
+
+		ds, err = zfs.GetDataset(newFullSnap, nil)
+		require.NoError(t, err)
+		require.Equal(t, ds.Name, newFullSnap)
 	})
 }

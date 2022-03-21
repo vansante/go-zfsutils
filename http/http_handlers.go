@@ -188,6 +188,33 @@ func (h *HTTP) handleListSnapshots(w http.ResponseWriter, req *http.Request, ps 
 	}
 }
 
+func (h *HTTP) handleGetResumeToken(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *logrus.Entry) {
+	filesystem := ps.ByName("filesystem")
+	logger = logger.WithFields(logrus.Fields{
+		"filesystem": filesystem,
+	})
+
+	if !validIdentifier(filesystem) {
+		logger.Info("zfs.http.handleListSnapshots: Invalid identifier")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	ds, err := zfs.GetDataset(fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), []string{zfs.PropertyReceiveResumeToken})
+	if err != nil {
+		logger.WithError(err).Error("zfs.http.handleGetResumeToken: Error finding dataset")
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	if len(ds.ExtraProps[zfs.PropertyReceiveResumeToken]) < 10 {
+		w.WriteHeader(http.StatusPreconditionFailed)
+		return
+	}
+
+	w.Header().Set(HeaderResumeReceiveToken, ds.ExtraProps[zfs.PropertyReceiveResumeToken])
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *logrus.Entry) {
 	filesystem := ps.ByName("filesystem")
 	snapshot := ps.ByName("snapshot")
@@ -202,11 +229,29 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, p
 		return
 	}
 
+	givenResumeToken := req.Header.Get(HeaderResumeReceiveToken)
+	datasetResumeToken := ""
 	ds, dsErr := zfs.GetDataset(fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), []string{zfs.PropertyReceiveResumeToken})
 	if dsErr == nil {
-		if ds.ExtraProps[zfs.PropertyReceiveResumeToken] != "" {
-			w.Header().Set(HeaderResumeReceiveToken, ds.ExtraProps[zfs.PropertyReceiveResumeToken])
-		}
+		datasetResumeToken = ds.ExtraProps[zfs.PropertyReceiveResumeToken]
+	}
+
+	if datasetResumeToken != "" {
+		// Set the resume token if set.
+		w.Header().Set(HeaderResumeReceiveToken, datasetResumeToken)
+	}
+
+	if datasetResumeToken == "" && givenResumeToken != "" {
+		logger.WithField("resumeToken", givenResumeToken).Info("zfs.http.handleReceiveSnapshot: Got resume token but found none on dataset")
+		w.WriteHeader(http.StatusPreconditionFailed)
+		return
+	}
+
+	if givenResumeToken != "" && datasetResumeToken != givenResumeToken {
+		logger.WithFields(logrus.Fields{
+			"givenResumeToken":  givenResumeToken,
+			"actualResumeToken": datasetResumeToken,
+		}).Info("zfs.http.handleReceiveSnapshot: Got invalid resume token compared with dataset")
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
