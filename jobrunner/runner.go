@@ -2,10 +2,14 @@ package jobrunner
 
 import (
 	"context"
+	"time"
 
 	eventemitter "github.com/vansante/go-event-emitter"
-
 	"github.com/vansante/go-zfs"
+)
+
+const (
+	dateTimeFormat = time.RFC3339
 )
 
 type Runner struct {
@@ -17,9 +21,22 @@ type Runner struct {
 }
 
 func (r *Runner) Run() error {
+
 	return nil
 }
 
-func (r *Runner) findSnapshotDatasets() ([]string, error) {
-	datasets, err := zfs.ListDatasetWithProperty(r.config.ParentDataset, r.config.SnapshotIntervalProperty)
+func (r *Runner) sendSnapshots() error {
+	return nil
+}
+
+func (r *Runner) markPrunableSnapshots() error {
+	return nil
+}
+
+func (r *Runner) pruneSnapshots() error {
+	return nil
+}
+
+func (r *Runner) pruneFilesystems() error {
+	return nil
 }
