@@ -152,40 +152,6 @@ func (d *Dataset) parseLine(lines []string, extraFields []string) error {
 	return nil
 }
 
-// ListByType lists the datasets by type and allows you to fetch extra custom fields
-func ListByType(t DatasetType, filter string, extraFields []string) ([]*Dataset, error) {
-	fields := append(dsPropList, extraFields...) // nolint: gocritic
-
-	dsPropListOptions := strings.Join(fields, ",")
-	args := []string{"list", "-rHp", "-t", string(t), "-o", dsPropListOptions}
-	if filter != "" {
-		args = append(args, filter)
-	}
-
-	out, err := zfsOutput(args...)
-	if err != nil {
-		return nil, err
-	}
-
-	name := ""
-	var datasets []*Dataset
-	var ds *Dataset
-	for _, line := range out {
-		if name != line[0] {
-			name = line[0]
-			ds = &Dataset{Name: name}
-			datasets = append(datasets, ds)
-		}
-
-		err := ds.parseLine(line, extraFields)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return datasets, nil
-}
-
 func propsSlice(properties map[string]string) []string {
 	args := make([]string, 0, len(properties)*3)
 	for k, v := range properties {

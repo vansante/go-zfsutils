@@ -167,7 +167,7 @@ func TestSnapshot(t *testing.T) {
 	})
 }
 
-func TestDatasetsWithProperty(t *testing.T) {
+func TestListWithProperty(t *testing.T) {
 	TestZPool(testZPool, func() {
 		const prop = "nl.test:bla"
 
@@ -175,7 +175,7 @@ func TestDatasetsWithProperty(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, f.SetProperty(prop, "123"))
 
-		ls, err := DatasetsWithProperty(DatasetFilesystem, testZPool+"/list-test", prop)
+		ls, err := ListWithProperty(DatasetFilesystem, testZPool+"/list-test", prop)
 		require.NoError(t, err)
 		require.Len(t, ls, 1)
 		require.Equal(t, map[string]string{
