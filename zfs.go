@@ -18,6 +18,7 @@ type DatasetType string
 
 // ZFS dataset types, which can indicate if a dataset is a filesystem, snapshot, or volume.
 const (
+	DatasetAll        DatasetType = "all"
 	DatasetFilesystem DatasetType = "filesystem"
 	DatasetSnapshot   DatasetType = "snapshot"
 	DatasetVolume     DatasetType = "volume"
@@ -69,10 +70,43 @@ func zfsOutput(arg ...string) ([][]string, error) {
 	return c.Run(arg...)
 }
 
+// ListByType lists the datasets by type and allows you to fetch extra custom fields
+func ListByType(t DatasetType, filter string, extraFields []string) ([]*Dataset, error) {
+	fields := append(dsPropList, extraFields...) // nolint: gocritic
+
+	dsPropListOptions := strings.Join(fields, ",")
+	args := []string{"list", "-rHp", "-t", string(t), "-o", dsPropListOptions}
+	if filter != "" {
+		args = append(args, filter)
+	}
+
+	out, err := zfsOutput(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	name := ""
+	var datasets []*Dataset
+	var ds *Dataset
+	for _, line := range out {
+		if name != line[0] {
+			name = line[0]
+			ds = &Dataset{Name: name}
+			datasets = append(datasets, ds)
+		}
+
+		err := ds.parseLine(line, extraFields)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return datasets, nil
+}
+
 // Datasets returns a slice of ZFS datasets, regardless of type.
 // A filter argument may be passed to select a dataset with the matching name, or empty string ("") may be used to select all datasets.
 func Datasets(filter string, extraFields []string) ([]*Dataset, error) {
-	return ListByType("all", filter, extraFields)
+	return ListByType(DatasetAll, filter, extraFields)
 }
 
 // Snapshots returns a slice of ZFS snapshots.
@@ -93,8 +127,8 @@ func Volumes(filter string, extraFields []string) ([]*Dataset, error) {
 	return ListByType(DatasetVolume, filter, extraFields)
 }
 
-// DatasetsWithProperty returns a list of datasets which have the given ZFS property.
-func DatasetsWithProperty(t DatasetType, filter, prop string) (map[string]string, error) {
+// ListWithProperty returns a map of dataset names mapped to the properties value for datasets which have the given ZFS property.
+func ListWithProperty(t DatasetType, filter, prop string) (map[string]string, error) {
 	c := command{Command: Binary}
 	lines, err := c.Run("get", "-t", string(t), "-Hp", "-o", "name,value", "-r", "-s", "local", prop, filter)
 	if err != nil {
