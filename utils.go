@@ -13,12 +13,12 @@ import (
 // List of HTTPConfig properties to retrieve from zfs list command by default
 var dsPropList = []string{
 	PropertyName,
+	PropertyType,
 	PropertyOrigin,
 	PropertyUsed,
 	PropertyAvailable,
 	PropertyMountPoint,
 	PropertyCompression,
-	PropertyType,
 	PropertyVolSize,
 	PropertyQuota,
 	PropertyReferenced,
@@ -76,79 +76,90 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 	return output, nil
 }
 
-func setString(field *string, value string) {
-	v := ""
-	if value != "-" {
-		v = value
+func setString(field *string, values []string) []string {
+	val, values := values[0], values[1:]
+	if val == PropertyUnset {
+		return values
 	}
-	*field = v
+	*field = val
+	return values
 }
 
-func setUint(field *uint64, value string) error {
-	var v uint64
-	if value != "-" {
-		var err error
-		v, err = strconv.ParseUint(value, 10, 64)
-		if err != nil {
-			return err
-		}
+func setUint(field *uint64, values []string) ([]string, error) {
+	var val string
+	val, values = values[0], values[1:]
+	if val == PropertyUnset {
+		return values, nil
 	}
+
+	v, err := strconv.ParseUint(val, 10, 64)
+	if err != nil {
+		return values, err
+	}
+
 	*field = v
-	return nil
+	return values, nil
 }
 
-func (d *Dataset) parseLine(line []string, extraFields []string) error {
-	var err error
-	if len(line) != len(dsPropList)+len(extraFields) {
+func (d *Dataset) parseLine(lines []string, extraFields []string) error {
+	if len(lines) != len(dsPropList)+len(extraFields) {
 		return errors.New("output does not match what is expected on this platform")
 	}
 
-	setString(&d.Name, line[0])
-	setString(&d.Origin, line[1])
+	lines = setString(&d.Name, lines)
 
-	if err = setUint(&d.Used, line[2]); err != nil {
-		return err
-	}
-	if err = setUint(&d.Avail, line[3]); err != nil {
-		return err
-	}
+	d.Type = DatasetType(lines[0])
+	lines = lines[1:]
 
-	setString(&d.Mountpoint, line[4])
-	setString(&d.Compression, line[5])
-	setString(&d.Type, line[6])
-
-	if err = setUint(&d.Volsize, line[7]); err != nil {
+	lines = setString(&d.Origin, lines)
+	lines, err := setUint(&d.Used, lines)
+	if err != nil {
 		return err
 	}
-	if err = setUint(&d.Quota, line[8]); err != nil {
+	lines, err = setUint(&d.Avail, lines)
+	if err != nil {
 		return err
 	}
-	if err = setUint(&d.Referenced, line[9]); err != nil {
+	lines = setString(&d.Mountpoint, lines)
+	lines = setString(&d.Compression, lines)
+	lines, err = setUint(&d.Volsize, lines)
+	if err != nil {
 		return err
 	}
-	if err = setUint(&d.Written, line[10]); err != nil {
+	lines, err = setUint(&d.Quota, lines)
+	if err != nil {
 		return err
 	}
-	if err = setUint(&d.Logicalused, line[11]); err != nil {
+	lines, err = setUint(&d.Referenced, lines)
+	if err != nil {
 		return err
 	}
-	if err = setUint(&d.Usedbydataset, line[12]); err != nil {
+	lines, err = setUint(&d.Written, lines)
+	if err != nil {
+		return err
+	}
+	lines, err = setUint(&d.Logicalused, lines)
+	if err != nil {
+		return err
+	}
+	lines, err = setUint(&d.Usedbydataset, lines)
+	if err != nil {
 		return err
 	}
 
 	d.ExtraProps = make(map[string]string, len(extraFields))
 	for i, field := range extraFields {
-		d.ExtraProps[field] = line[i+13]
+		d.ExtraProps[field] = lines[i]
 	}
 	return nil
 }
 
 // ListByType lists the datasets by type and allows you to fetch extra custom fields
-func ListByType(t, filter string, extraFields []string) ([]*Dataset, error) {
+func ListByType(t DatasetType, filter string, extraFields []string) ([]*Dataset, error) {
 	fields := append(dsPropList, extraFields...) // nolint: gocritic
 
 	dsPropListOptions := strings.Join(fields, ",")
-	args := []string{"list", "-rHp", "-t", t, "-o", dsPropListOptions}
+	args := []string{"list", "-rHp", "-t", string(t), "-o", dsPropListOptions}
 	if filter != "" {
 		args = append(args, filter)
 	}

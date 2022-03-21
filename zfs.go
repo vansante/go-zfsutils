@@ -13,11 +13,14 @@ const (
 	Binary = "zfs"
 )
 
+// DatasetType is the zfs dataset type
+type DatasetType string
+
 // ZFS dataset types, which can indicate if a dataset is a filesystem, snapshot, or volume.
 const (
-	DatasetFilesystem = "filesystem"
-	DatasetSnapshot   = "snapshot"
-	DatasetVolume     = "volume"
+	DatasetFilesystem DatasetType = "filesystem"
+	DatasetSnapshot   DatasetType = "snapshot"
+	DatasetVolume     DatasetType = "volume"
 )
 
 // Dataset is a ZFS dataset.  A dataset could be a clone, filesystem, snapshot, or volume.
@@ -27,12 +30,12 @@ const (
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
 type Dataset struct {
 	Name          string
+	Type          DatasetType
 	Origin        string
 	Used          uint64
 	Avail         uint64
 	Mountpoint    string
 	Compression   string
-	Type          string
 	Written       uint64
 	Volsize       uint64
 	Logicalused   uint64
@@ -90,10 +93,10 @@ func Volumes(filter string, extraFields []string) ([]*Dataset, error) {
 	return ListByType(DatasetVolume, filter, extraFields)
 }
 
-// ListDatasetWithProperty returns a list of datasets which have the given ZFS property.
-func ListDatasetWithProperty(filter, prop string) (map[string]string, error) {
+// DatasetsWithProperty returns a list of datasets which have the given ZFS property.
+func DatasetsWithProperty(t DatasetType, filter, prop string) (map[string]string, error) {
 	c := command{Command: Binary}
-	lines, err := c.Run("get", "-Hp", "-o", "name,value", "-r", "-s", "local", prop, filter)
+	lines, err := c.Run("get", "-t", string(t), "-Hp", "-o", "name,value", "-r", "-s", "local", prop, filter)
 	if err != nil {
 		return nil, err
 	}

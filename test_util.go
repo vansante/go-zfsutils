@@ -2,6 +2,7 @@ package zfs
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"math"
 	"os"
@@ -39,8 +40,9 @@ var zfsPermissions = []string{
 
 // TestZPool uses some temp files to create a zpool with the given name to run tests with
 func TestZPool(zpool string, fn func()) {
-	noErr := func(err error) {
+	noErr := func(err error, out string) {
 		if err != nil {
+			fmt.Println(out)
 			panic(err)
 		}
 	}
@@ -50,10 +52,10 @@ func TestZPool(zpool string, fn func()) {
 
 	for i := 0; i < 3; i++ {
 		f, err := ioutil.TempFile(os.TempDir(), "zfs-zpool-")
-		noErr(err)
+		noErr(err, "")
 		err = f.Truncate(pow2(29))
-		noErr(f.Close())
-		noErr(err)
+		noErr(err, "")
+		noErr(f.Close(), "")
 
 		args = append(args, f.Name())
 
@@ -64,24 +66,24 @@ func TestZPool(zpool string, fn func()) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "sudo", args...)
-	_, err := cmd.CombinedOutput()
-	noErr(err)
+	out, err := cmd.CombinedOutput()
+	noErr(err, string(out))
 
 	cmd = exec.CommandContext(ctx, "sudo",
 		"zfs", "allow", "everyone",
 		strings.Join(zfsPermissions, ","),
 		zpool,
 	)
-	_, err = cmd.CombinedOutput()
-	noErr(err)
+	out, err = cmd.CombinedOutput()
+	noErr(err, string(out))
 
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
 		cmd := exec.CommandContext(ctx, "sudo", "zpool", "destroy", zpool)
-		_, err := cmd.Output()
-		noErr(err)
+		out, err := cmd.CombinedOutput()
+		noErr(err, string(out))
 	}()
 
 	fn()
