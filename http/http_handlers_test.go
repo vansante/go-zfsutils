@@ -2,7 +2,6 @@ package http
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,8 +14,6 @@ import (
 
 	"github.com/vansante/go-zfs"
 
-	"github.com/julienschmidt/httprouter"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,33 +24,8 @@ const (
 	testFilesystem     = testZPool + "/" + testFilesystemName
 )
 
-func httpTest(t *testing.T, fn func(server *httptest.Server)) {
-	t.Helper()
-	zfs.TestZPool(testZPool, func() {
-		rtr := httprouter.New()
-		h := HTTP{
-			router: rtr,
-			config: Config{
-				ParentDataset:        testZPool,
-				AllowDestroy:         true,
-				AuthenticationTokens: []string{testToken},
-			},
-			logger: logrus.WithField("test", "test"),
-			ctx:    context.Background(),
-		}
-		h.registerRoutes()
-
-		ds, err := zfs.CreateFilesystem(testFilesystem, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
-		require.NoError(t, err)
-		require.Equal(t, testFilesystem, ds.Name)
-
-		server := httptest.NewServer(rtr)
-		fn(server)
-	})
-}
-
 func TestHTTP_handleListFilesystems(t *testing.T) {
-	httpTest(t, func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
 		resp, err := http.Get(fmt.Sprintf("%s/filesystems?%s=%s", server.URL, authenticationTokenGETParam, testToken))
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -69,7 +41,7 @@ func TestHTTP_handleListFilesystems(t *testing.T) {
 }
 
 func TestHTTP_handleSetFilesystemProps(t *testing.T) {
-	httpTest(t, func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
 		props := SetProperties{
 			Set: map[string]string{"nl.test:blaat": "disk"},
 		}
@@ -97,7 +69,7 @@ func TestHTTP_handleSetFilesystemProps(t *testing.T) {
 }
 
 func TestHTTP_handleMakeSnapshot(t *testing.T) {
-	httpTest(t, func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
 		const snapName = "snappie"
 
 		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s",
@@ -125,7 +97,7 @@ func TestHTTP_handleMakeSnapshot(t *testing.T) {
 }
 
 func TestHTTP_handleGetSnapshot(t *testing.T) {
-	httpTest(t, func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
 		const snapName = "snappie"
 
 		ds, err := zfs.GetDataset(testFilesystem, nil)
@@ -157,7 +129,7 @@ func TestHTTP_handleGetSnapshot(t *testing.T) {
 }
 
 func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
-	httpTest(t, func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
 		const snapName1 = "snappie1"
 		const snapName2 = "snappie2"
 
@@ -208,7 +180,7 @@ func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
 }
 
 func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
-	httpTest(t, func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
 		const snapName = "snappie"
 
 		ds, err := zfs.GetDataset(testFilesystem, nil)
@@ -263,7 +235,7 @@ func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
 }
 
 func TestHTTP_handleReceiveSnapshot(t *testing.T) {
-	httpTest(t, func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
 		const snapName = "send"
 		const testProp = "nl.test:dsk"
 		const testPropVal = "1234"
@@ -323,7 +295,7 @@ func TestHTTP_handleReceiveSnapshot(t *testing.T) {
 }
 
 func TestHTTP_handleReceiveSnapshotNoExplicitName(t *testing.T) {
-	httpTest(t, func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
 		const snapName = "send"
 
 		pipeRdr, pipeWrtr := io.Pipe()
@@ -370,7 +342,7 @@ func TestHTTP_handleReceiveSnapshotNoExplicitName(t *testing.T) {
 }
 
 func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
-	httpTest(t, func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
 		const snapName = "send"
 
 		ds, err := zfs.GetDataset(testFilesystem, nil)
