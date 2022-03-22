@@ -270,39 +270,58 @@ func ReceiveSnapshot(input io.Reader, name string, resumable bool, properties ma
 	return GetDataset(name, nil)
 }
 
-func (d *Dataset) sendSnapshot(output io.Writer, options ...string) error {
-	if d.Type != DatasetSnapshot {
-		return errors.New("can only send snapshots")
-	}
-
-	c := command{Command: Binary, Stdout: output}
-	args := append([]string{"send"}, options...)
-	args = append(args, d.Name)
-	_, err := c.Run(args...)
-	return err
+type SendOptions struct {
+	// For encrypted datasets, send data exactly as it exists on disk. This allows backups to
+	//           be taken even if encryption keys are not currently loaded. The backup may then be
+	//           received on an untrusted machine since that machine will not have the encryption keys
+	//           to read the protected data or alter it without being detected. Upon being received,
+	//           the dataset will have the same encryption keys as it did on the send side, although
+	//           the keylocation property will be defaulted to prompt if not otherwise provided. For
+	//           unencrypted datasets, this flag will be equivalent to -Lec.  Note that if you do not
+	//           use this flag for sending encrypted datasets, data will be sent unencrypted and may be
+	//           re-encrypted with a different encryption key on the receiving system, which will
+	//           disable the ability to do a raw send to that system for incrementals.
+	Raw bool
+	// Include the dataset's properties in the stream.  This flag is implicit when -R is
+	//           specified.  The receiving system must also support this feature. Sends of encrypted
+	//           datasets must use -w when using this flag.
+	Props bool
+	// Generate an incremental stream from the first snapshot (the incremental source) to the
+	//           second snapshot (the incremental target).  The incremental source can be specified as
+	//           the last component of the snapshot name (the @ character and following) and it is
+	//           assumed to be from the same file system as the incremental target.
+	//
+	//           If the destination is a clone, the source may be the origin snapshot, which must be
+	//           fully specified (for example, pool/fs@origin, not just @origin).
+	IncrementalBase *Dataset
 }
 
 // SendSnapshot sends a ZFS stream of a snapshot to the input io.Writer.
 // An error will be returned if the input dataset is not of snapshot type.
-func (d *Dataset) SendSnapshot(output io.Writer, raw bool) error {
-	var args []string
-	if raw {
-		args = append(args, "-w")
-	}
-	return d.sendSnapshot(output, args...)
-}
-
-// IncrementalSend sends a ZFS stream of a snapshot to the input io.Writer using the baseSnapshot as the starting point.
-// An error will be returned if the input dataset is not of snapshot type.
-func (d *Dataset) IncrementalSend(output io.Writer, baseSnapshot *Dataset, raw bool) error {
-	if baseSnapshot.Type != DatasetSnapshot {
+func (d *Dataset) SendSnapshot(output io.Writer, sendOptions SendOptions) error {
+	if d.Type != DatasetSnapshot {
 		return errors.New("can only send snapshots")
 	}
-	args := []string{"-i", baseSnapshot.Name}
-	if raw {
+
+	args := make([]string, 0, 8)
+	if sendOptions.Raw {
 		args = append(args, "-w")
 	}
-	return d.sendSnapshot(output, args...)
+	if sendOptions.Props {
+		args = append(args, "-p")
+	}
+	if sendOptions.IncrementalBase != nil {
+		if sendOptions.IncrementalBase.Type != DatasetSnapshot {
+			return errors.New("base is not a snapshot")
+		}
+		args = append(args, "-i", sendOptions.IncrementalBase.Name)
+	}
+
+	c := command{Command: Binary, Stdout: output}
+	args = append([]string{"send"}, args...)
+	args = append(args, d.Name)
+	_, err := c.Run(args...)
+	return err
 }
 
 // ResumeSend resumes an interrupted ZFS stream of a snapshot to the input io.Writer using the receive_resume_token.

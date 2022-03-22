@@ -334,7 +334,7 @@ func (h *HTTP) handleGetSnapshot(w http.ResponseWriter, req *http.Request, ps ht
 		return
 	}
 
-	err = ds.SendSnapshot(h.getWriter(w, req), true)
+	err = ds.SendSnapshot(h.getWriter(w, req), zfs.SendOptions{Props: true, Raw: true})
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleGetSnapshot: Error sending snapshot")
 		return // Cannot send status code here.
@@ -381,7 +381,11 @@ func (h *HTTP) handleGetSnapshotIncremental(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	err = base.IncrementalSend(h.getWriter(w, req), snap, true)
+	err = snap.SendSnapshot(h.getWriter(w, req), zfs.SendOptions{
+		Props:           true,
+		Raw:             true,
+		IncrementalBase: base,
+	})
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleGetSnapshotIncremental: Error sending incremental snapshot")
 		return // Cannot send status code here.

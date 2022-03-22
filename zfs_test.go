@@ -226,7 +226,7 @@ func TestSendSnapshot(t *testing.T) {
 		s, err := f.Snapshot("test", false)
 		require.NoError(t, err)
 
-		err = s.SendSnapshot(io.Discard, false)
+		err = s.SendSnapshot(io.Discard, SendOptions{})
 		require.NoError(t, err)
 		require.NoError(t, s.Destroy(DestroyDefault))
 		require.NoError(t, f.Destroy(DestroyDefault))
@@ -243,7 +243,7 @@ func TestSendSnapshotResume(t *testing.T) {
 
 		pipeRdr, pipeWrtr := io.Pipe()
 		go func() {
-			err := s.SendSnapshot(pipeWrtr, true)
+			err := s.SendSnapshot(pipeWrtr, SendOptions{})
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()
