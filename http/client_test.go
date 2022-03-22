@@ -12,7 +12,7 @@ import (
 
 func clientTest(t *testing.T, fn func(client *Client)) {
 	t.Helper()
-	httpTest(t, func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
 		c := NewClient(server.URL, testToken)
 
 		fn(c)
