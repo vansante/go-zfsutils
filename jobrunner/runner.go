@@ -5,6 +5,7 @@ import (
 	"time"
 
 	eventemitter "github.com/vansante/go-event-emitter"
+
 	"github.com/vansante/go-zfs"
 )
 
@@ -15,7 +16,7 @@ const (
 )
 
 type Runner struct {
-	eventemitter.Emitter
+	*eventemitter.Emitter
 
 	config Config
 	logger zfs.Logger
