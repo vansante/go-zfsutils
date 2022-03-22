@@ -4,26 +4,30 @@ import "testing"
 
 func Test_datasetName(t *testing.T) {
 	tests := []struct {
-		name string
-		want string
+		name  string
+		strip bool
+		want  string
 	}{
 		{
-			"test/tester", "tester",
+			"test/tester", true, "tester",
 		},
 		{
-			"bla/die/bla", "bla",
+			"bla/die/bla", true, "bla",
 		},
 		{
-			"none", "none",
+			"none", true, "none",
 		},
 		{
-			"parent/fs@now", "fs",
+			"parent/fs@now", true, "fs",
+		},
+		{
+			"parent/fs@now", false, "fs@now",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := datasetName(tt.name); got != tt.want {
+			if got := datasetName(tt.name, tt.strip); got != tt.want {
 				t.Errorf("datasetName() = %v, want %v", got, tt.want)
 			}
 		})

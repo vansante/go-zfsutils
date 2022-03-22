@@ -29,7 +29,6 @@ func (r *Runner) sendSnapshots() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -147,7 +146,11 @@ func (r *Runner) reconcileSnapshots(local, remote []*zfs.Dataset) ([]zfshttp.Sna
 			DatasetName:  datasetName(snap.Name, true),
 			SnapshotName: snapshotName(snap.Name),
 			Snapshot:     snap,
-			BaseSnapshot: prevRemoteSnap,
+			SendOptions: zfs.SendOptions{
+				Raw:             true,
+				Props:           true,
+				IncrementalBase: prevRemoteSnap,
+			},
 		})
 
 		// Once we have sent the first snapshot, the next one can be incremental upon that one
