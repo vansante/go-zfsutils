@@ -2,6 +2,7 @@ package jobrunner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -53,14 +54,18 @@ func (r *Runner) sendSnapshotsForDataset(ds *zfs.Dataset) error {
 		return nil // Nothing to do, everything has been sent
 	}
 
-	client := zfshttp.NewClient(ds.ExtraProps[r.config.Properties.SnapshotSendTo], r.config.AuthorisationToken)
+	server := ds.ExtraProps[r.config.Properties.SnapshotSendTo]
+	client := zfshttp.NewClient(server, r.config.AuthorisationToken)
 	remoteDataset := datasetName(ds.Name, true)
 
 	ctx, cancel := context.WithTimeout(r.ctx, requestTimeout)
 	defer cancel()
 
 	resumeToken, err := client.ResumableSendToken(ctx, remoteDataset)
-	if err != nil {
+	switch {
+	case errors.Is(err, zfshttp.ErrDatasetNotFound):
+		// Nothing to do.
+	case err != nil:
 		return fmt.Errorf("error checking resumable sends: %w", err)
 	}
 	if resumeToken != "" {
@@ -76,8 +81,11 @@ func (r *Runner) sendSnapshotsForDataset(ds *zfs.Dataset) error {
 	ctx, cancel = context.WithTimeout(r.ctx, requestTimeout)
 	defer cancel()
 	remoteSnaps, err := client.DatasetSnapshots(ctx, remoteDataset, []string{createdProp})
-	if err != nil {
-		return err
+	switch {
+	case errors.Is(err, zfshttp.ErrDatasetNotFound):
+		// Nothing to do.
+	case err != nil:
+		return fmt.Errorf("error listing remote snapshots: %w", err)
 	}
 
 	localSnaps = filterSnapshotsWithProp(localSnaps, createdProp)
@@ -89,6 +97,12 @@ func (r *Runner) sendSnapshotsForDataset(ds *zfs.Dataset) error {
 	}
 
 	for _, send := range toSend {
+		if r.ctx.Err() != nil {
+			return r.ctx.Err()
+		}
+
+		r.EmitEvent(SendingSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
+
 		ctx, cancel := context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
 		err = client.Send(ctx, send)
 		if err != nil {
@@ -96,6 +110,8 @@ func (r *Runner) sendSnapshotsForDataset(ds *zfs.Dataset) error {
 			return fmt.Errorf("error sending %s/%s: %w", send.DatasetName, send.SnapshotName, err)
 		}
 		cancel()
+
+		r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
 	}
 
 	return nil

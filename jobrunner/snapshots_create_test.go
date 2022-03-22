@@ -1,6 +1,7 @@
 package jobrunner
 
 import (
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func TestRunner_createSnapshots(t *testing.T) {
-	runnerTest(t, func(runner *Runner) {
+	runnerTest(t, func(server *httptest.Server, runner *Runner) {
 		const fsName = "test"
 
 		ds, err := zfs.CreateFilesystem(testZPool+"/"+fsName, map[string]string{
