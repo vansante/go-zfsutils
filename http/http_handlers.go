@@ -223,7 +223,7 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, p
 		"snapshot":   snapshot,
 	})
 
-	if !validIdentifier(filesystem) || !validIdentifier(snapshot) {
+	if !validIdentifier(filesystem) || (snapshot != "" && !validIdentifier(snapshot)) {
 		logger.Info("zfs.http.handleReceiveSnapshot: Invalid identifier")
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -259,10 +259,12 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, p
 	resumable, _ := strconv.ParseBool(req.URL.Query().Get(GETParamResumable))
 	props, _ := DecodeReceiveProperties(req.URL.Query().Get(GETParamReceiveProperties))
 
-	ds, err := zfs.ReceiveSnapshot(h.getReader(req),
-		fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot),
-		resumable, props,
-	)
+	receiveDataset := fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot)
+	if snapshot == "" {
+		receiveDataset = fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem)
+	}
+
+	ds, err := zfs.ReceiveSnapshot(h.getReader(req), receiveDataset, resumable, props)
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleReceiveSnapshot: Error storing")
 		w.WriteHeader(http.StatusNotFound)

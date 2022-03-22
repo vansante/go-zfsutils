@@ -312,6 +312,53 @@ func TestHTTP_handleReceiveSnapshot(t *testing.T) {
 	})
 }
 
+func TestHTTP_handleReceiveSnapshotNoExplicitName(t *testing.T) {
+	httpTest(t, func(server *httptest.Server) {
+		const snapName = "send"
+
+		pipeRdr, pipeWrtr := io.Pipe()
+
+		const newFilesystem = "bla"
+		req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/filesystems/%s/snapshots?%s=%s&%s=%s",
+			server.URL, newFilesystem,
+			authenticationTokenGETParam, testToken,
+			GETParamReceiveProperties, ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff}.Encode(),
+		), pipeRdr)
+		require.NoError(t, err)
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+			require.EqualValues(t, http.StatusCreated, resp.StatusCode)
+
+			ds := zfs.Dataset{}
+			err = json.NewDecoder(resp.Body).Decode(&ds)
+			require.NoError(t, err)
+			require.Equal(t, fmt.Sprintf("%s/%s", testZPool, newFilesystem), ds.Name)
+
+			snaps, err := zfs.Snapshots(fmt.Sprintf("%s/%s", testZPool, newFilesystem), nil)
+			require.NoError(t, err)
+			require.Len(t, snaps, 1)
+			require.Equal(t, fmt.Sprintf("%s/%s@%s", testZPool, newFilesystem, snapName), snaps[0].Name)
+
+			wg.Done()
+		}()
+
+		ds, err := zfs.GetDataset(testFilesystem, nil)
+		require.NoError(t, err)
+		ds, err = ds.Snapshot(snapName, false)
+		require.NoError(t, err)
+		err = ds.SendSnapshot(pipeWrtr, true)
+		require.NoError(t, err)
+		require.NoError(t, pipeWrtr.Close())
+
+		wg.Wait()
+	})
+}
+
 func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
 	httpTest(t, func(server *httptest.Server) {
 		const snapName = "send"
