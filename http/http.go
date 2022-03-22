@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	authenticationTokenHeader   = "X-ZFS-Auth-Token"
+	AuthenticationTokenHeader   = "X-ZFS-Auth-Token"
 	authenticationTokenGETParam = "authToken"
 )
 
@@ -101,7 +101,7 @@ func (h *HTTP) authenticated(handle handle) httprouter.Handle {
 			"method": req.Method,
 		})
 
-		authToken := req.Header.Get(authenticationTokenHeader)
+		authToken := req.Header.Get(AuthenticationTokenHeader)
 		if authToken == "" {
 			authToken = req.URL.Query().Get(authenticationTokenGETParam)
 		}
