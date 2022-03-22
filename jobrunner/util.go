@@ -1,17 +1,13 @@
 package jobrunner
 
 import (
-	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/vansante/go-zfs"
-	zfshttp "github.com/vansante/go-zfs/http"
 )
 
 func parseDatasetTimeProperty(ds *zfs.Dataset, prop string) (time.Time, error) {
@@ -45,15 +41,6 @@ func snapshotName(name string) string {
 		return name
 	}
 	return name[idx+1:]
-}
-
-func requestToServer(ctx context.Context, server, token, method, url string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s", server, url), body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set(zfshttp.AuthenticationTokenHeader, token)
-	return req, nil
 }
 
 func filterSnapshotsWithProp(list []*zfs.Dataset, prop string) []*zfs.Dataset {

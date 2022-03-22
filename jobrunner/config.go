@@ -3,8 +3,9 @@ package jobrunner
 import "github.com/vansante/go-zfs"
 
 const (
-	defaultDatasetType          = zfs.DatasetFilesystem
-	defaultSnapshotNameTemplate = "backup_%UNIXTIME%"
+	defaultDatasetType            = zfs.DatasetFilesystem
+	defaultSnapshotNameTemplate   = "backup_%UNIXTIME%"
+	defaultMaximumSendTimeMinutes = 12 * 60
 
 	defaultSnapshotIntervalMinutesProperty = "com.github.vansante:snapshot-interval-minutes"
 	defaultSnapshotCreatedAtProperty       = "com.github.vansante:snapshot-created-at"
@@ -19,9 +20,9 @@ type Config struct {
 	DatasetType                           zfs.DatasetType `json:"DatasetTypes" yaml:"DatasetTypes"`
 	AuthorisationToken                    string          `json:"AuthorisationToken" yaml:"AuthorisationToken"`
 	SnapshotNameTemplate                  string          `json:"SnapshotNameTemplate" yaml:"SnapshotNameTemplate"`
-	SnapshotRecursive                     bool            `json:"SnapshotRecursive" yaml:"SnapshotRecursive"`
 	IgnoreSnapshotsWithoutCreatedProperty bool            `json:"IgnoreSnapshotsWithoutCreatedProperty" yaml:"IgnoreSnapshotsWithoutCreatedProperty"`
 	DeleteFilesystems                     bool            `json:"DeleteFilesystems" yaml:"DeleteFilesystems"`
+	MaximumSendTimeMinutes                int64           `json:"MaximumSendTimeMinutes" yaml:"MaximumSendTimeMinutes"`
 
 	Properties Properties `json:"Properties" yaml:"Properties"`
 }
@@ -39,6 +40,7 @@ type Properties struct {
 func (c *Config) ApplyDefaults() {
 	c.DatasetType = defaultDatasetType
 	c.SnapshotNameTemplate = defaultSnapshotNameTemplate
+	c.MaximumSendTimeMinutes = defaultMaximumSendTimeMinutes
 
 	c.Properties.SnapshotIntervalMinutes = defaultSnapshotIntervalMinutesProperty
 	c.Properties.SnapshotCreatedAt = defaultSnapshotCreatedAtProperty
