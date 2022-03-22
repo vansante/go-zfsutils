@@ -77,6 +77,7 @@ func (h *HTTP) registerRoutes() {
 	h.router.GET("/snapshot/resume/:token", h.authenticated(h.handleResumeGetSnapshot))
 
 	h.router.POST("/filesystems/:filesystem/snapshots/:snapshot", h.authenticated(h.handleMakeSnapshot))
+	h.router.PUT("/filesystems/:filesystem/snapshots", h.authenticated(h.handleReceiveSnapshot))
 	h.router.PUT("/filesystems/:filesystem/snapshots/:snapshot", h.authenticated(h.handleReceiveSnapshot))
 	h.router.PATCH("/filesystems/:filesystem/snapshots/:snapshot", h.authenticated(h.handleSetSnapshotProps))
 	h.router.DELETE("/filesystems/:filesystem/snapshots/:snapshot", h.authenticated(h.handleDestroySnapshot))
