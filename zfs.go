@@ -71,7 +71,7 @@ func zfsOutput(arg ...string) ([][]string, error) {
 }
 
 // ListByType lists the datasets by type and allows you to fetch extra custom fields
-func ListByType(t DatasetType, filter string, extraFields []string) ([]*Dataset, error) {
+func ListByType(t DatasetType, filter string, extraFields []string) ([]Dataset, error) {
 	fields := append(dsPropList, extraFields...) // nolint: gocritic
 
 	dsPropListOptions := strings.Join(fields, ",")
@@ -85,14 +85,17 @@ func ListByType(t DatasetType, filter string, extraFields []string) ([]*Dataset,
 		return nil, err
 	}
 
-	name := ""
-	var datasets []*Dataset
-	var ds *Dataset
+	datasets := make([]Dataset, 0, len(out)/len(fields))
+	if len(out) == 0 {
+		return datasets, nil
+	}
+
+	ds := &Dataset{Name: out[0][0]}
 	for _, line := range out {
-		if name != line[0] {
-			name = line[0]
-			ds = &Dataset{Name: name}
-			datasets = append(datasets, ds)
+		if ds.Name != line[0] {
+			datasets = append(datasets, *ds)
+
+			ds = &Dataset{Name: line[0]}
 		}
 
 		err := ds.parseLine(line, extraFields)
@@ -100,30 +103,33 @@ func ListByType(t DatasetType, filter string, extraFields []string) ([]*Dataset,
 			return nil, err
 		}
 	}
+	// Add the last dangling dataset
+	datasets = append(datasets, *ds)
+
 	return datasets, nil
 }
 
 // Datasets returns a slice of ZFS datasets, regardless of type.
 // A filter argument may be passed to select a dataset with the matching name, or empty string ("") may be used to select all datasets.
-func Datasets(filter string, extraFields []string) ([]*Dataset, error) {
+func Datasets(filter string, extraFields []string) ([]Dataset, error) {
 	return ListByType(DatasetAll, filter, extraFields)
 }
 
 // Snapshots returns a slice of ZFS snapshots.
 // A filter argument may be passed to select a snapshot with the matching name, or empty string ("") may be used to select all snapshots.
-func Snapshots(filter string, extraFields []string) ([]*Dataset, error) {
+func Snapshots(filter string, extraFields []string) ([]Dataset, error) {
 	return ListByType(DatasetSnapshot, filter, extraFields)
 }
 
 // Filesystems returns a slice of ZFS filesystems.
 // A filter argument may be passed to select a filesystem with the matching name, or empty string ("") may be used to select all filesystems.
-func Filesystems(filter string, extraFields []string) ([]*Dataset, error) {
+func Filesystems(filter string, extraFields []string) ([]Dataset, error) {
 	return ListByType(DatasetFilesystem, filter, extraFields)
 }
 
 // Volumes returns a slice of ZFS volumes.
 // A filter argument may be passed to select a volume with the matching name, or empty string ("") may be used to select all volumes.
-func Volumes(filter string, extraFields []string) ([]*Dataset, error) {
+func Volumes(filter string, extraFields []string) ([]Dataset, error) {
 	return ListByType(DatasetVolume, filter, extraFields)
 }
 
@@ -433,7 +439,7 @@ func (d *Dataset) Rename(name string, createParent, recursiveRenameSnapshots boo
 }
 
 // Snapshots returns a slice of all ZFS snapshots of a given dataset.
-func (d *Dataset) Snapshots(extraFields []string) ([]*Dataset, error) {
+func (d *Dataset) Snapshots(extraFields []string) ([]Dataset, error) {
 	return Snapshots(d.Name, extraFields)
 }
 
