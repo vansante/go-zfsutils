@@ -36,10 +36,7 @@ func (r *Runner) Run() error {
 	if err != nil {
 		return err
 	}
-	err = r.markPrunableRemoteSnapshots()
-	if err != nil {
-		return err
-	}
+
 	err = r.pruneSnapshots()
 	if err != nil {
 		return err
@@ -48,14 +45,6 @@ func (r *Runner) Run() error {
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func (r *Runner) markPrunableRemoteSnapshots() error {
-	return nil
-}
-
-func (r *Runner) pruneSnapshots() error {
 	return nil
 }
 
