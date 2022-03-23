@@ -2,11 +2,9 @@ package zfs
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os/exec"
-	"strconv"
 	"strings"
 )
 
@@ -72,84 +70,6 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 	}
 
 	return output, nil
-}
-
-func setString(field *string, values []string) []string {
-	val, values := values[0], values[1:]
-	if val == PropertyUnset {
-		return values
-	}
-	*field = val
-	return values
-}
-
-func setUint(field *uint64, values []string) ([]string, error) {
-	var val string
-	val, values = values[0], values[1:]
-	if val == PropertyUnset {
-		return values, nil
-	}
-
-	v, err := strconv.ParseUint(val, 10, 64)
-	if err != nil {
-		return values, err
-	}
-
-	*field = v
-	return values, nil
-}
-
-func (d *Dataset) parseLine(lines []string, extraFields []string) error {
-	if len(lines) != len(dsPropList)+len(extraFields) {
-		return errors.New("output does not match what is expected on this platform")
-	}
-
-	lines = setString(&d.Name, lines)
-
-	d.Type = DatasetType(lines[0])
-	lines = lines[1:]
-
-	lines = setString(&d.Origin, lines)
-	lines, err := setUint(&d.Used, lines)
-	if err != nil {
-		return err
-	}
-	lines, err = setUint(&d.Avail, lines)
-	if err != nil {
-		return err
-	}
-	lines = setString(&d.Mountpoint, lines)
-	lines = setString(&d.Compression, lines)
-	lines, err = setUint(&d.Volsize, lines)
-	if err != nil {
-		return err
-	}
-	lines, err = setUint(&d.Quota, lines)
-	if err != nil {
-		return err
-	}
-	lines, err = setUint(&d.Referenced, lines)
-	if err != nil {
-		return err
-	}
-	lines, err = setUint(&d.Written, lines)
-	if err != nil {
-		return err
-	}
-	lines, err = setUint(&d.Logicalused, lines)
-	if err != nil {
-		return err
-	}
-	lines, err = setUint(&d.Usedbydataset, lines)
-	if err != nil {
-		return err
-	}
-
-	d.ExtraProps = make(map[string]string, len(extraFields))
-	for i, field := range extraFields {
-		d.ExtraProps[field] = lines[i]
-	}
-	return nil
 }
 
 func propsSlice(properties map[string]string) []string {

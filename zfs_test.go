@@ -33,7 +33,6 @@ func TestDatasetsWithProps(t *testing.T) {
 		ds, err := GetDataset(testZPool, []string{"name", "refquota"})
 		require.NoError(t, err)
 
-		t.Log(ds.ExtraProps)
 		require.Len(t, ds.ExtraProps, 2)
 		require.Equal(t, ds.ExtraProps["name"], testZPool)
 		require.Equal(t, ds.ExtraProps["refquota"], "0")

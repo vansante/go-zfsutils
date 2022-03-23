@@ -13,39 +13,6 @@ const (
 	Binary = "zfs"
 )
 
-// DatasetType is the zfs dataset type
-type DatasetType string
-
-// ZFS dataset types, which can indicate if a dataset is a filesystem, snapshot, or volume.
-const (
-	DatasetAll        DatasetType = "all"
-	DatasetFilesystem DatasetType = "filesystem"
-	DatasetSnapshot   DatasetType = "snapshot"
-	DatasetVolume     DatasetType = "volume"
-)
-
-// Dataset is a ZFS dataset.  A dataset could be a clone, filesystem, snapshot, or volume.
-// The Type struct member can be used to determine a dataset's type.
-//
-// The field definitions can be found in the ZFS manual:
-// https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
-type Dataset struct {
-	Name          string
-	Type          DatasetType
-	Origin        string
-	Used          uint64
-	Avail         uint64
-	Mountpoint    string
-	Compression   string
-	Written       uint64
-	Volsize       uint64
-	Logicalused   uint64
-	Usedbydataset uint64
-	Quota         uint64
-	Referenced    uint64
-	ExtraProps    map[string]string
-}
-
 // DestroyFlag is the options flag passed to Destroy.
 type DestroyFlag int
 
@@ -71,8 +38,8 @@ func zfsOutput(arg ...string) ([][]string, error) {
 }
 
 // ListByType lists the datasets by type and allows you to fetch extra custom fields
-func ListByType(t DatasetType, filter string, extraFields []string) ([]Dataset, error) {
-	fields := append(dsPropList, extraFields...) // nolint: gocritic
+func ListByType(t DatasetType, filter string, extraProps []string) ([]Dataset, error) {
+	fields := append(dsPropList, extraProps...) // nolint: gocritic
 
 	dsPropListOptions := strings.Join(fields, ",")
 	args := []string{"list", "-rHp", "-t", string(t), "-o", dsPropListOptions}
@@ -85,26 +52,18 @@ func ListByType(t DatasetType, filter string, extraFields []string) ([]Dataset, 
 		return nil, err
 	}
 
-	datasets := make([]Dataset, 0, len(out)/len(fields))
+	datasets := make([]Dataset, 0, len(out))
 	if len(out) == 0 {
 		return datasets, nil
 	}
 
-	ds := &Dataset{Name: out[0][0]}
-	for _, line := range out {
-		if ds.Name != line[0] {
-			datasets = append(datasets, *ds)
-
-			ds = &Dataset{Name: line[0]}
-		}
-
-		err := ds.parseLine(line, extraFields)
+	for _, fields := range out {
+		ds, err := datasetFromFields(fields, extraProps)
 		if err != nil {
-			return nil, err
+			return datasets, err
 		}
+		datasets = append(datasets, *ds)
 	}
-	// Add the last dangling dataset
-	datasets = append(datasets, *ds)
 
 	return datasets, nil
 }
@@ -149,22 +108,18 @@ func ListWithProperty(t DatasetType, filter, prop string) (map[string]string, er
 
 // GetDataset retrieves a single ZFS dataset by name.
 // This dataset could be any valid ZFS dataset type, such as a clone, filesystem, snapshot, or volume.
-func GetDataset(name string, extraFields []string) (*Dataset, error) {
-	fields := append(dsPropList, extraFields...) // nolint: gocritic
+func GetDataset(name string, extraProps []string) (*Dataset, error) {
+	fields := append(dsPropList, extraProps...) // nolint: gocritic
 	out, err := zfsOutput("list", "-Hp", "-o", strings.Join(fields, ","), name)
 	if err != nil {
 		return nil, err
 	}
 
-	ds := &Dataset{Name: name}
-	for _, line := range out {
-		err := ds.parseLine(line, extraFields)
-		if err != nil {
-			return nil, err
-		}
+	if len(out) > 1 {
+		return nil, fmt.Errorf("more output than expected: %v", out)
 	}
 
-	return ds, nil
+	return datasetFromFields(out[0], extraProps)
 }
 
 // Clone clones a ZFS snapshot and returns a clone dataset.
@@ -505,7 +460,7 @@ func (d *Dataset) Rollback(destroyMoreRecent bool) error {
 
 // Children returns a slice of children of the receiving ZFS dataset.
 // A recursion depth may be specified, or a depth of 0 allows unlimited recursion.
-func (d *Dataset) Children(depth uint64) ([]*Dataset, error) {
+func (d *Dataset) Children(depth uint64) ([]Dataset, error) {
 	args := []string{"list"}
 	if depth > 0 {
 		args = append(args, "-d")
@@ -521,20 +476,17 @@ func (d *Dataset) Children(depth uint64) ([]*Dataset, error) {
 		return nil, err
 	}
 
-	var datasets []*Dataset
-	name := ""
-	var ds *Dataset
-	for _, line := range out {
-		if name != line[0] {
-			name = line[0]
-			ds = &Dataset{Name: name}
-			datasets = append(datasets, ds)
+	datasets := make([]Dataset, 0, len(out)-1)
+	for i, fields := range out {
+		if i == 0 { // Skip the first parent entry, because we are looking for its children
+			continue
 		}
 
-		err := ds.parseLine(line, nil)
+		ds, err := datasetFromFields(fields, nil)
 		if err != nil {
 			return nil, err
 		}
+		datasets = append(datasets, *ds)
 	}
-	return datasets[1:], nil
+	return datasets, nil
 }
