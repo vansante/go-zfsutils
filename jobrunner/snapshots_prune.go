@@ -12,7 +12,7 @@ func (r *Runner) pruneSnapshots() error {
 
 	snapshots, err := zfs.ListWithProperty(zfs.DatasetSnapshot, r.config.ParentDataset, deleteProp)
 	if err != nil {
-		return fmt.Errorf("error finding retention count datasets: %w", err)
+		return fmt.Errorf("error finding prunable datasets: %w", err)
 	}
 
 	now := time.Now()
@@ -20,6 +20,10 @@ func (r *Runner) pruneSnapshots() error {
 		snap, err := zfs.GetDataset(snapshot, []string{deleteProp})
 		if err != nil {
 			return fmt.Errorf("error getting snapshot %s: %w", snapshot, err)
+		}
+
+		if snap.Type != zfs.DatasetSnapshot {
+			return fmt.Errorf("unexpected dataset type %s for %s: %w", snap.Type, snapshot, err)
 		}
 
 		deleteAt, err := parseDatasetTimeProperty(snap, deleteProp)

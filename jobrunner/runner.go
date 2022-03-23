@@ -47,7 +47,3 @@ func (r *Runner) Run() error {
 	}
 	return nil
 }
-
-func (r *Runner) pruneFilesystems() error {
-	return nil
-}

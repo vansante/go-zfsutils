@@ -51,7 +51,7 @@ func TestRunner_pruneSnapshots(t *testing.T) {
 		snaps, err := ds.Snapshots(nil)
 		require.NoError(t, err)
 		require.Len(t, snaps, 2)
-		require.Equal(t, snaps[0].Name, fmt.Sprintf("%s@	%s", testFilesystem, snap3))
+		require.Equal(t, snaps[0].Name, fmt.Sprintf("%s@%s", testFilesystem, snap3))
 		require.Equal(t, snaps[1].Name, fmt.Sprintf("%s@%s", testFilesystem, snap4))
 	})
 }
