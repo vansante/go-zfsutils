@@ -16,7 +16,7 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, fs.SetProperty(defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
-		const otherFs, fsWithoutDel, fsWithSnap, otherVol = "test1", "test2", "test3", "test4"
+		const otherFs, fsWithoutDel, fsWithSnap, otherVol, deleteLater = "test1", "test2", "test3", "test4", "test5"
 		fs, err = zfs.CreateFilesystem(testZPool+"/"+otherFs, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 		require.NoError(t, err)
 		require.NoError(t, fs.SetProperty(defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
@@ -36,6 +36,10 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 		require.NoError(t, err)
 		time.Sleep(time.Second / 3)
 		require.NoError(t, vol.SetProperty(defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
+
+		fs, err = zfs.CreateFilesystem(testZPool+"/"+deleteLater, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+		require.NoError(t, err)
+		require.NoError(t, fs.SetProperty(defaultDeleteAtProperty, time.Now().Add(time.Second*3).Format(dateTimeFormat)))
 
 		events := 0
 		runner.AddListener(DeletedFilesystemEvent, func(arguments ...interface{}) {
@@ -61,10 +65,11 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 
 		datasets, err := ds.Children(0, nil)
 		require.NoError(t, err)
-		require.Len(t, datasets, 4)
+		require.Len(t, datasets, 5)
 		require.Equal(t, fmt.Sprintf("%s/%s", testZPool, fsWithoutDel), datasets[0].Name)
 		require.Equal(t, fmt.Sprintf("%s/%s", testZPool, fsWithSnap), datasets[1].Name)
 		require.Equal(t, fmt.Sprintf("%s/%s@%s", testZPool, fsWithSnap, snap), datasets[2].Name)
 		require.Equal(t, fmt.Sprintf("%s/%s", testZPool, otherVol), datasets[3].Name)
+		require.Equal(t, fmt.Sprintf("%s/%s", testZPool, deleteLater), datasets[4].Name)
 	})
 }
