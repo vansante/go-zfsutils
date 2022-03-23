@@ -202,15 +202,15 @@ func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
 		testName := fmt.Sprintf("%s/%s", testZPool, "receive")
 		ds, err = zfs.ReceiveSnapshot(io.LimitReader(resp.Body, 29_636), testName, true, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff})
 		require.Error(t, err)
-		var recvErr *zfs.Error
+		var recvErr *zfs.ResumableStreamError
 		require.True(t, errors.As(err, &recvErr))
-		require.True(t, recvErr.Resumable(), recvErr)
 
 		fs, err := zfs.Filesystems(testName, []string{zfs.PropertyReceiveResumeToken})
 		require.NoError(t, err)
 		require.Len(t, fs, 1)
 		require.Equal(t, testName, fs[0].Name)
 		require.True(t, len(fs[0].ExtraProps[zfs.PropertyReceiveResumeToken]) > 32)
+		require.Equal(t, recvErr.ResumeToken(), fs[0].ExtraProps[zfs.PropertyReceiveResumeToken])
 
 		// Now do a resumption on this stream
 		req, err = http.NewRequest(http.MethodGet, fmt.Sprintf("%s/snapshot/resume/%s?%s=%s",
