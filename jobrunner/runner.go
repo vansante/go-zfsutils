@@ -51,10 +51,6 @@ func (r *Runner) Run() error {
 	return nil
 }
 
-func (r *Runner) markPrunableSnapshots() error {
-	return nil
-}
-
 func (r *Runner) markPrunableRemoteSnapshots() error {
 	return nil
 }

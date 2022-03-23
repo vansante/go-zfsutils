@@ -7,12 +7,13 @@ const (
 	defaultSnapshotNameTemplate   = "backup_%UNIXTIME%"
 	defaultMaximumSendTimeMinutes = 12 * 60
 
-	defaultSnapshotIntervalMinutesProperty = "com.github.vansante:snapshot-interval-minutes"
-	defaultSnapshotCreatedAtProperty       = "com.github.vansante:snapshot-created-at"
-	defaultSnapshotSendToProperty          = "com.github.vansante:snapshot-send-to"
-	defaultSnapshotSentAtProperty          = "com.github.vansante:snapshot-sent-at"
-	defaultSnapshotRetentionCountProperty  = "com.github.vansante:snapshot-retention-count"
-	defaultDeleteAtProperty                = "com.github.vansante:delete-at"
+	defaultSnapshotIntervalMinutesProperty     = "com.github.vansante:snapshot-interval-minutes"
+	defaultSnapshotCreatedAtProperty           = "com.github.vansante:snapshot-created-at"
+	defaultSnapshotSendToProperty              = "com.github.vansante:snapshot-send-to"
+	defaultSnapshotSentAtProperty              = "com.github.vansante:snapshot-sent-at"
+	defaultSnapshotRetentionCountProperty      = "com.github.vansante:snapshot-retention-count"
+	defaultSnapshotMaxRetentionMinutesProperty = "com.github.vansante:snapshot-max-retention-minutes"
+	defaultDeleteAtProperty                    = "com.github.vansante:delete-at"
 )
 
 type Config struct {
@@ -28,12 +29,13 @@ type Config struct {
 }
 
 type Properties struct {
-	SnapshotIntervalMinutes string `json:"SnapshotIntervalMinutes" yaml:"SnapshotIntervalMinutes"`
-	SnapshotCreatedAt       string `json:"SnapshotCreatedAt" yaml:"SnapshotCreatedAt"`
-	SnapshotSendTo          string `json:"SnapshotSendTo" yaml:"SnapshotSendTo"`
-	SnapshotSentAt          string `json:"SnapshotSentAt" yaml:"SnapshotSentAt"`
-	SnapshotRetentionCount  string `json:"SnapshotRetentionCount" yaml:"SnapshotRetentionCount"`
-	DeleteAt                string `json:"DeleteAt" yaml:"DeleteAt"`
+	SnapshotIntervalMinutes     string `json:"SnapshotIntervalMinutes" yaml:"SnapshotIntervalMinutes"`
+	SnapshotCreatedAt           string `json:"SnapshotCreatedAt" yaml:"SnapshotCreatedAt"`
+	SnapshotSendTo              string `json:"SnapshotSendTo" yaml:"SnapshotSendTo"`
+	SnapshotSentAt              string `json:"SnapshotSentAt" yaml:"SnapshotSentAt"`
+	SnapshotRetentionCount      string `json:"SnapshotRetentionCount" yaml:"SnapshotRetentionCount"`
+	SnapshotMaxRetentionMinutes string `json:"SnapshotMaxRetentionMinutes" yaml:"SnapshotMaxRetentionMinutes"`
+	DeleteAt                    string `json:"DeleteAt" yaml:"DeleteAt"`
 }
 
 // ApplyDefaults applies all the default values to the configuration

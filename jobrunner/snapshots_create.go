@@ -9,15 +9,14 @@ import (
 )
 
 func (r *Runner) createSnapshots() error {
-	datasets, err := zfs.ListWithProperty(r.config.DatasetType, r.config.ParentDataset, r.config.Properties.SnapshotIntervalMinutes)
+	intervalProp := r.config.Properties.SnapshotIntervalMinutes
+	datasets, err := zfs.ListWithProperty(r.config.DatasetType, r.config.ParentDataset, intervalProp)
 	if err != nil {
 		return fmt.Errorf("error finding snapshottable datasets: %w", err)
 	}
 
 	for dataset := range datasets {
-		ds, err := zfs.GetDataset(dataset, []string{
-			r.config.Properties.SnapshotIntervalMinutes,
-		})
+		ds, err := zfs.GetDataset(dataset, []string{intervalProp})
 		if err != nil {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
