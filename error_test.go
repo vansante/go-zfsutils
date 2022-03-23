@@ -22,16 +22,16 @@ func TestError(t *testing.T) {
 
 	for _, test := range tests {
 		// Generate error from tests
-		zErr := Error{
+		zErr := CommandError{
 			Err:    test.err,
 			Debug:  test.debug,
 			Stderr: test.stderr,
 		}
 
 		// Verify output format is consistent, so that any changes to the
-		// Error method must be reflected by the test
+		// CommandError method must be reflected by the test
 		if str := zErr.Error(); str != fmt.Sprintf("%s: %q => %s", test.err, test.debug, test.stderr) {
-			t.Fatalf("unexpected Error string: %v", str)
+			t.Fatalf("unexpected CommandError string: %v", str)
 		}
 	}
 }

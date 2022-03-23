@@ -39,6 +39,14 @@ func TestDatasetsWithProps(t *testing.T) {
 	})
 }
 
+func TestGetNotExistingDataset(t *testing.T) {
+	TestZPool(testZPool, func() {
+		_, err := GetDataset(testZPool+"/doesnt-exist", nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrDatasetNotFound)
+	})
+}
+
 func TestDatasetGetProperty(t *testing.T) {
 	TestZPool(testZPool, func() {
 		ds, err := GetDataset(testZPool, nil)
@@ -249,15 +257,16 @@ func TestSendSnapshotResume(t *testing.T) {
 
 		_, err = ReceiveSnapshot(io.LimitReader(pipeRdr, 10*1024), testZPool+"/recv-test", true, noMountProps)
 		require.Error(t, err)
-		var zfsErr *Error
+		var zfsErr *ResumableStreamError
 		require.True(t, errors.As(err, &zfsErr))
-		require.True(t, zfsErr.Resumable(), zfsErr)
+		require.NotEmpty(t, zfsErr.ResumeToken(), zfsErr)
 
 		list, err := Filesystems(testZPool+"/recv-test", []string{PropertyReceiveResumeToken})
 		require.NoError(t, err)
 		require.Len(t, list, 1)
 		require.Len(t, list[0].ExtraProps, 1)
 		require.NotEmpty(t, list[0].ExtraProps[PropertyReceiveResumeToken])
+		require.Equal(t, zfsErr.ResumeToken(), list[0].ExtraProps[PropertyReceiveResumeToken])
 
 		t.Logf("Found resume token: %s", list[0].ExtraProps[PropertyReceiveResumeToken])
 

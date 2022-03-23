@@ -44,14 +44,9 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 		cmd.Stdin = c.Stdin
 	}
 
-	joinedArgs := strings.Join(cmd.Args, " ")
 	err := cmd.Run()
 	if err != nil {
-		return nil, &Error{
-			Err:    err,
-			Debug:  strings.Join([]string{cmd.Path, joinedArgs[1:]}, " "),
-			Stderr: stderr.String(),
-		}
+		return nil, createError(cmd, stderr.String(), err)
 	}
 
 	// assume if you passed in something for stdout, that you know what to do with it
