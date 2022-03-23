@@ -11,7 +11,7 @@ func (r *Runner) markPrunableSnapshots() error {
 	if err != nil {
 		return err
 	}
-	return r.markPrunableSnapshotAge()
+	return r.markPrunableSnapshotsByAge()
 }
 
 func (r *Runner) markPrunableSnapshotCount() error {
@@ -80,14 +80,16 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 
 		err = snap.SetProperty(r.config.Properties.DeleteAt, now.Format(dateTimeFormat))
 		if err != nil {
-			return fmt.Errorf("error setting %s property for %s: %w", r.config.Properties.DeleteAt, ds.Name, err)
+			return fmt.Errorf("error setting %s property for %s: %w", r.config.Properties.DeleteAt, snap.Name, err)
 		}
+
+		r.EmitEvent(MarkSnapshotDeletionEvent, snap.Name, datasetName(snap.Name, true), snapshotName(snap.Name))
 	}
 
 	return nil
 }
 
-func (r *Runner) markPrunableSnapshotAge() error {
+func (r *Runner) markPrunableSnapshotsByAge() error {
 	retentionProp := r.config.Properties.SnapshotMaxRetentionMinutes
 	datasets, err := zfs.ListWithProperty(r.config.DatasetType, r.config.ParentDataset, retentionProp)
 	if err != nil {
@@ -143,19 +145,21 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 			continue // Ignore
 		}
 
-		createdAt, err := parseDatasetTimeProperty(ds, createdProp)
+		createdAt, err := parseDatasetTimeProperty(snap, createdProp)
 		if err != nil {
-			return fmt.Errorf("error parsing %s property for %s: %w", createdProp, ds.Name, err)
+			return fmt.Errorf("error parsing %s property for %s: %w", createdProp, snap.Name, err)
 		}
 
-		if createdAt.Add(duration).Before(now) {
+		if createdAt.Add(duration).After(now) {
 			continue // Retention period has not passed yet.
 		}
 
 		err = snap.SetProperty(r.config.Properties.DeleteAt, now.Format(dateTimeFormat))
 		if err != nil {
-			return fmt.Errorf("error setting %s property for %s: %w", r.config.Properties.DeleteAt, ds.Name, err)
+			return fmt.Errorf("error setting %s property for %s: %w", r.config.Properties.DeleteAt, snap.Name, err)
 		}
+
+		r.EmitEvent(MarkSnapshotDeletionEvent, snap.Name, datasetName(snap.Name, true), snapshotName(snap.Name))
 	}
 
 	return nil

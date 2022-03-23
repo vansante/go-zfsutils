@@ -49,5 +49,6 @@ func (c *Config) ApplyDefaults() {
 	c.Properties.SnapshotSendTo = defaultSnapshotSendToProperty
 	c.Properties.SnapshotSentAt = defaultSnapshotSentAtProperty
 	c.Properties.SnapshotRetentionCount = defaultSnapshotRetentionCountProperty
+	c.Properties.SnapshotMaxRetentionMinutes = defaultSnapshotMaxRetentionMinutesProperty
 	c.Properties.DeleteAt = defaultDeleteAtProperty
 }
