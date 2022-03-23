@@ -2,8 +2,9 @@ package jobrunner
 
 import (
 	"fmt"
-	"github.com/vansante/go-zfs"
 	"time"
+
+	"github.com/vansante/go-zfs"
 )
 
 func (r *Runner) markPrunableSnapshots() error {
@@ -66,10 +67,11 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 	reverse(snaps)
 	currentFound := int64(0)
 	now := time.Now()
-	for _, snap := range snaps {
+	for i := range snaps {
 		if r.ctx.Err() != nil {
 			return r.ctx.Err()
 		}
+		snap := &snaps[i]
 
 		if snap.ExtraProps[createdProp] == zfs.PropertyUnset || snap.ExtraProps[deleteProp] != zfs.PropertyUnset {
 			continue // Ignore
@@ -140,10 +142,11 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 	}
 
 	now := time.Now()
-	for _, snap := range snaps {
+	for i := range snaps {
 		if r.ctx.Err() != nil {
 			return r.ctx.Err()
 		}
+		snap := &snaps[i]
 
 		if snap.ExtraProps[createdProp] == zfs.PropertyUnset || snap.ExtraProps[deleteProp] != zfs.PropertyUnset {
 			continue // Ignore

@@ -43,8 +43,8 @@ func snapshotName(name string) string {
 	return name[idx+1:]
 }
 
-func filterSnapshotsWithProp(list []*zfs.Dataset, prop string) []*zfs.Dataset {
-	nwList := make([]*zfs.Dataset, 0, len(list))
+func filterSnapshotsWithProp(list []zfs.Dataset, prop string) []zfs.Dataset {
+	nwList := make([]zfs.Dataset, 0, len(list))
 	for _, snap := range list {
 		if snap.ExtraProps[prop] == zfs.PropertyUnset {
 			continue
@@ -54,15 +54,15 @@ func filterSnapshotsWithProp(list []*zfs.Dataset, prop string) []*zfs.Dataset {
 	return nwList
 }
 
-func orderSnapshotsByCreated(set []*zfs.Dataset, prop string) ([]*zfs.Dataset, error) {
+func orderSnapshotsByCreated(set []zfs.Dataset, prop string) ([]zfs.Dataset, error) {
 	var err error
 	sort.Slice(set, func(i, j int) bool {
-		createdI, parseErr := parseDatasetTimeProperty(set[i], prop)
+		createdI, parseErr := parseDatasetTimeProperty(&set[i], prop)
 		if parseErr != nil {
 			err = parseErr
 			return false
 		}
-		createdJ, parseErr := parseDatasetTimeProperty(set[j], prop)
+		createdJ, parseErr := parseDatasetTimeProperty(&set[j], prop)
 		if parseErr != nil {
 			err = parseErr
 			return false
@@ -72,7 +72,7 @@ func orderSnapshotsByCreated(set []*zfs.Dataset, prop string) ([]*zfs.Dataset, e
 	return set, err
 }
 
-func snapshotsContain(list []*zfs.Dataset, dataset, snapshot string) bool {
+func snapshotsContain(list []zfs.Dataset, dataset, snapshot string) bool {
 	for _, ds := range list {
 		if datasetName(ds.Name, false) == fmt.Sprintf("%s@%s", dataset, snapshot) {
 			return true

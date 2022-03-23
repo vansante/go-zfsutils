@@ -117,7 +117,7 @@ func (r *Runner) sendSnapshotsForDataset(ds *zfs.Dataset) error {
 	return nil
 }
 
-func (r *Runner) reconcileSnapshots(local, remote []*zfs.Dataset) ([]zfshttp.SnapshotSend, error) {
+func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset) ([]zfshttp.SnapshotSend, error) {
 	var err error
 	local, err = orderSnapshotsByCreated(local, r.config.Properties.SnapshotCreatedAt)
 	if err != nil {
@@ -130,7 +130,8 @@ func (r *Runner) reconcileSnapshots(local, remote []*zfs.Dataset) ([]zfshttp.Sna
 
 	toSend := make([]zfshttp.SnapshotSend, 0, 8)
 	var prevRemoteSnap *zfs.Dataset
-	for _, snap := range local {
+	for i := range local {
+		snap := &local[i]
 		remoteExists := snapshotsContain(remote, datasetName(snap.Name, true), snapshotName(snap.Name))
 		localSent := snap.ExtraProps[r.config.Properties.SnapshotSentAt] != zfs.PropertyUnset
 

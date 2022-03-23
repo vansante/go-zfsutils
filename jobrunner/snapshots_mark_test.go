@@ -1,11 +1,12 @@
 package jobrunner
 
 import (
-	"github.com/stretchr/testify/require"
-	"github.com/vansante/go-zfs"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"github.com/vansante/go-zfs"
 )
 
 func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
@@ -50,7 +51,7 @@ func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
 		require.Len(t, snaps, 3)
 
 		require.Equal(t, snap1, snapshotName(snaps[0].Name))
-		tm, err := parseDatasetTimeProperty(snaps[0], defaultDeleteAtProperty)
+		tm, err := parseDatasetTimeProperty(&snaps[0], defaultDeleteAtProperty)
 		require.NoError(t, err)
 		require.WithinDuration(t, now, tm, time.Second)
 
@@ -107,7 +108,7 @@ func TestRunner_markPrunableSnapshotsByAge(t *testing.T) {
 		require.Len(t, snaps, 4)
 
 		require.Equal(t, snap1, snapshotName(snaps[0].Name))
-		tm, err := parseDatasetTimeProperty(snaps[0], defaultDeleteAtProperty)
+		tm, err := parseDatasetTimeProperty(&snaps[0], defaultDeleteAtProperty)
 		require.NoError(t, err)
 		require.WithinDuration(t, now, tm, time.Second)
 

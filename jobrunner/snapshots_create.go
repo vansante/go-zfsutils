@@ -2,10 +2,11 @@ package jobrunner
 
 import (
 	"fmt"
-	"github.com/vansante/go-zfs"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vansante/go-zfs"
 )
 
 func (r *Runner) createSnapshots() error {
@@ -50,7 +51,8 @@ func (r *Runner) createSnapshotsForDataset(ds *zfs.Dataset) error {
 	}
 	latestSnap := time.Unix(1, 0) // A long, long time ago...
 
-	for _, snap := range snapshots {
+	for i := range snapshots {
+		snap := &snapshots[i]
 		if r.config.IgnoreSnapshotsWithoutCreatedProperty && snap.ExtraProps[createdProp] == zfs.PropertyUnset {
 			continue
 		}
