@@ -39,9 +39,9 @@ func zfsOutput(arg ...string) ([][]string, error) {
 
 // ListByType lists the datasets by type and allows you to fetch extra custom fields
 func ListByType(t DatasetType, filter string, extraProps []string) ([]Dataset, error) {
-	fields := append(dsPropList, extraProps...) // nolint: gocritic
+	allFields := append(dsPropList, extraProps...) // nolint: gocritic
 
-	dsPropListOptions := strings.Join(fields, ",")
+	dsPropListOptions := strings.Join(allFields, ",")
 	args := []string{"list", "-rHp", "-t", string(t), "-o", dsPropListOptions}
 	if filter != "" {
 		args = append(args, filter)
@@ -460,7 +460,9 @@ func (d *Dataset) Rollback(destroyMoreRecent bool) error {
 
 // Children returns a slice of children of the receiving ZFS dataset.
 // A recursion depth may be specified, or a depth of 0 allows unlimited recursion.
-func (d *Dataset) Children(depth uint64) ([]Dataset, error) {
+func (d *Dataset) Children(depth uint64, extraProps []string) ([]Dataset, error) {
+	allFields := append(dsPropList, extraProps...) // nolint: gocritic
+
 	args := []string{"list"}
 	if depth > 0 {
 		args = append(args, "-d")
@@ -468,7 +470,7 @@ func (d *Dataset) Children(depth uint64) ([]Dataset, error) {
 	} else {
 		args = append(args, "-r")
 	}
-	args = append(args, "-t", "all", "-Hp", "-o", strings.Join(dsPropList, ","))
+	args = append(args, "-t", "all", "-Hp", "-o", strings.Join(allFields, ","))
 	args = append(args, d.Name)
 
 	out, err := zfsOutput(args...)
@@ -482,7 +484,7 @@ func (d *Dataset) Children(depth uint64) ([]Dataset, error) {
 			continue
 		}
 
-		ds, err := datasetFromFields(fields, nil)
+		ds, err := datasetFromFields(fields, extraProps)
 		if err != nil {
 			return nil, err
 		}

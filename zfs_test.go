@@ -291,11 +291,13 @@ func TestChildren(t *testing.T) {
 		require.Equal(t, DatasetSnapshot, s.Type)
 		require.Equal(t, testZPool+"/snapshot-test@test", s.Name)
 
-		children, err := f.Children(0)
+		children, err := f.Children(0, []string{PropertyRefQuota})
 		require.NoError(t, err)
 
 		require.Equal(t, 1, len(children))
 		require.Equal(t, testZPool+"/snapshot-test@test", children[0].Name)
+		require.Len(t, children[0].ExtraProps, 1)
+		require.Equal(t, children[0].ExtraProps, map[string]string{PropertyRefQuota: PropertyUnset})
 
 		require.NoError(t, s.Destroy(DestroyDefault))
 		require.NoError(t, f.Destroy(DestroyDefault))
