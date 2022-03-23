@@ -46,7 +46,7 @@ func (c *Client) request(ctx context.Context, method, url string, body io.Reader
 }
 
 // DatasetSnapshots requests the snapshots for a remote dataset
-func (c *Client) DatasetSnapshots(ctx context.Context, dataset string, extraProps []string) ([]*zfs.Dataset, error) {
+func (c *Client) DatasetSnapshots(ctx context.Context, dataset string, extraProps []string) ([]zfs.Dataset, error) {
 	req, err := c.request(ctx, http.MethodGet, fmt.Sprintf("filesystems/%s/snapshots?%s=%s",
 		dataset,
 		GETParamExtraProperties, strings.Join(extraProps, ","),
@@ -70,7 +70,7 @@ func (c *Client) DatasetSnapshots(ctx context.Context, dataset string, extraProp
 		return nil, fmt.Errorf("unexpected status %d requesting remote snapshots: %w", resp.StatusCode, err)
 	}
 
-	var datasets []*zfs.Dataset
+	var datasets []zfs.Dataset
 	err = json.NewDecoder(resp.Body).Decode(&datasets)
 	return datasets, err
 }
