@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/vansante/go-zfs"
 	zfshttp "github.com/vansante/go-zfs/http"
 )
@@ -55,7 +53,7 @@ func (r *Runner) sendSnapshotsForDataset(ds *zfs.Dataset) error {
 	}
 
 	server := ds.ExtraProps[r.config.Properties.SnapshotSendTo]
-	client := zfshttp.NewClient(server, r.config.AuthorisationToken)
+	client := zfshttp.NewClient(server, r.config.AuthorisationToken, r.logger)
 	remoteDataset := datasetName(ds.Name, true)
 
 	ctx, cancel := context.WithTimeout(r.ctx, requestTimeout)
@@ -135,7 +133,7 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset) ([]zfshttp.Snap
 		remoteExists := snapshotsContain(remote, datasetName(snap.Name, true), snapshotName(snap.Name))
 		localSent := snap.ExtraProps[r.config.Properties.SnapshotSentAt] != zfs.PropertyUnset
 
-		logger := r.logger.WithFields(logrus.Fields{
+		logger := r.logger.WithFields(map[string]interface{}{
 			"dataset":  datasetName(snap.Name, true),
 			"snapshot": snapshotName(snap.Name),
 		})
@@ -152,7 +150,7 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset) ([]zfshttp.Snap
 					r.config.Properties.SnapshotSentAt,
 				)
 			} else {
-				logger.WithError(setErr).WithField("value", val).Warnf("jobrunner.reconcileSnapshots: Set %s after property was missing",
+				logger.WithError(setErr).WithField("value", val).Infof("jobrunner.reconcileSnapshots: Set %s after property was missing",
 					r.config.Properties.SnapshotSentAt,
 				)
 			}

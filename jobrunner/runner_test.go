@@ -7,7 +7,6 @@ import (
 
 	zfshttp "github.com/vansante/go-zfs/http"
 
-	"github.com/sirupsen/logrus"
 	eventemitter "github.com/vansante/go-event-emitter"
 
 	"github.com/vansante/go-zfs"
@@ -23,7 +22,7 @@ const (
 func runnerTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) {
 	t.Helper()
 
-	zfshttp.TestHTTPZPool(testHTTPZPool, testToken, "", func(server *httptest.Server) {
+	zfshttp.TestHTTPZPool(testHTTPZPool, testToken, "", zfs.NewTestLogger(t), func(server *httptest.Server) {
 		// Create another zpool as 'source':
 		zfs.TestZPool(testZPool, func() {
 			r := &Runner{
@@ -35,7 +34,7 @@ func runnerTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) 
 					IgnoreSnapshotsWithoutCreatedProperty: true,
 					DeleteFilesystems:                     true,
 				},
-				logger: logrus.WithField("test", 1),
+				logger: zfs.NewTestLogger(t),
 				ctx:    context.Background(),
 			}
 
