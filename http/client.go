@@ -113,7 +113,7 @@ func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string) er
 			"dataset":     dataset,
 			"resumeToken": resumeToken,
 		})
-		err := zfs.ResumeSend(sendCtx, pipeWrtr, resumeToken)
+		err := zfs.ResumeSend(sendCtx, pipeWrtr, resumeToken, zfs.ResumeSendOptions{})
 		if err != nil {
 			logger.WithError(err).Error("zfs.http.Client.ResumeSend: Error sending resume stream")
 		}

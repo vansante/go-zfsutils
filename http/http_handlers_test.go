@@ -125,7 +125,10 @@ func TestHTTP_handleGetSnapshot(t *testing.T) {
 		require.EqualValues(t, http.StatusOK, resp.StatusCode)
 
 		testName := fmt.Sprintf("%s/%s", testZPool, "receive")
-		ds, err = zfs.ReceiveSnapshot(context.Background(), resp.Body, testName, false, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff})
+		ds, err = zfs.ReceiveSnapshot(context.Background(), resp.Body, testName, zfs.ReceiveOptions{
+			Resumable:  false,
+			Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+		})
 		require.NoError(t, err)
 		require.Equal(t, testName, ds.Name)
 
@@ -154,7 +157,10 @@ func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
-			_, err = zfs.ReceiveSnapshot(context.Background(), pipeRdr, newFilesys, false, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff})
+			_, err = zfs.ReceiveSnapshot(context.Background(), pipeRdr, newFilesys, zfs.ReceiveOptions{
+				Resumable:  false,
+				Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+			})
 			require.NoError(t, err)
 			wg.Done()
 		}()
@@ -175,7 +181,10 @@ func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
 		defer resp.Body.Close()
 		require.EqualValues(t, http.StatusOK, resp.StatusCode)
 
-		ds, err = zfs.ReceiveSnapshot(context.Background(), resp.Body, newFilesys, false, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff})
+		ds, err = zfs.ReceiveSnapshot(context.Background(), resp.Body, newFilesys, zfs.ReceiveOptions{
+			Resumable:  false,
+			Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+		})
 		require.NoError(t, err)
 		require.Equal(t, newFilesys, ds.Name)
 
@@ -208,7 +217,10 @@ func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
 		require.EqualValues(t, http.StatusOK, resp.StatusCode)
 
 		testName := fmt.Sprintf("%s/%s", testZPool, "receive")
-		ds, err = zfs.ReceiveSnapshot(context.Background(), io.LimitReader(resp.Body, 29_636), testName, true, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff})
+		ds, err = zfs.ReceiveSnapshot(context.Background(), io.LimitReader(resp.Body, 29_636), testName, zfs.ReceiveOptions{
+			Resumable:  true,
+			Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+		})
 		require.Error(t, err)
 		var recvErr *zfs.ResumableStreamError
 		require.True(t, errors.As(err, &recvErr))
@@ -232,7 +244,10 @@ func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
 		defer resp.Body.Close()
 		require.EqualValues(t, http.StatusOK, resp.StatusCode)
 
-		ds, err = zfs.ReceiveSnapshot(context.Background(), resp.Body, testName, true, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff})
+		ds, err = zfs.ReceiveSnapshot(context.Background(), resp.Body, testName, zfs.ReceiveOptions{
+			Resumable:  true,
+			Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+		})
 		require.NoError(t, err)
 
 		snaps, err := zfs.Snapshots(context.Background(), testName, nil)
@@ -294,7 +309,7 @@ func TestHTTP_handleReceiveSnapshot(t *testing.T) {
 
 		ds, err = ds.Snapshot(context.Background(), snapName, false)
 		require.NoError(t, err)
-		err = ds.SendSnapshot(context.Background(), pipeWrtr, zfs.SendOptions{Raw: true, Props: true})
+		err = ds.SendSnapshot(context.Background(), pipeWrtr, zfs.SendOptions{Raw: true, IncludeProperties: true})
 		require.NoError(t, err)
 		require.NoError(t, pipeWrtr.Close())
 
@@ -341,7 +356,7 @@ func TestHTTP_handleReceiveSnapshotNoExplicitName(t *testing.T) {
 		require.NoError(t, err)
 		ds, err = ds.Snapshot(context.Background(), snapName, false)
 		require.NoError(t, err)
-		err = ds.SendSnapshot(context.Background(), pipeWrtr, zfs.SendOptions{Raw: true, Props: true})
+		err = ds.SendSnapshot(context.Background(), pipeWrtr, zfs.SendOptions{Raw: true, IncludeProperties: true})
 		require.NoError(t, err)
 		require.NoError(t, pipeWrtr.Close())
 
@@ -368,11 +383,10 @@ func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
 		wg.Add(2)
 
 		go func() {
-			_, err := zfs.ReceiveSnapshot(context.Background(), io.LimitReader(pipeRdr, 28_725),
-				newFullSnap,
-				true, map[string]string{
-					zfs.PropertyCanMount: zfs.PropertyOff,
-				},
+			_, err := zfs.ReceiveSnapshot(context.Background(), io.LimitReader(pipeRdr, 28_725), newFullSnap, zfs.ReceiveOptions{
+				Resumable:  true,
+				Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+			},
 			)
 			require.Error(t, err)
 			wg.Done()
@@ -384,7 +398,10 @@ func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
 			wg.Done()
 		}()
 
-		err = toBeSent.SendSnapshot(context.Background(), pipeWrtr, zfs.SendOptions{Raw: true, Props: true})
+		err = toBeSent.SendSnapshot(context.Background(), pipeWrtr, zfs.SendOptions{
+			Raw:               true,
+			IncludeProperties: true,
+		})
 		require.Error(t, err)
 		wg.Wait()
 
@@ -443,7 +460,7 @@ func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
 			wg.Done()
 		}()
 
-		err = zfs.ResumeSend(context.Background(), pipeWrtr, token)
+		err = zfs.ResumeSend(context.Background(), pipeWrtr, token, zfs.ResumeSendOptions{})
 		require.NoError(t, err)
 		require.NoError(t, pipeWrtr.Close())
 

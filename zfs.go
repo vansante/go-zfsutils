@@ -8,6 +8,8 @@ import (
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/juju/ratelimit"
 )
 
 const (
@@ -208,20 +210,39 @@ func (d *Dataset) Mount(ctx context.Context, overlay bool, options []string) (*D
 	return GetDataset(ctx, d.Name, nil)
 }
 
+// ReceiveOptions are options you can specify to customize the ZFS snapshot reception
+type ReceiveOptions struct {
+	// When set, uses a rate-limiter to limit the flow to this amount of bytes per second
+	BytesPerSecond int64
+
+	// Whether the received snapshot should be resumable on interrupions, or be thrown away
+	Resumable bool
+
+	// Properties to be applied to the dataset
+	Properties map[string]string
+}
+
+func wrapReader(reader io.Reader, bytesPerSecond int64) io.Reader {
+	if bytesPerSecond <= 0 {
+		return reader
+	}
+	return ratelimit.Reader(reader, ratelimit.NewBucketWithRate(1, bytesPerSecond))
+}
+
 // ReceiveSnapshot receives a ZFS stream from the input io.Reader.
 // A new snapshot is created with the specified name, and streams the input data into the newly-created snapshot.
-func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, resumable bool, properties map[string]string) (*Dataset, error) {
+func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, recvOptions ReceiveOptions) (*Dataset, error) {
 	c := command{
 		cmd:   Binary,
 		ctx:   ctx,
-		stdin: input,
+		stdin: wrapReader(input, recvOptions.BytesPerSecond),
 	}
 
 	args := []string{"receive"}
-	if resumable {
+	if recvOptions.Resumable {
 		args = append(args, "-s")
 	}
-	args = append(args, propsSlice(properties)...)
+	args = append(args, propsSlice(recvOptions.Properties)...)
 	args = append(args, name)
 
 	_, err := c.Run(args...)
@@ -231,7 +252,11 @@ func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, resumabl
 	return GetDataset(ctx, name, nil)
 }
 
+// SendOptions are options you can specify to customize the ZFS send stream
 type SendOptions struct {
+	// When set, uses a rate-limiter to limit the flow to this amount of bytes per second
+	BytesPerSecond int64
+
 	// For encrypted datasets, send data exactly as it exists on disk. This allows backups to
 	//           be taken even if encryption keys are not currently loaded. The backup may then be
 	//           received on an untrusted machine since that machine will not have the encryption keys
@@ -246,7 +271,7 @@ type SendOptions struct {
 	// Include the dataset's properties in the stream.  This flag is implicit when -R is
 	//           specified.  The receiving system must also support this feature. Sends of encrypted
 	//           datasets must use -w when using this flag.
-	Props bool
+	IncludeProperties bool
 	// Generate an incremental stream from the first snapshot (the incremental source) to the
 	//           second snapshot (the incremental target).  The incremental source can be specified as
 	//           the last component of the snapshot name (the @ character and following) and it is
@@ -255,6 +280,13 @@ type SendOptions struct {
 	//           If the destination is a clone, the source may be the origin snapshot, which must be
 	//           fully specified (for example, pool/fs@origin, not just @origin).
 	IncrementalBase *Dataset
+}
+
+func wrapWriter(writer io.Writer, bytesPerSecond int64) io.Writer {
+	if bytesPerSecond <= 0 {
+		return writer
+	}
+	return ratelimit.Writer(writer, ratelimit.NewBucketWithRate(1, bytesPerSecond))
 }
 
 // SendSnapshot sends a ZFS stream of a snapshot to the input io.Writer.
@@ -268,7 +300,7 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, sendOption
 	if sendOptions.Raw {
 		args = append(args, "-w")
 	}
-	if sendOptions.Props {
+	if sendOptions.IncludeProperties {
 		args = append(args, "-p")
 	}
 	if sendOptions.IncrementalBase != nil {
@@ -281,7 +313,7 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, sendOption
 	c := command{
 		cmd:    Binary,
 		ctx:    ctx,
-		stdout: output,
+		stdout: wrapWriter(output, sendOptions.BytesPerSecond),
 	}
 	args = append([]string{"send"}, args...)
 	args = append(args, d.Name)
@@ -289,13 +321,19 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, sendOption
 	return err
 }
 
+// ResumeSendOptions are options you can specify to customize the ZFS send resume stream
+type ResumeSendOptions struct {
+	// When set, uses a rate-limiter to limit the flow to this amount of bytes per second
+	BytesPerSecond int64
+}
+
 // ResumeSend resumes an interrupted ZFS stream of a snapshot to the input io.Writer using the receive_resume_token.
 // An error will be returned if the input dataset is not of snapshot type.
-func ResumeSend(ctx context.Context, output io.Writer, resumeToken string) error {
+func ResumeSend(ctx context.Context, output io.Writer, resumeToken string, sendOptions ResumeSendOptions) error {
 	c := command{
 		cmd:    Binary,
 		ctx:    ctx,
-		stdout: output,
+		stdout: wrapWriter(output, sendOptions.BytesPerSecond),
 	}
 	args := append([]string{"send"}, "-t", resumeToken)
 	_, err := c.Run(args...)

@@ -47,9 +47,9 @@ func TestClient_Send(t *testing.T) {
 			Snapshot:    snap2,
 			Properties:  ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff},
 			SendOptions: zfs.SendOptions{
-				Raw:             true,
-				Props:           true,
-				IncrementalBase: snap1,
+				Raw:               true,
+				IncludeProperties: true,
+				IncrementalBase:   snap1,
 			},
 		})
 		require.NoError(t, err)

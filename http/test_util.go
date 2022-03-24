@@ -16,8 +16,15 @@ func TestHTTPZPool(testZPool, testAuthToken, testFs string, logger zfs.Logger, f
 			router: rtr,
 			config: Config{
 				ParentDataset:        testZPool,
-				AllowDestroy:         true,
 				AuthenticationTokens: []string{testAuthToken},
+
+				Permissions: Permissions{
+					AllowSpeedOverride:      true,
+					AllowNonRaw:             true,
+					AllowIncludeProperties:  true,
+					AllowDestroyFilesystems: true,
+					AllowDestroySnapshots:   true,
+				},
 			},
 			logger: logger,
 			ctx:    context.Background(),
