@@ -156,7 +156,7 @@ func (d *Dataset) Unmount(ctx context.Context, force bool) (*Dataset, error) {
 
 // LoadKey loads the encryption key for this and optionally children datasets.
 // See: https://openzfs.github.io/openzfs-docs/man/8/zfs-load-key.8.html
-func (d *Dataset) LoadKey(recursive bool, keyLocation string, stdin io.Reader) error {
+func (d *Dataset) LoadKey(ctx context.Context, recursive bool, keyLocation string, stdin io.Reader) error {
 	args := []string{"load-key"}
 	if recursive {
 		args = append(args, "-r")
@@ -165,7 +165,11 @@ func (d *Dataset) LoadKey(recursive bool, keyLocation string, stdin io.Reader) e
 		args = append(args, "-L", keyLocation)
 	}
 	args = append(args, d.Name)
-	cmd := command{cmd: Binary, stdin: stdin}
+	cmd := command{
+		cmd:   Binary,
+		ctx:   ctx,
+		stdin: stdin,
+	}
 	_, err := cmd.Run(args...)
 	return err
 }
