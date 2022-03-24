@@ -13,10 +13,12 @@ import (
 func TestRunner_createSnapshots(t *testing.T) {
 	runnerTest(t, func(server *httptest.Server, runner *Runner) {
 		const fsName = "test"
+		intervalProp := runner.config.Properties.snapshotIntervalMinutes()
+		createProp := runner.config.Properties.snapshotCreatedAt()
 
 		ds, err := zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsName, map[string]string{
-			defaultSnapshotIntervalMinutesProperty: "1",
-			zfs.PropertyCanMount:                   zfs.PropertyOff,
+			intervalProp:         "1",
+			zfs.PropertyCanMount: zfs.PropertyOff,
 		}, nil)
 		require.NoError(t, err)
 
@@ -33,11 +35,11 @@ func TestRunner_createSnapshots(t *testing.T) {
 			createTm := arguments[2].(time.Time)
 			require.WithinDuration(t, tm, createTm, time.Second)
 
-			snaps, err := ds.Snapshots(context.Background(), []string{defaultSnapshotCreatedAtProperty})
+			snaps, err := ds.Snapshots(context.Background(), []string{createProp})
 			require.NoError(t, err)
 			require.Len(t, snaps, 1)
 			require.Equal(t, snaps[0].Name, testZPool+"/"+fsName+"@"+name)
-			require.Equal(t, snaps[0].ExtraProps[defaultSnapshotCreatedAtProperty], tm.Format(dateTimeFormat))
+			require.Equal(t, snaps[0].ExtraProps[createProp], tm.Format(dateTimeFormat))
 		})
 
 		err = runner.createSnapshots()

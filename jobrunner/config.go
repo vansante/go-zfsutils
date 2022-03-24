@@ -1,21 +1,18 @@
 package jobrunner
 
-import "github.com/vansante/go-zfs"
+import (
+	"fmt"
+
+	"github.com/vansante/go-zfs"
+)
 
 const (
 	defaultDatasetType            = zfs.DatasetFilesystem
 	defaultSnapshotNameTemplate   = "backup_%UNIXTIME%"
 	defaultMaximumSendTimeMinutes = 12 * 60
-
-	defaultSnapshotIntervalMinutesProperty     = "com.github.vansante:snapshot-interval-minutes"
-	defaultSnapshotCreatedAtProperty           = "com.github.vansante:snapshot-created-at"
-	defaultSnapshotSendToProperty              = "com.github.vansante:snapshot-send-to"
-	defaultSnapshotSentAtProperty              = "com.github.vansante:snapshot-sent-at"
-	defaultSnapshotRetentionCountProperty      = "com.github.vansante:snapshot-retention-count"
-	defaultSnapshotMaxRetentionMinutesProperty = "com.github.vansante:snapshot-max-retention-minutes"
-	defaultDeleteAtProperty                    = "com.github.vansante:delete-at"
 )
 
+// Config configures the runner
 type Config struct {
 	ParentDataset                         string          `json:"ParentDataset" yaml:"ParentDataset"`
 	DatasetType                           zfs.DatasetType `json:"DatasetTypes" yaml:"DatasetTypes"`
@@ -28,27 +25,76 @@ type Config struct {
 	Properties Properties `json:"Properties" yaml:"Properties"`
 }
 
-type Properties struct {
-	SnapshotIntervalMinutes     string `json:"SnapshotIntervalMinutes" yaml:"SnapshotIntervalMinutes"`
-	SnapshotCreatedAt           string `json:"SnapshotCreatedAt" yaml:"SnapshotCreatedAt"`
-	SnapshotSendTo              string `json:"SnapshotSendTo" yaml:"SnapshotSendTo"`
-	SnapshotSentAt              string `json:"SnapshotSentAt" yaml:"SnapshotSentAt"`
-	SnapshotRetentionCount      string `json:"SnapshotRetentionCount" yaml:"SnapshotRetentionCount"`
-	SnapshotMaxRetentionMinutes string `json:"SnapshotMaxRetentionMinutes" yaml:"SnapshotMaxRetentionMinutes"`
-	DeleteAt                    string `json:"DeleteAt" yaml:"DeleteAt"`
-}
-
 // ApplyDefaults applies all the default values to the configuration
 func (c *Config) ApplyDefaults() {
 	c.DatasetType = defaultDatasetType
 	c.SnapshotNameTemplate = defaultSnapshotNameTemplate
 	c.MaximumSendTimeMinutes = defaultMaximumSendTimeMinutes
 
-	c.Properties.SnapshotIntervalMinutes = defaultSnapshotIntervalMinutesProperty
-	c.Properties.SnapshotCreatedAt = defaultSnapshotCreatedAtProperty
-	c.Properties.SnapshotSendTo = defaultSnapshotSendToProperty
-	c.Properties.SnapshotSentAt = defaultSnapshotSentAtProperty
-	c.Properties.SnapshotRetentionCount = defaultSnapshotRetentionCountProperty
-	c.Properties.SnapshotMaxRetentionMinutes = defaultSnapshotMaxRetentionMinutesProperty
-	c.Properties.DeleteAt = defaultDeleteAtProperty
+	c.Properties.ApplyDefaults()
+}
+
+// Properties sets the names of the custom ZFS properties to use
+type Properties struct {
+	Namespace string `json:"Namespace" yaml:"Namespace"`
+
+	SnapshotIntervalMinutes  string `json:"SnapshotIntervalMinutes" yaml:"SnapshotIntervalMinutes"`
+	SnapshotCreatedAt        string `json:"SnapshotCreatedAt" yaml:"SnapshotCreatedAt"`
+	SnapshotSendTo           string `json:"SnapshotSendTo" yaml:"SnapshotSendTo"`
+	SnapshotSentAt           string `json:"SnapshotSentAt" yaml:"SnapshotSentAt"`
+	SnapshotRetentionCount   string `json:"SnapshotRetentionCount" yaml:"SnapshotRetentionCount"`
+	SnapshotRetentionMinutes string `json:"SnapshotRetentionMinutes" yaml:"SnapshotRetentionMinutes"`
+	DeleteAt                 string `json:"DeleteAt" yaml:"DeleteAt"`
+}
+
+const (
+	defaultNamespace                        = "com.github.vansante"
+	defaultSnapshotIntervalMinutesProperty  = "snapshot-interval-minutes"
+	defaultSnapshotCreatedAtProperty        = "snapshot-created-at"
+	defaultSnapshotSendToProperty           = "snapshot-send-to"
+	defaultSnapshotSentAtProperty           = "snapshot-sent-at"
+	defaultSnapshotRetentionCountProperty   = "snapshot-retention-count"
+	defaultSnapshotRetentionMinutesProperty = "snapshot-retention-minutes"
+	defaultDeleteAtProperty                 = "delete-at"
+)
+
+// ApplyDefaults applies all the default values to the Properties
+func (p *Properties) ApplyDefaults() {
+	p.Namespace = defaultNamespace
+
+	p.SnapshotIntervalMinutes = defaultSnapshotIntervalMinutesProperty
+	p.SnapshotCreatedAt = defaultSnapshotCreatedAtProperty
+	p.SnapshotSendTo = defaultSnapshotSendToProperty
+	p.SnapshotSentAt = defaultSnapshotSentAtProperty
+	p.SnapshotRetentionCount = defaultSnapshotRetentionCountProperty
+	p.SnapshotRetentionMinutes = defaultSnapshotRetentionMinutesProperty
+	p.DeleteAt = defaultDeleteAtProperty
+}
+
+func (p *Properties) snapshotIntervalMinutes() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotIntervalMinutes)
+}
+
+func (p *Properties) snapshotCreatedAt() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotCreatedAt)
+}
+
+func (p *Properties) snapshotSendTo() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotSendTo)
+}
+
+func (p *Properties) snapshotSentAt() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotSentAt)
+}
+
+func (p *Properties) snapshotRetentionCount() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotRetentionCount)
+}
+
+func (p *Properties) snapshotRetentionMinutes() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotRetentionMinutes)
+}
+
+func (p *Properties) deleteAt() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.DeleteAt)
 }

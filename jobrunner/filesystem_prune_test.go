@@ -13,21 +13,22 @@ import (
 
 func TestRunner_pruneFilesystems(t *testing.T) {
 	runnerTest(t, func(server *httptest.Server, runner *Runner) {
+		delProp := runner.config.Properties.deleteAt()
 		fs, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
 		require.NoError(t, err)
-		require.NoError(t, fs.SetProperty(context.Background(), defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
+		require.NoError(t, fs.SetProperty(context.Background(), delProp, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
 		const otherFs, fsWithoutDel, fsWithSnap, otherVol, deleteLater = "test1", "test2", "test3", "test4", "test5"
 		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+otherFs, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 		require.NoError(t, err)
-		require.NoError(t, fs.SetProperty(context.Background(), defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
+		require.NoError(t, fs.SetProperty(context.Background(), delProp, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
 		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsWithoutDel, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 		require.NoError(t, err)
 
 		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsWithSnap, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 		require.NoError(t, err)
-		require.NoError(t, fs.SetProperty(context.Background(), defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
+		require.NoError(t, fs.SetProperty(context.Background(), delProp, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
 		const snap = "snappie"
 		_, err = fs.Snapshot(context.Background(), snap, false)
@@ -36,11 +37,11 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 		vol, err := zfs.CreateVolume(context.Background(), testZPool+"/"+otherVol, 10_000, nil, nil)
 		require.NoError(t, err)
 		time.Sleep(time.Second / 3)
-		require.NoError(t, vol.SetProperty(context.Background(), defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
+		require.NoError(t, vol.SetProperty(context.Background(), delProp, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
 		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+deleteLater, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 		require.NoError(t, err)
-		require.NoError(t, fs.SetProperty(context.Background(), defaultDeleteAtProperty, time.Now().Add(time.Second*3).Format(dateTimeFormat)))
+		require.NoError(t, fs.SetProperty(context.Background(), delProp, time.Now().Add(time.Second*3).Format(dateTimeFormat)))
 
 		events := 0
 		runner.AddListener(DeletedFilesystemEvent, func(arguments ...interface{}) {

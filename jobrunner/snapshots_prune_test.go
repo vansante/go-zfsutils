@@ -13,6 +13,9 @@ import (
 
 func TestRunner_pruneSnapshots(t *testing.T) {
 	runnerTest(t, func(server *httptest.Server, runner *Runner) {
+		createdProp := runner.config.Properties.snapshotCreatedAt()
+		deleteProp := runner.config.Properties.deleteAt()
+
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
 		require.NoError(t, err)
 
@@ -21,19 +24,19 @@ func TestRunner_pruneSnapshots(t *testing.T) {
 
 		snap, err := ds.Snapshot(context.Background(), snap1, false)
 		require.NoError(t, err)
-		require.NoError(t, snap.SetProperty(context.Background(), defaultDeleteAtProperty, now.Add(-time.Minute*2).Format(dateTimeFormat)))
+		require.NoError(t, snap.SetProperty(context.Background(), deleteProp, now.Add(-time.Minute*2).Format(dateTimeFormat)))
 
 		snap, err = ds.Snapshot(context.Background(), snap2, false)
 		require.NoError(t, err)
-		require.NoError(t, snap.SetProperty(context.Background(), defaultDeleteAtProperty, now.Add(-time.Second*6).Format(dateTimeFormat)))
+		require.NoError(t, snap.SetProperty(context.Background(), deleteProp, now.Add(-time.Second*6).Format(dateTimeFormat)))
 
 		snap, err = ds.Snapshot(context.Background(), snap3, false)
 		require.NoError(t, err)
-		require.NoError(t, snap.SetProperty(context.Background(), defaultSnapshotCreatedAtProperty, now.Add(time.Second).Format(dateTimeFormat)))
+		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Add(time.Second).Format(dateTimeFormat)))
 
 		snap, err = ds.Snapshot(context.Background(), snap4, false)
 		require.NoError(t, err)
-		require.NoError(t, snap.SetProperty(context.Background(), defaultSnapshotCreatedAtProperty, now.Add(time.Minute).Format(dateTimeFormat)))
+		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Add(time.Minute).Format(dateTimeFormat)))
 
 		events := 0
 		runner.AddListener(DeletedSnapshotEvent, func(arguments ...interface{}) {

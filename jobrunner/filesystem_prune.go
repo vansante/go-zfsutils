@@ -8,7 +8,7 @@ import (
 )
 
 func (r *Runner) pruneFilesystems() error {
-	deleteProp := r.config.Properties.DeleteAt
+	deleteProp := r.config.Properties.deleteAt()
 
 	filesystems, err := zfs.ListWithProperty(r.ctx, zfs.DatasetFilesystem, r.config.ParentDataset, deleteProp)
 	if err != nil {

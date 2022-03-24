@@ -5,11 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	zfshttp "github.com/vansante/go-zfs/http"
-
 	eventemitter "github.com/vansante/go-event-emitter"
 
 	"github.com/vansante/go-zfs"
+	zfshttp "github.com/vansante/go-zfs/http"
 )
 
 const (

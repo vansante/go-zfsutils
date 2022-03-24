@@ -8,7 +8,7 @@ import (
 )
 
 func (r *Runner) pruneSnapshots() error {
-	deleteProp := r.config.Properties.DeleteAt
+	deleteProp := r.config.Properties.deleteAt()
 
 	snapshots, err := zfs.ListWithProperty(r.ctx, zfs.DatasetSnapshot, r.config.ParentDataset, deleteProp)
 	if err != nil {

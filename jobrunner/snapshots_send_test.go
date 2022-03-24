@@ -13,10 +13,13 @@ import (
 
 func TestRunner_sendSnapshots(t *testing.T) {
 	runnerTest(t, func(server *httptest.Server, runner *Runner) {
+		createdProp := runner.config.Properties.snapshotCreatedAt()
+		sendToProp := runner.config.Properties.snapshotSendTo()
+
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
 		require.NoError(t, err)
 
-		err = ds.SetProperty(context.Background(), defaultSnapshotSendToProperty, server.URL)
+		err = ds.SetProperty(context.Background(), sendToProp, server.URL)
 		require.NoError(t, err)
 
 		snapshotTm := time.Now().Add(-time.Minute)
@@ -24,7 +27,7 @@ func TestRunner_sendSnapshots(t *testing.T) {
 		snapshot, err := ds.Snapshot(context.Background(), snapName, false)
 		require.NoError(t, err)
 
-		err = snapshot.SetProperty(context.Background(), defaultSnapshotCreatedAtProperty, snapshotTm.Format(dateTimeFormat))
+		err = snapshot.SetProperty(context.Background(), createdProp, snapshotTm.Format(dateTimeFormat))
 		require.NoError(t, err)
 
 		verifyArgs := func(args []interface{}) {
