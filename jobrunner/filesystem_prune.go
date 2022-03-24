@@ -10,14 +10,18 @@ import (
 func (r *Runner) pruneFilesystems() error {
 	deleteProp := r.config.Properties.DeleteAt
 
-	filesystems, err := zfs.ListWithProperty(zfs.DatasetFilesystem, r.config.ParentDataset, deleteProp)
+	filesystems, err := zfs.ListWithProperty(r.ctx, zfs.DatasetFilesystem, r.config.ParentDataset, deleteProp)
 	if err != nil {
 		return fmt.Errorf("error finding prunable filesystems: %w", err)
 	}
 
 	now := time.Now()
 	for filesystem := range filesystems {
-		fs, err := zfs.GetDataset(filesystem, []string{deleteProp})
+		if r.ctx.Err() != nil {
+			return r.ctx.Err()
+		}
+
+		fs, err := zfs.GetDataset(r.ctx, filesystem, []string{deleteProp})
 		if err != nil {
 			return fmt.Errorf("error getting filesystem %s: %w", filesystem, err)
 		}
@@ -35,7 +39,7 @@ func (r *Runner) pruneFilesystems() error {
 			continue // Not due for removal yet
 		}
 
-		children, err := fs.Children(0, nil)
+		children, err := fs.Children(r.ctx, 0, nil)
 		if err != nil {
 			return fmt.Errorf("error listing %s children: %w", filesystem, err)
 		}
@@ -45,7 +49,7 @@ func (r *Runner) pruneFilesystems() error {
 		}
 
 		// TODO: FIXME: Do we want deferred destroy?
-		err = fs.Destroy(zfs.DestroyDefault)
+		err = fs.Destroy(r.ctx, zfs.DestroyDefault)
 		if err != nil {
 			return fmt.Errorf("error destroying %s: %s", filesystem, err)
 		}

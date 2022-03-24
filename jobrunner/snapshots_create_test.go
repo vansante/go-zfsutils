@@ -1,6 +1,7 @@
 package jobrunner
 
 import (
+	"context"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ func TestRunner_createSnapshots(t *testing.T) {
 	runnerTest(t, func(server *httptest.Server, runner *Runner) {
 		const fsName = "test"
 
-		ds, err := zfs.CreateFilesystem(testZPool+"/"+fsName, map[string]string{
+		ds, err := zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsName, map[string]string{
 			defaultSnapshotIntervalMinutesProperty: "1",
 			zfs.PropertyCanMount:                   zfs.PropertyOff,
 		}, nil)
@@ -32,7 +33,7 @@ func TestRunner_createSnapshots(t *testing.T) {
 			createTm := arguments[2].(time.Time)
 			require.WithinDuration(t, tm, createTm, time.Second)
 
-			snaps, err := ds.Snapshots([]string{defaultSnapshotCreatedAtProperty})
+			snaps, err := ds.Snapshots(context.Background(), []string{defaultSnapshotCreatedAtProperty})
 			require.NoError(t, err)
 			require.Len(t, snaps, 1)
 			require.Equal(t, snaps[0].Name, testZPool+"/"+fsName+"@"+name)

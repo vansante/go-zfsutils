@@ -1,6 +1,7 @@
 package jobrunner
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,13 +12,17 @@ import (
 
 func (r *Runner) createSnapshots() error {
 	intervalProp := r.config.Properties.SnapshotIntervalMinutes
-	datasets, err := zfs.ListWithProperty(r.config.DatasetType, r.config.ParentDataset, intervalProp)
+	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, intervalProp)
 	if err != nil {
 		return fmt.Errorf("error finding snapshottable datasets: %w", err)
 	}
 
 	for dataset := range datasets {
-		ds, err := zfs.GetDataset(dataset, []string{intervalProp})
+		if r.ctx.Err() != nil {
+			return r.ctx.Err()
+		}
+
+		ds, err := zfs.GetDataset(r.ctx, dataset, []string{intervalProp})
 		if err != nil {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
@@ -45,7 +50,7 @@ func (r *Runner) createSnapshotsForDataset(ds *zfs.Dataset) error {
 	}
 
 	createdProp := r.config.Properties.SnapshotCreatedAt
-	snapshots, err := zfs.ListByType(zfs.DatasetSnapshot, ds.Name, []string{createdProp})
+	snapshots, err := zfs.ListByType(r.ctx, zfs.DatasetSnapshot, ds.Name, []string{createdProp})
 	if err != nil {
 		return fmt.Errorf("error listing existing snapshots: %w", err)
 	}
@@ -72,12 +77,13 @@ func (r *Runner) createSnapshotsForDataset(ds *zfs.Dataset) error {
 
 	tm := time.Now()
 	name := r.snapshotName(tm)
-	snap, err := ds.Snapshot(name, false)
+	snap, err := ds.Snapshot(r.ctx, name, false)
 	if err != nil {
 		return fmt.Errorf("error creating snapshot %s for %s: %w", name, ds.Name, err)
 	}
 
-	err = snap.SetProperty(createdProp, tm.Format(dateTimeFormat))
+	// Deliberately using context.Background here, because I always want to set the property if the snapshot was made
+	err = snap.SetProperty(context.Background(), createdProp, tm.Format(dateTimeFormat))
 	if err != nil {
 		return fmt.Errorf("error setting %s on snapshot %s: %w", createdProp, snap.Name, err)
 	}

@@ -17,7 +17,7 @@ func (r *Runner) markPrunableSnapshots() error {
 
 func (r *Runner) markPrunableExcessSnapshots() error {
 	countProp := r.config.Properties.SnapshotRetentionCount
-	datasets, err := zfs.ListWithProperty(r.config.DatasetType, r.config.ParentDataset, countProp)
+	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, countProp)
 	if err != nil {
 		return fmt.Errorf("error finding retention count datasets: %w", err)
 	}
@@ -27,7 +27,7 @@ func (r *Runner) markPrunableExcessSnapshots() error {
 			return r.ctx.Err()
 		}
 
-		ds, err := zfs.GetDataset(dataset, []string{countProp})
+		ds, err := zfs.GetDataset(r.ctx, dataset, []string{countProp})
 		if err != nil {
 			return fmt.Errorf("error retrieving count retention dataset %s: %w", dataset, err)
 		}
@@ -58,7 +58,7 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 	createdProp := r.config.Properties.SnapshotCreatedAt
 	deleteProp := r.config.Properties.DeleteAt
 
-	snaps, err := ds.Snapshots([]string{createdProp, deleteProp})
+	snaps, err := ds.Snapshots(r.ctx, []string{createdProp, deleteProp})
 	if err != nil {
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
 	}
@@ -82,7 +82,7 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 			continue // Not at the max yet
 		}
 
-		err = snap.SetProperty(deleteProp, now.Format(dateTimeFormat))
+		err = snap.SetProperty(r.ctx, deleteProp, now.Format(dateTimeFormat))
 		if err != nil {
 			return fmt.Errorf("error setting %s property for %s: %w", deleteProp, snap.Name, err)
 		}
@@ -95,7 +95,7 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 
 func (r *Runner) markPrunableSnapshotsByAge() error {
 	retentionProp := r.config.Properties.SnapshotMaxRetentionMinutes
-	datasets, err := zfs.ListWithProperty(r.config.DatasetType, r.config.ParentDataset, retentionProp)
+	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, retentionProp)
 	if err != nil {
 		return fmt.Errorf("error finding retention time datasets: %w", err)
 	}
@@ -105,7 +105,7 @@ func (r *Runner) markPrunableSnapshotsByAge() error {
 			return r.ctx.Err()
 		}
 
-		ds, err := zfs.GetDataset(dataset, []string{retentionProp})
+		ds, err := zfs.GetDataset(r.ctx, dataset, []string{retentionProp})
 		if err != nil {
 			return fmt.Errorf("error retrieving time retention dataset %s: %w", dataset, err)
 		}
@@ -136,7 +136,7 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 	createdProp := r.config.Properties.SnapshotCreatedAt
 	deleteProp := r.config.Properties.DeleteAt
 
-	snaps, err := ds.Snapshots([]string{createdProp, deleteProp})
+	snaps, err := ds.Snapshots(r.ctx, []string{createdProp, deleteProp})
 	if err != nil {
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
 	}
@@ -161,7 +161,7 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 			continue // Retention period has not passed yet.
 		}
 
-		err = snap.SetProperty(deleteProp, now.Format(dateTimeFormat))
+		err = snap.SetProperty(r.ctx, deleteProp, now.Format(dateTimeFormat))
 		if err != nil {
 			return fmt.Errorf("error setting %s property for %s: %w", deleteProp, snap.Name, err)
 		}

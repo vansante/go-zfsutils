@@ -10,14 +10,18 @@ import (
 func (r *Runner) pruneSnapshots() error {
 	deleteProp := r.config.Properties.DeleteAt
 
-	snapshots, err := zfs.ListWithProperty(zfs.DatasetSnapshot, r.config.ParentDataset, deleteProp)
+	snapshots, err := zfs.ListWithProperty(r.ctx, zfs.DatasetSnapshot, r.config.ParentDataset, deleteProp)
 	if err != nil {
 		return fmt.Errorf("error finding prunable datasets: %w", err)
 	}
 
 	now := time.Now()
 	for snapshot := range snapshots {
-		snap, err := zfs.GetDataset(snapshot, []string{deleteProp})
+		if r.ctx.Err() != nil {
+			return r.ctx.Err()
+		}
+
+		snap, err := zfs.GetDataset(r.ctx, snapshot, []string{deleteProp})
 		if err != nil {
 			return fmt.Errorf("error getting snapshot %s: %w", snapshot, err)
 		}
@@ -36,7 +40,7 @@ func (r *Runner) pruneSnapshots() error {
 		}
 
 		// TODO: FIXME: Do we want deferred destroy?
-		err = snap.Destroy(zfs.DestroyDefault)
+		err = snap.Destroy(r.ctx, zfs.DestroyDefault)
 		if err != nil {
 			return fmt.Errorf("error destroying %s: %s", snapshot, err)
 		}

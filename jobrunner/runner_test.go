@@ -42,7 +42,7 @@ func runnerTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) 
 			r.config.ApplyDefaults()
 			r.config.MaximumSendTimeMinutes = 1
 
-			_, err := zfs.CreateFilesystem(testFilesystem, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+			_, err := zfs.CreateFilesystem(context.Background(), testFilesystem, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 			if err != nil {
 				panic(err)
 			}

@@ -1,6 +1,7 @@
 package jobrunner
 
 import (
+	"context"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -12,18 +13,18 @@ import (
 
 func TestRunner_sendSnapshots(t *testing.T) {
 	runnerTest(t, func(server *httptest.Server, runner *Runner) {
-		ds, err := zfs.GetDataset(testFilesystem, nil)
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
 		require.NoError(t, err)
 
-		err = ds.SetProperty(defaultSnapshotSendToProperty, server.URL)
+		err = ds.SetProperty(context.Background(), defaultSnapshotSendToProperty, server.URL)
 		require.NoError(t, err)
 
 		snapshotTm := time.Now().Add(-time.Minute)
 		snapName := runner.snapshotName(snapshotTm)
-		snapshot, err := ds.Snapshot(snapName, false)
+		snapshot, err := ds.Snapshot(context.Background(), snapName, false)
 		require.NoError(t, err)
 
-		err = snapshot.SetProperty(defaultSnapshotCreatedAtProperty, snapshotTm.Format(dateTimeFormat))
+		err = snapshot.SetProperty(context.Background(), defaultSnapshotCreatedAtProperty, snapshotTm.Format(dateTimeFormat))
 		require.NoError(t, err)
 
 		verifyArgs := func(args []interface{}) {
@@ -52,7 +53,7 @@ func TestRunner_sendSnapshots(t *testing.T) {
 		require.Equal(t, 1, sendingCount)
 		require.Equal(t, 1, sentCount)
 
-		snaps, err := zfs.Snapshots(testHTTPZPool+"/"+datasetName(testFilesystem, true), nil)
+		snaps, err := zfs.Snapshots(context.Background(), testHTTPZPool+"/"+datasetName(testFilesystem, true), nil)
 		require.NoError(t, err)
 		require.Len(t, snaps, 1)
 		require.Equal(t, testHTTPZPool+"/"+datasetName(testFilesystem, true)+"@"+runner.snapshotName(snapshotTm), snaps[0].Name)

@@ -1,6 +1,7 @@
 package jobrunner
 
 import (
+	"context"
 	"fmt"
 	"net/http/httptest"
 	"testing"
@@ -12,47 +13,48 @@ import (
 
 func TestRunner_pruneFilesystems(t *testing.T) {
 	runnerTest(t, func(server *httptest.Server, runner *Runner) {
-		fs, err := zfs.GetDataset(testFilesystem, nil)
+		fs, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
 		require.NoError(t, err)
-		require.NoError(t, fs.SetProperty(defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
+		require.NoError(t, fs.SetProperty(context.Background(), defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
 		const otherFs, fsWithoutDel, fsWithSnap, otherVol, deleteLater = "test1", "test2", "test3", "test4", "test5"
-		fs, err = zfs.CreateFilesystem(testZPool+"/"+otherFs, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+otherFs, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 		require.NoError(t, err)
-		require.NoError(t, fs.SetProperty(defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
+		require.NoError(t, fs.SetProperty(context.Background(), defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
-		fs, err = zfs.CreateFilesystem(testZPool+"/"+fsWithoutDel, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsWithoutDel, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 		require.NoError(t, err)
 
-		fs, err = zfs.CreateFilesystem(testZPool+"/"+fsWithSnap, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsWithSnap, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 		require.NoError(t, err)
-		require.NoError(t, fs.SetProperty(defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
+		require.NoError(t, fs.SetProperty(context.Background(), defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
 		const snap = "snappie"
-		_, err = fs.Snapshot(snap, false)
+		_, err = fs.Snapshot(context.Background(), snap, false)
 		require.NoError(t, err)
 
-		vol, err := zfs.CreateVolume(testZPool+"/"+otherVol, 10_000, nil, nil)
+		vol, err := zfs.CreateVolume(context.Background(), testZPool+"/"+otherVol, 10_000, nil, nil)
 		require.NoError(t, err)
 		time.Sleep(time.Second / 3)
-		require.NoError(t, vol.SetProperty(defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
+		require.NoError(t, vol.SetProperty(context.Background(), defaultDeleteAtProperty, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
-		fs, err = zfs.CreateFilesystem(testZPool+"/"+deleteLater, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+deleteLater, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 		require.NoError(t, err)
-		require.NoError(t, fs.SetProperty(defaultDeleteAtProperty, time.Now().Add(time.Second*3).Format(dateTimeFormat)))
+		require.NoError(t, fs.SetProperty(context.Background(), defaultDeleteAtProperty, time.Now().Add(time.Second*3).Format(dateTimeFormat)))
 
 		events := 0
 		runner.AddListener(DeletedFilesystemEvent, func(arguments ...interface{}) {
 			events++
 
 			require.Len(t, arguments, 2)
-			switch events {
-			case 1:
-				require.Equal(t, fmt.Sprintf("%s/%s", testZPool, otherFs), arguments[0])
+			switch arguments[0] {
+			case fmt.Sprintf("%s/%s", testZPool, otherFs):
 				require.Equal(t, otherFs, arguments[1])
-			case 2:
-				require.Equal(t, testFilesystem, arguments[0])
+			case testFilesystem:
 				require.Equal(t, datasetName(testFilesystem, true), arguments[1])
+			default:
+				t.Errorf("Unexpected filesystem: %s", arguments[0])
+				t.Fail()
 			}
 		})
 
@@ -60,10 +62,10 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 2, events)
 
-		ds, err := zfs.GetDataset(testZPool, nil)
+		ds, err := zfs.GetDataset(context.Background(), testZPool, nil)
 		require.NoError(t, err)
 
-		datasets, err := ds.Children(0, nil)
+		datasets, err := ds.Children(context.Background(), 0, nil)
 		require.NoError(t, err)
 		require.Len(t, datasets, 5)
 		require.Equal(t, fmt.Sprintf("%s/%s", testZPool, fsWithoutDel), datasets[0].Name)

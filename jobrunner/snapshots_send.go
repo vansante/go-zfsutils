@@ -13,13 +13,13 @@ import (
 )
 
 func (r *Runner) sendSnapshots() error {
-	datasets, err := zfs.ListWithProperty(r.config.DatasetType, r.config.ParentDataset, r.config.Properties.SnapshotSendTo)
+	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, r.config.Properties.SnapshotSendTo)
 	if err != nil {
 		return fmt.Errorf("error finding snapshottable datasets: %w", err)
 	}
 
 	for dataset := range datasets {
-		ds, err := zfs.GetDataset(dataset, []string{
+		ds, err := zfs.GetDataset(r.ctx, dataset, []string{
 			r.config.Properties.SnapshotSendTo,
 		})
 		if err != nil {
@@ -36,7 +36,7 @@ func (r *Runner) sendSnapshots() error {
 func (r *Runner) sendSnapshotsForDataset(ds *zfs.Dataset) error {
 	createdProp := r.config.Properties.SnapshotCreatedAt
 	sentProp := r.config.Properties.SnapshotSentAt
-	localSnaps, err := zfs.ListByType(zfs.DatasetSnapshot, ds.Name, []string{createdProp, sentProp})
+	localSnaps, err := zfs.ListByType(r.ctx, zfs.DatasetSnapshot, ds.Name, []string{createdProp, sentProp})
 	if err != nil {
 		return fmt.Errorf("error listing existing snapshots: %w", err)
 	}
@@ -146,7 +146,7 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset) ([]zfshttp.Snap
 				continue // Nothing to do!
 			}
 			val := time.Now().Format(dateTimeFormat)
-			setErr := snap.SetProperty(r.config.Properties.SnapshotSentAt, val)
+			setErr := snap.SetProperty(r.ctx, r.config.Properties.SnapshotSentAt, val)
 			if setErr != nil {
 				logger.WithError(setErr).Errorf("jobrunner.reconcileSnapshots: Error setting %s after property was missing",
 					r.config.Properties.SnapshotSentAt,
