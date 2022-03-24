@@ -2,6 +2,7 @@ package zfs
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
@@ -25,23 +26,39 @@ var dsPropList = []string{
 	PropertyUsedByDataset,
 }
 
+// zfs is a helper function to wrap typical calls to zfs that ignores stdout.
+func zfs(ctx context.Context, arg ...string) error {
+	_, err := zfsOutput(ctx, arg...)
+	return err
+}
+
+// zfs is a helper function to wrap typical calls to zfs.
+func zfsOutput(ctx context.Context, arg ...string) ([][]string, error) {
+	c := command{
+		cmd: Binary,
+		ctx: ctx,
+	}
+	return c.Run(arg...)
+}
+
 type command struct {
-	Command string
-	Stdin   io.Reader
-	Stdout  io.Writer
+	ctx    context.Context
+	cmd    string
+	stdin  io.Reader
+	stdout io.Writer
 }
 
 func (c *command) Run(arg ...string) ([][]string, error) {
-	cmd := exec.Command(c.Command, arg...)
+	cmd := exec.CommandContext(c.ctx, c.cmd, arg...)
 
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout = c.Stdout
+	cmd.Stdout = c.stdout
 	cmd.Stderr = &stderr
-	if c.Stdout == nil {
+	if c.stdout == nil {
 		cmd.Stdout = &stdout
 	}
-	if c.Stdin != nil {
-		cmd.Stdin = c.Stdin
+	if c.stdin != nil {
+		cmd.Stdin = c.stdin
 	}
 
 	err := cmd.Run()
@@ -50,7 +67,7 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 	}
 
 	// assume if you passed in something for stdout, that you know what to do with it
-	if c.Stdout != nil {
+	if c.stdout != nil {
 		return nil, nil
 	}
 
@@ -59,7 +76,6 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 	// last line is always blank
 	lines = lines[0 : len(lines)-1]
 	output := make([][]string, len(lines))
-
 	for i, l := range lines {
 		output[i] = strings.Fields(l)
 	}

@@ -1,6 +1,7 @@
 package zfs
 
 import (
+	"context"
 	"errors"
 	"io"
 	"testing"
@@ -17,10 +18,10 @@ func TestDatasets(t *testing.T) {
 	t.Helper()
 
 	TestZPool(testZPool, func() {
-		_, err := Datasets("", nil)
+		_, err := Datasets(context.Background(), "", nil)
 		require.NoError(t, err)
 
-		ds, err := GetDataset(testZPool, nil)
+		ds, err := GetDataset(context.Background(), testZPool, nil)
 		require.NoError(t, err)
 		require.Equal(t, DatasetFilesystem, ds.Type)
 		require.Equal(t, "", ds.Origin)
@@ -30,7 +31,7 @@ func TestDatasets(t *testing.T) {
 
 func TestDatasetsWithProps(t *testing.T) {
 	TestZPool(testZPool, func() {
-		ds, err := GetDataset(testZPool, []string{"name", "refquota"})
+		ds, err := GetDataset(context.Background(), testZPool, []string{"name", "refquota"})
 		require.NoError(t, err)
 
 		require.Len(t, ds.ExtraProps, 2)
@@ -41,7 +42,7 @@ func TestDatasetsWithProps(t *testing.T) {
 
 func TestGetNotExistingDataset(t *testing.T) {
 	TestZPool(testZPool, func() {
-		_, err := GetDataset(testZPool+"/doesnt-exist", nil)
+		_, err := GetDataset(context.Background(), testZPool+"/doesnt-exist", nil)
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrDatasetNotFound)
 	})
@@ -49,14 +50,14 @@ func TestGetNotExistingDataset(t *testing.T) {
 
 func TestDatasetGetProperty(t *testing.T) {
 	TestZPool(testZPool, func() {
-		ds, err := GetDataset(testZPool, nil)
+		ds, err := GetDataset(context.Background(), testZPool, nil)
 		require.NoError(t, err)
 
-		prop, err := ds.GetProperty(PropertyReadOnly)
+		prop, err := ds.GetProperty(context.Background(), PropertyReadOnly)
 		require.NoError(t, err)
 		require.Equal(t, "off", prop)
 
-		prop, err = ds.GetProperty(PropertyCompression)
+		prop, err = ds.GetProperty(context.Background(), PropertyCompression)
 		require.NoError(t, err)
 		require.Equal(t, "off", prop)
 	})
@@ -64,19 +65,19 @@ func TestDatasetGetProperty(t *testing.T) {
 
 func TestDatasetSetInheritProperty(t *testing.T) {
 	TestZPool(testZPool, func() {
-		ds, err := GetDataset(testZPool, nil)
+		ds, err := GetDataset(context.Background(), testZPool, nil)
 		require.NoError(t, err)
 
 		const testProp = "nl.bla:nope"
-		require.NoError(t, ds.SetProperty(testProp, "hello"))
+		require.NoError(t, ds.SetProperty(context.Background(), testProp, "hello"))
 
-		prop, err := ds.GetProperty(testProp)
+		prop, err := ds.GetProperty(context.Background(), testProp)
 		require.NoError(t, err)
 		require.Equal(t, "hello", prop)
 
-		require.NoError(t, ds.InheritProperty(testProp))
+		require.NoError(t, ds.InheritProperty(context.Background(), testProp))
 
-		prop, err = ds.GetProperty(testProp)
+		prop, err = ds.GetProperty(context.Background(), testProp)
 		require.NoError(t, err)
 		require.Equal(t, "-", prop)
 	})
@@ -84,7 +85,7 @@ func TestDatasetSetInheritProperty(t *testing.T) {
 
 func TestSnapshots(t *testing.T) {
 	TestZPool(testZPool, func() {
-		snapshots, err := Snapshots("", nil)
+		snapshots, err := Snapshots(context.Background(), "", nil)
 		require.NoError(t, err)
 
 		for _, snapshot := range snapshots {
@@ -95,17 +96,17 @@ func TestSnapshots(t *testing.T) {
 
 func TestFilesystems(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(testZPool+"/filesystem-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/filesystem-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		filesystems, err := Filesystems("", nil)
+		filesystems, err := Filesystems(context.Background(), "", nil)
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		require.NoError(t, f.Destroy(DestroyDefault))
+		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
 	})
 }
 
@@ -116,61 +117,61 @@ func TestCreateFilesystemWithProperties(t *testing.T) {
 			PropertyCanMount:    PropertyOff,
 		}
 
-		f, err := CreateFilesystem(testZPool+"/filesystem-test", props, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/filesystem-test", props, nil)
 		require.NoError(t, err)
 		require.Equal(t, "lz4", f.Compression)
 
-		filesystems, err := Filesystems("", nil)
+		filesystems, err := Filesystems(context.Background(), "", nil)
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		require.NoError(t, f.Destroy(DestroyDefault))
+		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
 	})
 }
 
 func TestVolumes(t *testing.T) {
 	TestZPool(testZPool, func() {
-		v, err := CreateVolume(testZPool+"/volume-test", uint64(pow2(23)), nil, nil)
+		v, err := CreateVolume(context.Background(), testZPool+"/volume-test", uint64(pow2(23)), nil, nil)
 		require.NoError(t, err)
 
 		// volumes are sometimes "busy" if you try to manipulate them right away
 		time.Sleep(time.Second)
 
 		require.Equal(t, DatasetVolume, v.Type)
-		volumes, err := Volumes("", nil)
+		volumes, err := Volumes(context.Background(), "", nil)
 		require.NoError(t, err)
 
 		for _, volume := range volumes {
 			require.Equal(t, DatasetVolume, volume.Type)
 		}
 
-		require.NoError(t, v.Destroy(DestroyDefault))
+		require.NoError(t, v.Destroy(context.Background(), DestroyDefault))
 	})
 }
 
 func TestSnapshot(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		filesystems, err := Filesystems("", nil)
+		filesystems, err := Filesystems(context.Background(), "", nil)
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		s, err := f.Snapshot("test", false)
+		s, err := f.Snapshot(context.Background(), "test", false)
 		require.NoError(t, err)
 
 		require.Equal(t, DatasetSnapshot, s.Type)
 		require.Equal(t, testZPool+"/snapshot-test@test", s.Name)
 
-		require.NoError(t, s.Destroy(DestroyDefault))
-		require.NoError(t, f.Destroy(DestroyDefault))
+		require.NoError(t, s.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
 	})
 }
 
@@ -178,11 +179,11 @@ func TestListWithProperty(t *testing.T) {
 	TestZPool(testZPool, func() {
 		const prop = "nl.test:bla"
 
-		f, err := CreateFilesystem(testZPool+"/list-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/list-test", noMountProps, nil)
 		require.NoError(t, err)
-		require.NoError(t, f.SetProperty(prop, "123"))
+		require.NoError(t, f.SetProperty(context.Background(), prop, "123"))
 
-		ls, err := ListWithProperty(DatasetFilesystem, testZPool+"/list-test", prop)
+		ls, err := ListWithProperty(context.Background(), DatasetFilesystem, testZPool+"/list-test", prop)
 		require.NoError(t, err)
 		require.Len(t, ls, 1)
 		require.Equal(t, map[string]string{
@@ -193,75 +194,75 @@ func TestListWithProperty(t *testing.T) {
 
 func TestClone(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		filesystems, err := Filesystems("", nil)
+		filesystems, err := Filesystems(context.Background(), "", nil)
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		s, err := f.Snapshot("test", false)
+		s, err := f.Snapshot(context.Background(), "test", false)
 		require.NoError(t, err)
 
 		require.Equal(t, DatasetSnapshot, s.Type)
 		require.Equal(t, testZPool+"/snapshot-test@test", s.Name)
 
-		c, err := s.Clone(testZPool+"/clone-test", noMountProps)
+		c, err := s.Clone(context.Background(), testZPool+"/clone-test", noMountProps)
 		require.NoError(t, err)
 		require.Equal(t, DatasetFilesystem, c.Type)
-		require.NoError(t, c.Destroy(DestroyDefault))
-		require.NoError(t, s.Destroy(DestroyDefault))
-		require.NoError(t, f.Destroy(DestroyDefault))
+		require.NoError(t, c.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, s.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
 	})
 }
 
 func TestSendSnapshot(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		filesystems, err := Filesystems("", nil)
+		filesystems, err := Filesystems(context.Background(), "", nil)
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		s, err := f.Snapshot("test", false)
+		s, err := f.Snapshot(context.Background(), "test", false)
 		require.NoError(t, err)
 
-		err = s.SendSnapshot(io.Discard, SendOptions{})
+		err = s.SendSnapshot(context.Background(), io.Discard, SendOptions{})
 		require.NoError(t, err)
-		require.NoError(t, s.Destroy(DestroyDefault))
-		require.NoError(t, f.Destroy(DestroyDefault))
+		require.NoError(t, s.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
 	})
 }
 
 func TestSendSnapshotResume(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		s, err := f.Snapshot("test", false)
+		s, err := f.Snapshot(context.Background(), "test", false)
 		require.NoError(t, err)
 
 		pipeRdr, pipeWrtr := io.Pipe()
 		go func() {
-			err := s.SendSnapshot(pipeWrtr, SendOptions{})
+			err := s.SendSnapshot(context.Background(), pipeWrtr, SendOptions{})
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()
 
-		_, err = ReceiveSnapshot(io.LimitReader(pipeRdr, 10*1024), testZPool+"/recv-test", true, noMountProps)
+		_, err = ReceiveSnapshot(context.Background(), io.LimitReader(pipeRdr, 10*1024), testZPool+"/recv-test", true, noMountProps)
 		require.Error(t, err)
 		var zfsErr *ResumableStreamError
 		require.True(t, errors.As(err, &zfsErr))
 		require.NotEmpty(t, zfsErr.ResumeToken(), zfsErr)
 
-		list, err := Filesystems(testZPool+"/recv-test", []string{PropertyReceiveResumeToken})
+		list, err := Filesystems(context.Background(), testZPool+"/recv-test", []string{PropertyReceiveResumeToken})
 		require.NoError(t, err)
 		require.Len(t, list, 1)
 		require.Len(t, list[0].ExtraProps, 1)
@@ -274,15 +275,15 @@ func TestSendSnapshotResume(t *testing.T) {
 
 		pipeRdr, pipeWrtr = io.Pipe()
 		go func() {
-			err := ResumeSend(pipeWrtr, list[0].ExtraProps[PropertyReceiveResumeToken])
+			err := ResumeSend(context.Background(), pipeWrtr, list[0].ExtraProps[PropertyReceiveResumeToken])
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()
 
-		_, err = ReceiveSnapshot(pipeRdr, testZPool+"/recv-test", true, noMountProps)
+		_, err = ReceiveSnapshot(context.Background(), pipeRdr, testZPool+"/recv-test", true, noMountProps)
 		require.NoError(t, err)
 
-		snaps, err := Snapshots(testZPool+"/recv-test", nil)
+		snaps, err := Snapshots(context.Background(), testZPool+"/recv-test", nil)
 		require.NoError(t, err)
 		require.Len(t, snaps, 1)
 		require.Equal(t, snaps[0].Name, testZPool+"/recv-test@test")
@@ -291,16 +292,16 @@ func TestSendSnapshotResume(t *testing.T) {
 
 func TestChildren(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		s, err := f.Snapshot("test", false)
+		s, err := f.Snapshot(context.Background(), "test", false)
 		require.NoError(t, err)
 
 		require.Equal(t, DatasetSnapshot, s.Type)
 		require.Equal(t, testZPool+"/snapshot-test@test", s.Name)
 
-		children, err := f.Children(0, []string{PropertyRefQuota})
+		children, err := f.Children(context.Background(), 0, []string{PropertyRefQuota})
 		require.NoError(t, err)
 
 		require.Equal(t, 1, len(children))
@@ -308,42 +309,42 @@ func TestChildren(t *testing.T) {
 		require.Len(t, children[0].ExtraProps, 1)
 		require.Equal(t, children[0].ExtraProps, map[string]string{PropertyRefQuota: PropertyUnset})
 
-		require.NoError(t, s.Destroy(DestroyDefault))
-		require.NoError(t, f.Destroy(DestroyDefault))
+		require.NoError(t, s.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
 	})
 }
 
 func TestRollback(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		filesystems, err := Filesystems("", nil)
+		filesystems, err := Filesystems(context.Background(), "", nil)
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		s1, err := f.Snapshot("test", false)
+		s1, err := f.Snapshot(context.Background(), "test", false)
 		require.NoError(t, err)
 
-		_, err = f.Snapshot("test2", false)
+		_, err = f.Snapshot(context.Background(), "test2", false)
 		require.NoError(t, err)
 
-		s3, err := f.Snapshot("test3", false)
+		s3, err := f.Snapshot(context.Background(), "test3", false)
 		require.NoError(t, err)
 
-		err = s3.Rollback(false)
+		err = s3.Rollback(context.Background(), false)
 		require.NoError(t, err)
 
-		err = s1.Rollback(false)
+		err = s1.Rollback(context.Background(), false)
 		require.Error(t, err, "should error when rolling back beyond most recent without destroyMoreRecent = true")
 
-		err = s1.Rollback(true)
+		err = s1.Rollback(context.Background(), true)
 		require.NoError(t, err)
 
-		require.NoError(t, s1.Destroy(DestroyDefault))
-		require.NoError(t, f.Destroy(DestroyDefault))
+		require.NoError(t, s1.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
 	})
 }

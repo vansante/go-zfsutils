@@ -26,7 +26,7 @@ func TestHTTPZPool(testZPool, testAuthToken, testFs string, fn func(server *http
 		h.registerRoutes()
 
 		if testFs != "" {
-			_, err := zfs.CreateFilesystem(testFs, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+			_, err := zfs.CreateFilesystem(context.Background(), testFs, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 			if err != nil {
 				panic(err)
 			}

@@ -77,7 +77,7 @@ func zfsExtraProperties(req *http.Request) []string {
 }
 
 func (h *HTTP) handleListFilesystems(w http.ResponseWriter, req *http.Request, _ httprouter.Params, logger *logrus.Entry) {
-	list, err := zfs.Filesystems(h.config.ParentDataset, zfsExtraProperties(req))
+	list, err := zfs.Filesystems(req.Context(), h.config.ParentDataset, zfsExtraProperties(req))
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.WithError(err).Warn("zfs.http.handleListFilesystems: Parent dataset not found")
@@ -109,7 +109,7 @@ func (h *HTTP) handleSetFilesystemProps(w http.ResponseWriter, req *http.Request
 		return
 	}
 
-	ds, err := zfs.GetDataset(fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), nil)
+	ds, err := zfs.GetDataset(req.Context(), fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), nil)
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.WithError(err).Debug("zfs.http.handleSetFilesystemProps: Filesystem not found")
@@ -137,7 +137,7 @@ func (h *HTTP) setProperties(w http.ResponseWriter, req *http.Request, ds *zfs.D
 		return
 	}
 	for prop, val := range props.Set {
-		err = ds.SetProperty(prop, val)
+		err = ds.SetProperty(req.Context(), prop, val)
 		if err != nil {
 			logger.WithError(err).WithFields(logrus.Fields{
 				"property": prop,
@@ -148,7 +148,7 @@ func (h *HTTP) setProperties(w http.ResponseWriter, req *http.Request, ds *zfs.D
 		}
 	}
 	for _, prop := range props.Unset {
-		err = ds.InheritProperty(prop)
+		err = ds.InheritProperty(req.Context(), prop)
 		if err != nil {
 			logger.WithError(err).WithField("property", prop).Error("zfs.http.setProperties: Error inheriting property")
 			w.WriteHeader(http.StatusInternalServerError)
@@ -156,7 +156,7 @@ func (h *HTTP) setProperties(w http.ResponseWriter, req *http.Request, ds *zfs.D
 		}
 	}
 
-	ds, err = zfs.GetDataset(ds.Name, zfsExtraProperties(req))
+	ds, err = zfs.GetDataset(req.Context(), ds.Name, zfsExtraProperties(req))
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.setProperties: Error fetching dataset")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -183,7 +183,7 @@ func (h *HTTP) handleListSnapshots(w http.ResponseWriter, req *http.Request, ps 
 		return
 	}
 
-	list, err := zfs.Snapshots(fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), zfsExtraProperties(req))
+	list, err := zfs.Snapshots(req.Context(), fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), zfsExtraProperties(req))
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.WithError(err).Debug("zfs.http.handleListSnapshots: Filesystem not found")
@@ -203,7 +203,7 @@ func (h *HTTP) handleListSnapshots(w http.ResponseWriter, req *http.Request, ps 
 	}
 }
 
-func (h *HTTP) handleGetResumeToken(w http.ResponseWriter, _ *http.Request, ps httprouter.Params, logger *logrus.Entry) {
+func (h *HTTP) handleGetResumeToken(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *logrus.Entry) {
 	filesystem := ps.ByName("filesystem")
 	logger = logger.WithFields(logrus.Fields{
 		"filesystem": filesystem,
@@ -215,7 +215,7 @@ func (h *HTTP) handleGetResumeToken(w http.ResponseWriter, _ *http.Request, ps h
 		return
 	}
 
-	ds, err := zfs.GetDataset(fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), []string{zfs.PropertyReceiveResumeToken})
+	ds, err := zfs.GetDataset(req.Context(), fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), []string{zfs.PropertyReceiveResumeToken})
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.WithError(err).Debug("zfs.http.handleGetResumeToken: Filesystem not found")
@@ -256,7 +256,7 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, p
 
 	givenResumeToken := req.Header.Get(HeaderResumeReceiveToken)
 	datasetResumeToken := ""
-	ds, dsErr := zfs.GetDataset(fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), []string{zfs.PropertyReceiveResumeToken})
+	ds, dsErr := zfs.GetDataset(req.Context(), fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), []string{zfs.PropertyReceiveResumeToken})
 	if dsErr == nil {
 		datasetResumeToken = ds.ExtraProps[zfs.PropertyReceiveResumeToken]
 	}
@@ -289,7 +289,7 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, p
 		receiveDataset = fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem)
 	}
 
-	ds, err := zfs.ReceiveSnapshot(h.getReader(req), receiveDataset, resumable, props)
+	ds, err := zfs.ReceiveSnapshot(req.Context(), h.getReader(req), receiveDataset, resumable, props)
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleReceiveSnapshot: Error storing")
 		w.WriteHeader(http.StatusNotFound)
@@ -318,7 +318,7 @@ func (h *HTTP) handleSetSnapshotProps(w http.ResponseWriter, req *http.Request, 
 		return
 	}
 
-	ds, err := zfs.GetDataset(fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot), nil)
+	ds, err := zfs.GetDataset(req.Context(), fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot), nil)
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.WithError(err).Debug("zfs.http.handleSetSnapshotProps: Snapshot not found")
@@ -351,7 +351,7 @@ func (h *HTTP) handleGetSnapshot(w http.ResponseWriter, req *http.Request, ps ht
 		return
 	}
 
-	ds, err := zfs.GetDataset(fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot), nil)
+	ds, err := zfs.GetDataset(req.Context(), fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot), nil)
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.WithError(err).Debug("zfs.http.handleGetSnapshot: Snapshot not found")
@@ -367,7 +367,7 @@ func (h *HTTP) handleGetSnapshot(w http.ResponseWriter, req *http.Request, ps ht
 		return
 	}
 
-	err = ds.SendSnapshot(h.getWriter(w, req), zfs.SendOptions{Props: true, Raw: true})
+	err = ds.SendSnapshot(req.Context(), h.getWriter(w, req), zfs.SendOptions{Props: true, Raw: true})
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleGetSnapshot: Error sending snapshot")
 		return // Cannot send status code here.
@@ -390,7 +390,7 @@ func (h *HTTP) handleGetSnapshotIncremental(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	snap, err := zfs.GetDataset(fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot), nil)
+	snap, err := zfs.GetDataset(req.Context(), fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot), nil)
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.WithError(err).Debug("zfs.http.handleGetSnapshotIncremental: Snapshot not found")
@@ -406,7 +406,7 @@ func (h *HTTP) handleGetSnapshotIncremental(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	base, err := zfs.GetDataset(fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, basesnapshot), nil)
+	base, err := zfs.GetDataset(req.Context(), fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, basesnapshot), nil)
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.WithError(err).Debug("zfs.http.handleGetSnapshotIncremental: Base snapshot not found")
@@ -422,7 +422,7 @@ func (h *HTTP) handleGetSnapshotIncremental(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	err = snap.SendSnapshot(h.getWriter(w, req), zfs.SendOptions{
+	err = snap.SendSnapshot(req.Context(), h.getWriter(w, req), zfs.SendOptions{
 		Props:           true,
 		Raw:             true,
 		IncrementalBase: base,
@@ -445,14 +445,14 @@ func (h *HTTP) handleResumeGetSnapshot(w http.ResponseWriter, req *http.Request,
 		"token": token,
 	})
 
-	err := zfs.ResumeSend(h.getWriter(w, req), token)
+	err := zfs.ResumeSend(req.Context(), h.getWriter(w, req), token)
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleResumeGetSnapshot: Error sending snapshot")
 		return // Cannot send status code here.
 	}
 }
 
-func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, _ *http.Request, ps httprouter.Params, logger *logrus.Entry) {
+func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *logrus.Entry) {
 	filesystem := ps.ByName("filesystem")
 	snapshot := ps.ByName("snapshot")
 	logger = logger.WithFields(logrus.Fields{
@@ -466,7 +466,7 @@ func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, _ *http.Request, ps htt
 		return
 	}
 
-	ds, err := zfs.GetDataset(fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), nil)
+	ds, err := zfs.GetDataset(req.Context(), fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), nil)
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.WithError(err).Debug("zfs.http.handleMakeSnapshot: Filesystem not found")
@@ -482,7 +482,7 @@ func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, _ *http.Request, ps htt
 		return
 	}
 
-	ds, err = ds.Snapshot(snapshot, false)
+	ds, err = ds.Snapshot(req.Context(), snapshot, false)
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleMakeSnapshot: Error making snapshot")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -497,7 +497,7 @@ func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, _ *http.Request, ps htt
 	}
 }
 
-func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, _ *http.Request, ps httprouter.Params, logger *logrus.Entry) {
+func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *logrus.Entry) {
 	if !h.config.AllowDestroy {
 		logger.Info("zfs.http.handleDestroyFilesystem: Destroy forbidden")
 		w.WriteHeader(http.StatusForbidden)
@@ -515,7 +515,7 @@ func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, _ *http.Request, p
 		return
 	}
 
-	ds, err := zfs.GetDataset(fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), nil)
+	ds, err := zfs.GetDataset(req.Context(), fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), nil)
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.WithError(err).Debug("zfs.http.handleDestroyFilesystem: Filesystem not found")
@@ -533,7 +533,7 @@ func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, _ *http.Request, p
 
 	flag := zfs.DestroyDefault
 	// TODO: FIXME: Allow recursive deletes?
-	err = ds.Destroy(flag)
+	err = ds.Destroy(req.Context(), flag)
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleDestroyFilesystem: Error destroying")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -542,7 +542,7 @@ func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, _ *http.Request, p
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *HTTP) handleDestroySnapshot(w http.ResponseWriter, _ *http.Request, ps httprouter.Params, logger *logrus.Entry) {
+func (h *HTTP) handleDestroySnapshot(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *logrus.Entry) {
 	if !h.config.AllowDestroy {
 		logger.Info("zfs.http.handleDestroySnapshot: Destroy forbidden")
 		w.WriteHeader(http.StatusForbidden)
@@ -562,7 +562,7 @@ func (h *HTTP) handleDestroySnapshot(w http.ResponseWriter, _ *http.Request, ps 
 		return
 	}
 
-	ds, err := zfs.GetDataset(fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot), nil)
+	ds, err := zfs.GetDataset(req.Context(), fmt.Sprintf("%s/%s@%s", h.config.ParentDataset, filesystem, snapshot), nil)
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.WithError(err).Debug("zfs.http.handleDestroySnapshot: Snapshot not found")
@@ -578,7 +578,7 @@ func (h *HTTP) handleDestroySnapshot(w http.ResponseWriter, _ *http.Request, ps 
 		return
 	}
 
-	err = ds.Destroy(zfs.DestroyDefault)
+	err = ds.Destroy(req.Context(), zfs.DestroyDefault)
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleDestroySnapshot: Error destroying")
 		w.WriteHeader(http.StatusInternalServerError)

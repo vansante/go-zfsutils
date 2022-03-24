@@ -2,6 +2,7 @@
 package zfs
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -25,20 +26,8 @@ const (
 	DestroyForceUmount                 = 1 << iota
 )
 
-// zfs is a helper function to wrap typical calls to zfs that ignores stdout.
-func zfs(arg ...string) error {
-	_, err := zfsOutput(arg...)
-	return err
-}
-
-// zfs is a helper function to wrap typical calls to zfs.
-func zfsOutput(arg ...string) ([][]string, error) {
-	c := command{Command: Binary}
-	return c.Run(arg...)
-}
-
 // ListByType lists the datasets by type and allows you to fetch extra custom fields
-func ListByType(t DatasetType, filter string, extraProps []string) ([]Dataset, error) {
+func ListByType(ctx context.Context, t DatasetType, filter string, extraProps []string) ([]Dataset, error) {
 	allFields := append(dsPropList, extraProps...) // nolint: gocritic
 
 	dsPropListOptions := strings.Join(allFields, ",")
@@ -47,7 +36,7 @@ func ListByType(t DatasetType, filter string, extraProps []string) ([]Dataset, e
 		args = append(args, filter)
 	}
 
-	out, err := zfsOutput(args...)
+	out, err := zfsOutput(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -70,31 +59,34 @@ func ListByType(t DatasetType, filter string, extraProps []string) ([]Dataset, e
 
 // Datasets returns a slice of ZFS datasets, regardless of type.
 // A filter argument may be passed to select a dataset with the matching name, or empty string ("") may be used to select all datasets.
-func Datasets(filter string, extraFields []string) ([]Dataset, error) {
-	return ListByType(DatasetAll, filter, extraFields)
+func Datasets(ctx context.Context, filter string, extraFields []string) ([]Dataset, error) {
+	return ListByType(ctx, DatasetAll, filter, extraFields)
 }
 
 // Snapshots returns a slice of ZFS snapshots.
 // A filter argument may be passed to select a snapshot with the matching name, or empty string ("") may be used to select all snapshots.
-func Snapshots(filter string, extraFields []string) ([]Dataset, error) {
-	return ListByType(DatasetSnapshot, filter, extraFields)
+func Snapshots(ctx context.Context, filter string, extraFields []string) ([]Dataset, error) {
+	return ListByType(ctx, DatasetSnapshot, filter, extraFields)
 }
 
 // Filesystems returns a slice of ZFS filesystems.
 // A filter argument may be passed to select a filesystem with the matching name, or empty string ("") may be used to select all filesystems.
-func Filesystems(filter string, extraFields []string) ([]Dataset, error) {
-	return ListByType(DatasetFilesystem, filter, extraFields)
+func Filesystems(ctx context.Context, filter string, extraFields []string) ([]Dataset, error) {
+	return ListByType(ctx, DatasetFilesystem, filter, extraFields)
 }
 
 // Volumes returns a slice of ZFS volumes.
 // A filter argument may be passed to select a volume with the matching name, or empty string ("") may be used to select all volumes.
-func Volumes(filter string, extraFields []string) ([]Dataset, error) {
-	return ListByType(DatasetVolume, filter, extraFields)
+func Volumes(ctx context.Context, filter string, extraFields []string) ([]Dataset, error) {
+	return ListByType(ctx, DatasetVolume, filter, extraFields)
 }
 
 // ListWithProperty returns a map of dataset names mapped to the properties value for datasets which have the given ZFS property.
-func ListWithProperty(t DatasetType, filter, prop string) (map[string]string, error) {
-	c := command{Command: Binary}
+func ListWithProperty(ctx context.Context, t DatasetType, filter, prop string) (map[string]string, error) {
+	c := command{
+		cmd: Binary,
+		ctx: ctx,
+	}
 	lines, err := c.Run("get", "-t", string(t), "-Hp", "-o", "name,value", "-r", "-s", "local", prop, filter)
 	if err != nil {
 		return nil, err
@@ -108,9 +100,9 @@ func ListWithProperty(t DatasetType, filter, prop string) (map[string]string, er
 
 // GetDataset retrieves a single ZFS dataset by name.
 // This dataset could be any valid ZFS dataset type, such as a clone, filesystem, snapshot, or volume.
-func GetDataset(name string, extraProps []string) (*Dataset, error) {
+func GetDataset(ctx context.Context, name string, extraProps []string) (*Dataset, error) {
 	fields := append(dsPropList, extraProps...) // nolint: gocritic
-	out, err := zfsOutput("list", "-Hp", "-o", strings.Join(fields, ","), name)
+	out, err := zfsOutput(ctx, "list", "-Hp", "-o", strings.Join(fields, ","), name)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +116,7 @@ func GetDataset(name string, extraProps []string) (*Dataset, error) {
 
 // Clone clones a ZFS snapshot and returns a clone dataset.
 // An error will be returned if the input dataset is not of snapshot type.
-func (d *Dataset) Clone(dest string, properties map[string]string) (*Dataset, error) {
+func (d *Dataset) Clone(ctx context.Context, dest string, properties map[string]string) (*Dataset, error) {
 	if d.Type != DatasetSnapshot {
 		return nil, errors.New("can only clone snapshots")
 	}
@@ -136,15 +128,15 @@ func (d *Dataset) Clone(dest string, properties map[string]string) (*Dataset, er
 	}
 	args = append(args, []string{d.Name, dest}...)
 
-	err := zfs(args...)
+	err := zfs(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
-	return GetDataset(dest, nil)
+	return GetDataset(ctx, dest, nil)
 }
 
 // Unmount unmounts currently mounted ZFS file systems.
-func (d *Dataset) Unmount(force bool) (*Dataset, error) {
+func (d *Dataset) Unmount(ctx context.Context, force bool) (*Dataset, error) {
 	if d.Type == DatasetSnapshot {
 		return nil, errors.New("cannot unmount snapshots")
 	}
@@ -155,16 +147,16 @@ func (d *Dataset) Unmount(force bool) (*Dataset, error) {
 	}
 	args = append(args, d.Name)
 
-	err := zfs(args...)
+	err := zfs(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
-	return GetDataset(d.Name, nil)
+	return GetDataset(ctx, d.Name, nil)
 }
 
 // LoadKey loads the encryption key for this and optionally children datasets.
 // See: https://openzfs.github.io/openzfs-docs/man/8/zfs-load-key.8.html
-func (d *Dataset) LoadKey(recursive bool, keyLocation string, stdin io.Reader) error {
+func (d *Dataset) LoadKey(ctx context.Context, recursive bool, keyLocation string, stdin io.Reader) error {
 	args := []string{"load-key"}
 	if recursive {
 		args = append(args, "-r")
@@ -173,24 +165,28 @@ func (d *Dataset) LoadKey(recursive bool, keyLocation string, stdin io.Reader) e
 		args = append(args, "-L", keyLocation)
 	}
 	args = append(args, d.Name)
-	cmd := command{Command: Binary, Stdin: stdin}
+	cmd := command{
+		cmd:   Binary,
+		ctx:   ctx,
+		stdin: stdin,
+	}
 	_, err := cmd.Run(args...)
 	return err
 }
 
 // UnloadKey unloads the encryption key for this dataset and optionally for child datasets as well.
 // See: https://openzfs.github.io/openzfs-docs/man/8/zfs-unload-key.8.html
-func (d *Dataset) UnloadKey(recursive bool) error {
+func (d *Dataset) UnloadKey(ctx context.Context, recursive bool) error {
 	args := []string{"unload-key"}
 	if recursive {
 		args = append(args, "-r")
 	}
 	args = append(args, d.Name)
-	return zfs(args...)
+	return zfs(ctx, args...)
 }
 
 // Mount mounts ZFS file systems.
-func (d *Dataset) Mount(overlay bool, options []string) (*Dataset, error) {
+func (d *Dataset) Mount(ctx context.Context, overlay bool, options []string) (*Dataset, error) {
 	if d.Type == DatasetSnapshot {
 		return nil, errors.New("cannot mount snapshots")
 	}
@@ -205,17 +201,21 @@ func (d *Dataset) Mount(overlay bool, options []string) (*Dataset, error) {
 	}
 	args = append(args, d.Name)
 
-	err := zfs(args...)
+	err := zfs(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
-	return GetDataset(d.Name, nil)
+	return GetDataset(ctx, d.Name, nil)
 }
 
 // ReceiveSnapshot receives a ZFS stream from the input io.Reader.
 // A new snapshot is created with the specified name, and streams the input data into the newly-created snapshot.
-func ReceiveSnapshot(input io.Reader, name string, resumable bool, properties map[string]string) (*Dataset, error) {
-	c := command{Command: Binary, Stdin: input}
+func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, resumable bool, properties map[string]string) (*Dataset, error) {
+	c := command{
+		cmd:   Binary,
+		ctx:   ctx,
+		stdin: input,
+	}
 
 	args := []string{"receive"}
 	if resumable {
@@ -228,7 +228,7 @@ func ReceiveSnapshot(input io.Reader, name string, resumable bool, properties ma
 	if err != nil {
 		return nil, err
 	}
-	return GetDataset(name, nil)
+	return GetDataset(ctx, name, nil)
 }
 
 type SendOptions struct {
@@ -259,7 +259,7 @@ type SendOptions struct {
 
 // SendSnapshot sends a ZFS stream of a snapshot to the input io.Writer.
 // An error will be returned if the input dataset is not of snapshot type.
-func (d *Dataset) SendSnapshot(output io.Writer, sendOptions SendOptions) error {
+func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, sendOptions SendOptions) error {
 	if d.Type != DatasetSnapshot {
 		return errors.New("can only send snapshots")
 	}
@@ -278,7 +278,11 @@ func (d *Dataset) SendSnapshot(output io.Writer, sendOptions SendOptions) error 
 		args = append(args, "-i", sendOptions.IncrementalBase.Name)
 	}
 
-	c := command{Command: Binary, Stdout: output}
+	c := command{
+		cmd:    Binary,
+		ctx:    ctx,
+		stdout: output,
+	}
 	args = append([]string{"send"}, args...)
 	args = append(args, d.Name)
 	_, err := c.Run(args...)
@@ -287,8 +291,12 @@ func (d *Dataset) SendSnapshot(output io.Writer, sendOptions SendOptions) error 
 
 // ResumeSend resumes an interrupted ZFS stream of a snapshot to the input io.Writer using the receive_resume_token.
 // An error will be returned if the input dataset is not of snapshot type.
-func ResumeSend(output io.Writer, resumeToken string) error {
-	c := command{Command: Binary, Stdout: output}
+func ResumeSend(ctx context.Context, output io.Writer, resumeToken string) error {
+	c := command{
+		cmd:    Binary,
+		ctx:    ctx,
+		stdout: output,
+	}
 	args := append([]string{"send"}, "-t", resumeToken)
 	_, err := c.Run(args...)
 	return err
@@ -298,7 +306,7 @@ func ResumeSend(output io.Writer, resumeToken string) error {
 //
 // A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
-func CreateVolume(name string, size uint64, properties map[string]string, stdin io.Reader) (*Dataset, error) {
+func CreateVolume(ctx context.Context, name string, size uint64, properties map[string]string, stdin io.Reader) (*Dataset, error) {
 	args := make([]string, 4, 5)
 	args[0] = "create"
 	args[1] = "-p"
@@ -308,19 +316,24 @@ func CreateVolume(name string, size uint64, properties map[string]string, stdin 
 		args = append(args, propsSlice(properties)...)
 	}
 	args = append(args, name)
-	cmd := command{Command: Binary, Stdin: stdin}
+
+	cmd := command{
+		cmd:   Binary,
+		ctx:   ctx,
+		stdin: stdin,
+	}
 	_, err := cmd.Run(args...)
 	if err != nil {
 		return nil, err
 	}
 
-	return GetDataset(name, nil)
+	return GetDataset(ctx, name, nil)
 }
 
 // Destroy destroys a ZFS dataset.
 // If the destroy bit flag is set, any descendents of the dataset will be recursively destroyed, including snapshots.
 // If the deferred bit flag is set, the snapshot is marked for deferred deletion.
-func (d *Dataset) Destroy(flags DestroyFlag) error {
+func (d *Dataset) Destroy(ctx context.Context, flags DestroyFlag) error {
 	args := make([]string, 1, 3)
 	args[0] = "destroy"
 	if flags&DestroyRecursive != 0 {
@@ -338,28 +351,27 @@ func (d *Dataset) Destroy(flags DestroyFlag) error {
 	if flags&DestroyForceUmount != 0 {
 		args = append(args, "-f")
 	}
-
 	args = append(args, d.Name)
-	err := zfs(args...)
-	return err
+
+	return zfs(ctx, args...)
 }
 
 // SetProperty sets a ZFS property on the receiving dataset.
 //
 // A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
-func (d *Dataset) SetProperty(key, val string) error {
+func (d *Dataset) SetProperty(ctx context.Context, key, val string) error {
 	prop := strings.Join([]string{key, val}, "=")
-	err := zfs("set", prop, d.Name)
-	return err
+
+	return zfs(ctx, "set", prop, d.Name)
 }
 
 // GetProperty returns the current value of a ZFS property from the receiving dataset.
 //
 // A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
-func (d *Dataset) GetProperty(key string) (string, error) {
-	out, err := zfsOutput("get", "-Hp", "-o", "value", key, d.Name)
+func (d *Dataset) GetProperty(ctx context.Context, key string) (string, error) {
+	out, err := zfsOutput(ctx, "get", "-Hp", "-o", "value", key, d.Name)
 	if err != nil {
 		return "", err
 	}
@@ -368,12 +380,12 @@ func (d *Dataset) GetProperty(key string) (string, error) {
 }
 
 // InheritProperty clears a property from the receiving dataset, making it use its parent datasets value.
-func (d *Dataset) InheritProperty(key string) error {
-	return zfs("inherit", key, d.Name)
+func (d *Dataset) InheritProperty(ctx context.Context, key string) error {
+	return zfs(ctx, "inherit", key, d.Name)
 }
 
 // Rename renames a dataset.
-func (d *Dataset) Rename(name string, createParent, recursiveRenameSnapshots bool) (*Dataset, error) {
+func (d *Dataset) Rename(ctx context.Context, name string, createParent, recursiveRenameSnapshots bool) (*Dataset, error) {
 	args := make([]string, 3, 5)
 	args[0] = "rename"
 	args[1] = d.Name
@@ -385,44 +397,48 @@ func (d *Dataset) Rename(name string, createParent, recursiveRenameSnapshots boo
 		args = append(args, "-r")
 	}
 
-	err := zfs(args...)
+	err := zfs(ctx, args...)
 	if err != nil {
 		return d, err
 	}
 
-	return GetDataset(name, nil)
+	return GetDataset(ctx, name, nil)
 }
 
 // Snapshots returns a slice of all ZFS snapshots of a given dataset.
-func (d *Dataset) Snapshots(extraFields []string) ([]Dataset, error) {
-	return Snapshots(d.Name, extraFields)
+func (d *Dataset) Snapshots(ctx context.Context, extraFields []string) ([]Dataset, error) {
+	return Snapshots(ctx, d.Name, extraFields)
 }
 
 // CreateFilesystem creates a new ZFS filesystem with the specified name and properties.
 //
 // A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
-func CreateFilesystem(name string, properties map[string]string, stdin io.Reader) (*Dataset, error) {
+func CreateFilesystem(ctx context.Context, name string, properties map[string]string, stdin io.Reader) (*Dataset, error) {
 	args := make([]string, 1, 4)
 	args[0] = "create"
 
 	if properties != nil {
 		args = append(args, propsSlice(properties)...)
 	}
-
 	args = append(args, name)
-	cmd := command{Command: Binary, Stdin: stdin}
+
+	cmd := command{
+		cmd:   Binary,
+		ctx:   ctx,
+		stdin: stdin,
+	}
 	_, err := cmd.Run(args...)
 	if err != nil {
 		return nil, err
 	}
 
-	return GetDataset(name, nil)
+	return GetDataset(ctx, name, nil)
 }
 
 // Snapshot creates a new ZFS snapshot of the receiving dataset, using the specified name.
 // Optionally, the snapshot can be taken recursively, creating snapshots of all descendent filesystems in a single, atomic operation.
-func (d *Dataset) Snapshot(name string, recursive bool) (*Dataset, error) {
+func (d *Dataset) Snapshot(ctx context.Context, name string, recursive bool) (*Dataset, error) {
 	args := make([]string, 1, 4)
 	args[0] = "snapshot"
 	if recursive {
@@ -431,18 +447,18 @@ func (d *Dataset) Snapshot(name string, recursive bool) (*Dataset, error) {
 	snapName := fmt.Sprintf("%s@%s", d.Name, name)
 	args = append(args, snapName)
 
-	err := zfs(args...)
+	err := zfs(ctx, args...)
 	if err != nil {
 		return nil, err
 	}
-	return GetDataset(snapName, nil)
+	return GetDataset(ctx, snapName, nil)
 }
 
 // Rollback rolls back the receiving ZFS dataset to a previous snapshot.
 // Optionally, intermediate snapshots can be destroyed.
 // A ZFS snapshot rollback cannot be completed without this option, if more recent snapshots exist.
 // An error will be returned if the input dataset is not of snapshot type.
-func (d *Dataset) Rollback(destroyMoreRecent bool) error {
+func (d *Dataset) Rollback(ctx context.Context, destroyMoreRecent bool) error {
 	if d.Type != DatasetSnapshot {
 		return errors.New("can only rollback snapshots")
 	}
@@ -454,13 +470,12 @@ func (d *Dataset) Rollback(destroyMoreRecent bool) error {
 	}
 	args = append(args, d.Name)
 
-	err := zfs(args...)
-	return err
+	return zfs(ctx, args...)
 }
 
 // Children returns a slice of children of the receiving ZFS dataset.
 // A recursion depth may be specified, or a depth of 0 allows unlimited recursion.
-func (d *Dataset) Children(depth uint64, extraProps []string) ([]Dataset, error) {
+func (d *Dataset) Children(ctx context.Context, depth uint64, extraProps []string) ([]Dataset, error) {
 	allFields := append(dsPropList, extraProps...) // nolint: gocritic
 
 	args := []string{"list"}
@@ -473,7 +488,7 @@ func (d *Dataset) Children(depth uint64, extraProps []string) ([]Dataset, error)
 	args = append(args, "-t", "all", "-Hp", "-o", strings.Join(allFields, ","))
 	args = append(args, d.Name)
 
-	out, err := zfsOutput(args...)
+	out, err := zfsOutput(ctx, args...)
 	if err != nil {
 		return nil, err
 	}

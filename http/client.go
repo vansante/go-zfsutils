@@ -112,7 +112,7 @@ func (c *Client) ResumeSend(ctx context.Context, dataset string, resumeToken str
 			"dataset":     dataset,
 			"resumeToken": resumeToken,
 		})
-		err := zfs.ResumeSend(pipeWrtr, resumeToken)
+		err := zfs.ResumeSend(ctx, pipeWrtr, resumeToken)
 		if err != nil {
 			logger.WithError(err).Error("zfs.http.Client.ResumeSend: Error sending resume stream")
 		}
@@ -157,7 +157,7 @@ func (c *Client) Send(ctx context.Context, send SnapshotSend) error {
 			"snapshot":     send.Snapshot.Name,
 			"baseSnapshot": send.IncrementalBase,
 		})
-		err := send.Snapshot.SendSnapshot(pipeWrtr, send.SendOptions)
+		err := send.Snapshot.SendSnapshot(ctx, pipeWrtr, send.SendOptions)
 		if err != nil {
 			logger.Error("zfs.http.Client.sendWithBase: Error sending incremental snapshot stream")
 		}
