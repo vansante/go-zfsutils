@@ -12,8 +12,8 @@ import (
 
 func clientTest(t *testing.T, fn func(client *Client)) {
 	t.Helper()
-	TestHTTPZPool(testZPool, testToken, testFilesystem, zfs.NewTestLogger(t), func(server *httptest.Server) {
-		c := NewClient(server.URL, testToken, zfs.NewTestLogger(t))
+	TestHTTPZPool(testZPool, testAuthToken, testFilesystem, zfs.NewTestLogger(t), func(server *httptest.Server) {
+		c := NewClient(server.URL, testAuthToken, zfs.NewTestLogger(t))
 
 		fn(c)
 	})
