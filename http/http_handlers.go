@@ -510,7 +510,7 @@ func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, req *http.Request, ps h
 }
 
 func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger zfs.Logger) {
-	if !h.config.AllowDestroy {
+	if !h.config.Permissions.AllowDestroyFilesystems {
 		logger.Info("zfs.http.handleDestroyFilesystem: Destroy forbidden")
 		w.WriteHeader(http.StatusForbidden)
 		return
@@ -555,7 +555,7 @@ func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, req *http.Request,
 }
 
 func (h *HTTP) handleDestroySnapshot(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger zfs.Logger) {
-	if !h.config.AllowDestroy {
+	if !h.config.Permissions.AllowDestroySnapshots {
 		logger.Info("zfs.http.handleDestroySnapshot: Destroy forbidden")
 		w.WriteHeader(http.StatusForbidden)
 		return

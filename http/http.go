@@ -125,7 +125,7 @@ func (h *HTTP) authenticated(handle handle) httprouter.Handle {
 
 func (h *HTTP) getSpeed(req *http.Request) int64 {
 	speed := h.config.SpeedBytesPerSecond
-	if !h.config.AllowSpeedOverride {
+	if !h.config.Permissions.AllowSpeedOverride {
 		return speed
 	}
 	speedStr := req.URL.Query().Get(GETParamBytesPerSecond)
@@ -140,7 +140,7 @@ func (h *HTTP) getSpeed(req *http.Request) int64 {
 }
 
 func (h *HTTP) getRaw(req *http.Request) bool {
-	if !h.config.AllowNonRaw {
+	if !h.config.Permissions.AllowNonRaw {
 		return true
 	}
 	raw, _ := strconv.ParseBool(req.URL.Query().Get(GETParamRaw))
@@ -148,7 +148,7 @@ func (h *HTTP) getRaw(req *http.Request) bool {
 }
 
 func (h *HTTP) getIncludeProperties(req *http.Request) bool {
-	if !h.config.AllowIncludeProperties {
+	if !h.config.Permissions.AllowIncludeProperties {
 		return false
 	}
 	incl, _ := strconv.ParseBool(req.URL.Query().Get(GETParamIncludeProperties))
