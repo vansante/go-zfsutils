@@ -18,6 +18,8 @@ import (
 const (
 	GETParamExtraProperties   = "extraProps"
 	GETParamResumable         = "resumable"
+	GETParamIncludeProperties = "includeProps"
+	GETParamRaw               = "raw"
 	GETParamReceiveProperties = "receiveProps"
 	GETParamBytesPerSecond    = "bytesPerSecond"
 )
@@ -288,7 +290,11 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, p
 		receiveDataset = fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem)
 	}
 
-	ds, err := zfs.ReceiveSnapshot(req.Context(), h.getReader(req), receiveDataset, resumable, props)
+	ds, err := zfs.ReceiveSnapshot(req.Context(), req.Body, receiveDataset, zfs.ReceiveOptions{
+		BytesPerSecond: h.getSpeed(req),
+		Resumable:      resumable,
+		Properties:     props,
+	})
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleReceiveSnapshot: Error storing")
 		w.WriteHeader(http.StatusNotFound)
@@ -366,7 +372,11 @@ func (h *HTTP) handleGetSnapshot(w http.ResponseWriter, req *http.Request, ps ht
 		return
 	}
 
-	err = ds.SendSnapshot(req.Context(), h.getWriter(w, req), zfs.SendOptions{Props: true, Raw: true})
+	err = ds.SendSnapshot(req.Context(), w, zfs.SendOptions{
+		BytesPerSecond:    h.getSpeed(req),
+		IncludeProperties: h.getIncludeProperties(req),
+		Raw:               h.getRaw(req),
+	})
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleGetSnapshot: Error sending snapshot")
 		return // Cannot send status code here.
@@ -421,10 +431,11 @@ func (h *HTTP) handleGetSnapshotIncremental(w http.ResponseWriter, req *http.Req
 		return
 	}
 
-	err = snap.SendSnapshot(req.Context(), h.getWriter(w, req), zfs.SendOptions{
-		Props:           true,
-		Raw:             true,
-		IncrementalBase: base,
+	err = snap.SendSnapshot(req.Context(), w, zfs.SendOptions{
+		BytesPerSecond:    h.getSpeed(req),
+		IncludeProperties: h.getIncludeProperties(req),
+		Raw:               h.getRaw(req),
+		IncrementalBase:   base,
 	})
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleGetSnapshotIncremental: Error sending incremental snapshot")
@@ -444,7 +455,9 @@ func (h *HTTP) handleResumeGetSnapshot(w http.ResponseWriter, req *http.Request,
 		"token": token,
 	})
 
-	err := zfs.ResumeSend(req.Context(), h.getWriter(w, req), token)
+	err := zfs.ResumeSend(req.Context(), w, token, zfs.ResumeSendOptions{
+		BytesPerSecond: h.getSpeed(req),
+	})
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleResumeGetSnapshot: Error sending snapshot")
 		return // Cannot send status code here.

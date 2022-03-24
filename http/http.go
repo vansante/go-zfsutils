@@ -4,14 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"strconv"
 
 	"github.com/vansante/go-zfs"
-
-	"github.com/juju/ratelimit"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -142,18 +139,18 @@ func (h *HTTP) getSpeed(req *http.Request) int64 {
 	return speed
 }
 
-func (h *HTTP) getWriter(w http.ResponseWriter, req *http.Request) io.Writer {
-	speed := h.getSpeed(req)
-	if speed <= 0 {
-		return w
+func (h *HTTP) getRaw(req *http.Request) bool {
+	if !h.config.AllowNonRaw {
+		return true
 	}
-	return ratelimit.Writer(w, ratelimit.NewBucketWithRate(1, speed))
+	raw, _ := strconv.ParseBool(req.URL.Query().Get(GETParamRaw))
+	return raw
 }
 
-func (h *HTTP) getReader(req *http.Request) io.Reader {
-	speed := h.getSpeed(req)
-	if speed <= 0 {
-		return req.Body
+func (h *HTTP) getIncludeProperties(req *http.Request) bool {
+	if !h.config.AllowIncludeProperties {
+		return false
 	}
-	return ratelimit.Reader(req.Body, ratelimit.NewBucketWithRate(1, speed))
+	incl, _ := strconv.ParseBool(req.URL.Query().Get(GETParamIncludeProperties))
+	return incl
 }

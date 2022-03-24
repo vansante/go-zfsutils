@@ -256,7 +256,10 @@ func TestSendSnapshotResume(t *testing.T) {
 			require.NoError(t, pipeWrtr.Close())
 		}()
 
-		_, err = ReceiveSnapshot(context.Background(), io.LimitReader(pipeRdr, 10*1024), testZPool+"/recv-test", true, noMountProps)
+		_, err = ReceiveSnapshot(context.Background(), io.LimitReader(pipeRdr, 10*1024), testZPool+"/recv-test", ReceiveOptions{
+			Resumable:  true,
+			Properties: noMountProps,
+		})
 		require.Error(t, err)
 		var zfsErr *ResumableStreamError
 		require.True(t, errors.As(err, &zfsErr))
@@ -275,12 +278,15 @@ func TestSendSnapshotResume(t *testing.T) {
 
 		pipeRdr, pipeWrtr = io.Pipe()
 		go func() {
-			err := ResumeSend(context.Background(), pipeWrtr, list[0].ExtraProps[PropertyReceiveResumeToken])
+			err := ResumeSend(context.Background(), pipeWrtr, list[0].ExtraProps[PropertyReceiveResumeToken], ResumeSendOptions{})
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()
 
-		_, err = ReceiveSnapshot(context.Background(), pipeRdr, testZPool+"/recv-test", true, noMountProps)
+		_, err = ReceiveSnapshot(context.Background(), pipeRdr, testZPool+"/recv-test", ReceiveOptions{
+			Resumable:  true,
+			Properties: noMountProps,
+		})
 		require.NoError(t, err)
 
 		snaps, err := Snapshots(context.Background(), testZPool+"/recv-test", nil)
