@@ -41,7 +41,7 @@ func (c *Client) request(ctx context.Context, method, url string, body io.Reader
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set(AuthenticationTokenHeader, c.authToken)
+	req.Header.Set(HeaderAuthenticationToken, c.authToken)
 	return req, nil
 }
 

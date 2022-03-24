@@ -20,21 +20,25 @@ import (
 
 const (
 	testZPool          = "go-test-zpool-http"
-	testToken          = "blaat"
+	testAuthToken      = "blaat"
 	testFilesystemName = "filesys1"
 	testFilesystem     = testZPool + "/" + testFilesystemName
 )
 
 func httpHandlerTest(t *testing.T, fn func(server *httptest.Server)) {
 	t.Helper()
-	TestHTTPZPool(testZPool, testToken, testFilesystem, zfs.NewTestLogger(t), func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testAuthToken, testFilesystem, zfs.NewTestLogger(t), func(server *httptest.Server) {
 		fn(server)
 	})
 }
 
 func TestHTTP_handleListFilesystems(t *testing.T) {
 	httpHandlerTest(t, func(server *httptest.Server) {
-		resp, err := http.Get(fmt.Sprintf("%s/filesystems?%s=%s", server.URL, authenticationTokenGETParam, testToken))
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems", server.URL), nil)
+		require.NoError(t, err)
+		req.Header.Set(HeaderAuthenticationToken, testAuthToken)
+
+		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		require.EqualValues(t, http.StatusOK, resp.StatusCode)
@@ -56,11 +60,12 @@ func TestHTTP_handleSetFilesystemProps(t *testing.T) {
 		data, err := json.Marshal(&props)
 		require.NoError(t, err)
 
-		req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%s/filesystems/%s?%s=%s&%s=%s",
+		req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%s/filesystems/%s?%s=%s",
 			server.URL, testFilesystemName,
-			authenticationTokenGETParam, testToken,
 			GETParamExtraProperties, "nl.test:blaat,refquota",
 		), bytes.NewBuffer(data))
+		require.NoError(t, err)
+		req.Header.Set(HeaderAuthenticationToken, testAuthToken)
 
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
@@ -80,11 +85,12 @@ func TestHTTP_handleMakeSnapshot(t *testing.T) {
 	httpHandlerTest(t, func(server *httptest.Server) {
 		const snapName = "snappie"
 
-		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s",
+		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/filesystems/%s/snapshots/%s",
 			server.URL, testFilesystemName,
 			snapName,
-			authenticationTokenGETParam, testToken,
 		), nil)
+		require.NoError(t, err)
+		req.Header.Set(HeaderAuthenticationToken, testAuthToken)
 
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
@@ -113,11 +119,12 @@ func TestHTTP_handleGetSnapshot(t *testing.T) {
 		_, err = ds.Snapshot(context.Background(), snapName, false)
 		require.NoError(t, err)
 
-		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s",
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/snapshots/%s",
 			server.URL, testFilesystemName,
 			snapName,
-			authenticationTokenGETParam, testToken,
 		), nil)
+		require.NoError(t, err)
+		req.Header.Set(HeaderAuthenticationToken, testAuthToken)
 
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
@@ -170,11 +177,12 @@ func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
 		wg.Wait()
 
 		// Begin the actual test here.
-		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/snapshots/%s/incremental/%s?%s=%s",
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/snapshots/%s/incremental/%s",
 			server.URL, testFilesystemName,
 			snapName2, snapName1,
-			authenticationTokenGETParam, testToken,
 		), nil)
+		require.NoError(t, err)
+		req.Header.Set(HeaderAuthenticationToken, testAuthToken)
 
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
@@ -205,11 +213,12 @@ func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
 		_, err = ds.Snapshot(context.Background(), snapName, false)
 		require.NoError(t, err)
 
-		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s",
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/snapshots/%s",
 			server.URL, testFilesystemName,
 			snapName,
-			authenticationTokenGETParam, testToken,
 		), nil)
+		require.NoError(t, err)
+		req.Header.Set(HeaderAuthenticationToken, testAuthToken)
 
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
@@ -233,11 +242,11 @@ func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
 		require.Equal(t, recvErr.ResumeToken(), fs[0].ExtraProps[zfs.PropertyReceiveResumeToken])
 
 		// Now do a resumption on this stream
-		req, err = http.NewRequest(http.MethodGet, fmt.Sprintf("%s/snapshot/resume/%s?%s=%s",
+		req, err = http.NewRequest(http.MethodGet, fmt.Sprintf("%s/snapshot/resume/%s",
 			server.URL, fs[0].ExtraProps[zfs.PropertyReceiveResumeToken],
-			authenticationTokenGETParam, testToken,
 		), nil)
 		require.NoError(t, err)
+		req.Header.Set(HeaderAuthenticationToken, testAuthToken)
 
 		resp, err = http.DefaultClient.Do(req)
 		require.NoError(t, err)
@@ -267,13 +276,13 @@ func TestHTTP_handleReceiveSnapshot(t *testing.T) {
 
 		const newFilesystem = "bla"
 		const newSnap = "recv"
-		req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s&%s=%s",
+		req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s",
 			server.URL, newFilesystem,
 			newSnap,
-			authenticationTokenGETParam, testToken,
 			GETParamReceiveProperties, ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff}.Encode(),
 		), pipeRdr)
 		require.NoError(t, err)
+		req.Header.Set(HeaderAuthenticationToken, testAuthToken)
 
 		wg := sync.WaitGroup{}
 		wg.Add(1)
@@ -324,12 +333,12 @@ func TestHTTP_handleReceiveSnapshotNoExplicitName(t *testing.T) {
 		pipeRdr, pipeWrtr := io.Pipe()
 
 		const newFilesystem = "bla"
-		req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/filesystems/%s/snapshots?%s=%s&%s=%s",
+		req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/filesystems/%s/snapshots?%s=%s",
 			server.URL, newFilesystem,
-			authenticationTokenGETParam, testToken,
 			GETParamReceiveProperties, ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff}.Encode(),
 		), pipeRdr)
 		require.NoError(t, err)
+		req.Header.Set(HeaderAuthenticationToken, testAuthToken)
 
 		wg := sync.WaitGroup{}
 		wg.Add(1)
@@ -410,11 +419,11 @@ func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
 		require.NotEmpty(t, ds.ExtraProps[zfs.PropertyReceiveResumeToken])
 		require.True(t, len(ds.ExtraProps[zfs.PropertyReceiveResumeToken]) > 100)
 
-		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/resume-token?%s=%s",
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/resume-token",
 			server.URL, newFilesystem,
-			authenticationTokenGETParam, testToken,
 		), nil)
 		require.NoError(t, err)
+		req.Header.Set(HeaderAuthenticationToken, testAuthToken)
 
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
@@ -428,15 +437,15 @@ func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
 		pipeRdr, pipeWrtr = io.Pipe()
 
 		// Now do a resume HTTP receive request
-		req, err = http.NewRequest(http.MethodPut, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s&%s=%s&%s=%s",
+		req, err = http.NewRequest(http.MethodPut, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s&%s=%s",
 			server.URL, newFilesystem,
 			newSnap,
-			authenticationTokenGETParam, testToken,
 			GETParamResumable, "true",
 			GETParamReceiveProperties, ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff}.Encode(),
 		), pipeRdr)
-		req.Header.Set(HeaderResumeReceiveToken, token)
 		require.NoError(t, err)
+		req.Header.Set(HeaderAuthenticationToken, testAuthToken)
+		req.Header.Set(HeaderResumeReceiveToken, token)
 
 		wg = sync.WaitGroup{}
 		wg.Add(1)

@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	AuthenticationTokenHeader   = "X-ZFS-Auth-Token"
-	authenticationTokenGETParam = "authToken"
+	HeaderAuthenticationToken = "X-ZFS-Auth-Token"
 )
 
 // HTTP is the main object for serving the ZFS HTTP server
@@ -99,10 +98,7 @@ func (h *HTTP) authenticated(handle handle) httprouter.Handle {
 			"method": req.Method,
 		})
 
-		authToken := req.Header.Get(AuthenticationTokenHeader)
-		if authToken == "" {
-			authToken = req.URL.Query().Get(authenticationTokenGETParam)
-		}
+		authToken := req.Header.Get(HeaderAuthenticationToken)
 
 		found := false
 		for _, tkn := range h.config.AuthenticationTokens {
