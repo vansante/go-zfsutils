@@ -9,10 +9,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/vansante/go-zfs"
+
 	"github.com/juju/ratelimit"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -26,14 +27,14 @@ type HTTP struct {
 	config     Config
 	httpSocket net.Listener
 	httpServer *http.Server
-	logger     *logrus.Entry
+	logger     zfs.Logger
 	ctx        context.Context
 }
 
-type handle func(http.ResponseWriter, *http.Request, httprouter.Params, *logrus.Entry)
+type handle func(http.ResponseWriter, *http.Request, httprouter.Params, zfs.Logger)
 
 // NewHTTP creates a new HTTP server for ZFS interactions
-func NewHTTP(ctx context.Context, conf Config, logger *logrus.Entry) (*HTTP, error) {
+func NewHTTP(ctx context.Context, conf Config, logger zfs.Logger) (*HTTP, error) {
 	h := &HTTP{
 		router: httprouter.New(),
 		config: conf,
@@ -96,7 +97,7 @@ func (h *HTTP) Serve() {
 // authenticated is an HTTP handler wrapper that ensures a valid authentication is used for the request
 func (h *HTTP) authenticated(handle handle) httprouter.Handle {
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-		logger := h.logger.WithFields(logrus.Fields{
+		logger := h.logger.WithFields(map[string]interface{}{
 			"URL":    req.URL.String(),
 			"method": req.Method,
 		})

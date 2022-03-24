@@ -7,10 +7,9 @@ import (
 	"github.com/vansante/go-zfs"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/sirupsen/logrus"
 )
 
-func TestHTTPZPool(testZPool, testAuthToken, testFs string, fn func(server *httptest.Server)) {
+func TestHTTPZPool(testZPool, testAuthToken, testFs string, logger zfs.Logger, fn func(server *httptest.Server)) {
 	zfs.TestZPool(testZPool, func() {
 		rtr := httprouter.New()
 		h := HTTP{
@@ -20,7 +19,7 @@ func TestHTTPZPool(testZPool, testAuthToken, testFs string, fn func(server *http
 				AllowDestroy:         true,
 				AuthenticationTokens: []string{testAuthToken},
 			},
-			logger: logrus.WithField("test", "test"),
+			logger: logger,
 			ctx:    context.Background(),
 		}
 		h.registerRoutes()
