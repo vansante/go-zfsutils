@@ -14,13 +14,20 @@ const (
 
 // Config configures the runner
 type Config struct {
-	ParentDataset                         string          `json:"ParentDataset" yaml:"ParentDataset"`
-	DatasetType                           zfs.DatasetType `json:"DatasetTypes" yaml:"DatasetTypes"`
-	AuthorisationToken                    string          `json:"AuthorisationToken" yaml:"AuthorisationToken"`
-	SnapshotNameTemplate                  string          `json:"SnapshotNameTemplate" yaml:"SnapshotNameTemplate"`
-	IgnoreSnapshotsWithoutCreatedProperty bool            `json:"IgnoreSnapshotsWithoutCreatedProperty" yaml:"IgnoreSnapshotsWithoutCreatedProperty"`
-	DeleteFilesystems                     bool            `json:"DeleteFilesystems" yaml:"DeleteFilesystems"`
-	MaximumSendTimeMinutes                int64           `json:"MaximumSendTimeMinutes" yaml:"MaximumSendTimeMinutes"`
+	ParentDataset        string          `json:"ParentDataset" yaml:"ParentDataset"`
+	DatasetType          zfs.DatasetType `json:"DatasetTypes" yaml:"DatasetTypes"`
+	AuthorisationToken   string          `json:"AuthorisationToken" yaml:"AuthorisationToken"`
+	SnapshotNameTemplate string          `json:"SnapshotNameTemplate" yaml:"SnapshotNameTemplate"`
+
+	SendRaw               bool              `json:"SendRaw" yaml:"SendRaw"`
+	SendIncludeProperties bool              `json:"SendIncludeProperties" yaml:"SendIncludeProperties"`
+	SendCopyProperties    []string          `json:"SendCopyProperties" yaml:"SendCopyProperties"`
+	SendSetProperties     map[string]string `json:"SendSetProperties" yaml:"SendSetProperties"`
+
+	IgnoreSnapshotsWithoutCreatedProperty bool `json:"IgnoreSnapshotsWithoutCreatedProperty" yaml:"IgnoreSnapshotsWithoutCreatedProperty"`
+
+	SendSpeedBytesPerSecond int64 `json:"SendSpeedBytesPerSecond" yaml:"SendSpeedBytesPerSecond"`
+	MaximumSendTimeMinutes  int64 `json:"MaximumSendTimeMinutes" yaml:"MaximumSendTimeMinutes"`
 
 	Properties Properties `json:"Properties" yaml:"Properties"`
 }
@@ -31,7 +38,16 @@ func (c *Config) ApplyDefaults() {
 	c.SnapshotNameTemplate = defaultSnapshotNameTemplate
 	c.MaximumSendTimeMinutes = defaultMaximumSendTimeMinutes
 
+	c.IgnoreSnapshotsWithoutCreatedProperty = true
+
+	c.SendRaw = true
+	c.SendIncludeProperties = false
+
 	c.Properties.ApplyDefaults()
+
+	c.SendCopyProperties = []string{
+		c.Properties.snapshotCreatedAt(),
+	}
 }
 
 // Properties sets the names of the custom ZFS properties to use

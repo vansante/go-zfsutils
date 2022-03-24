@@ -159,15 +159,32 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset) ([]zfshttp.Snap
 			continue // No more to do
 		}
 
+		props := make(map[string]string, len(r.config.SendSetProperties)+len(r.config.SendCopyProperties))
+		for k, v := range r.config.SendSetProperties {
+			props[k] = v
+		}
+		for _, prop := range r.config.SendCopyProperties {
+			val, err := snap.GetProperty(r.ctx, prop)
+			if err != nil {
+				return nil, fmt.Errorf("error getting prop %s copy value for %s: %w", prop, snap.Name, err)
+			}
+			if val == zfs.PropertyUnset {
+				continue
+			}
+			props[prop] = val
+		}
+
 		toSend = append(toSend, zfshttp.SnapshotSend{
 			DatasetName:  datasetName(snap.Name, true),
 			SnapshotName: snapshotName(snap.Name),
 			Snapshot:     snap,
 			SendOptions: zfs.SendOptions{
-				Raw:             true,
-				Props:           true,
-				IncrementalBase: prevRemoteSnap,
+				BytesPerSecond:    r.config.SendSpeedBytesPerSecond,
+				Raw:               r.config.SendRaw,
+				IncludeProperties: r.config.SendIncludeProperties,
+				IncrementalBase:   prevRemoteSnap,
 			},
+			Properties: props,
 		})
 
 		// Once we have sent the first snapshot, the next one can be incremental upon that one

@@ -27,11 +27,9 @@ func runnerTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) 
 			r := &Runner{
 				Emitter: eventemitter.NewEmitter(false),
 				config: Config{
-					ParentDataset:                         testZPool,
-					DatasetType:                           zfs.DatasetFilesystem,
-					AuthorisationToken:                    testToken,
-					IgnoreSnapshotsWithoutCreatedProperty: true,
-					DeleteFilesystems:                     true,
+					ParentDataset:      testZPool,
+					DatasetType:        zfs.DatasetFilesystem,
+					AuthorisationToken: testToken,
 				},
 				logger: zfs.NewTestLogger(t),
 				ctx:    context.Background(),
@@ -39,6 +37,12 @@ func runnerTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) 
 
 			r.config.ApplyDefaults()
 			r.config.MaximumSendTimeMinutes = 1
+			r.config.SendSetProperties = map[string]string{
+				zfs.PropertyCanMount: zfs.PropertyOff,
+			}
+			r.config.SendCopyProperties = []string{
+				defaultNamespace + ":" + defaultSnapshotCreatedAtProperty,
+			}
 
 			_, err := zfs.CreateFilesystem(context.Background(), testFilesystem, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
 			if err != nil {
