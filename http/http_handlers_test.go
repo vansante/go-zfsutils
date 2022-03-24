@@ -25,8 +25,15 @@ const (
 	testFilesystem     = testZPool + "/" + testFilesystemName
 )
 
+func httpHandlerTest(t *testing.T, fn func(server *httptest.Server)) {
+	t.Helper()
+	TestHTTPZPool(testZPool, testToken, testFilesystem, zfs.NewTestLogger(t), func(server *httptest.Server) {
+		fn(server)
+	})
+}
+
 func TestHTTP_handleListFilesystems(t *testing.T) {
-	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
+	httpHandlerTest(t, func(server *httptest.Server) {
 		resp, err := http.Get(fmt.Sprintf("%s/filesystems?%s=%s", server.URL, authenticationTokenGETParam, testToken))
 		require.NoError(t, err)
 		defer resp.Body.Close()
@@ -42,7 +49,7 @@ func TestHTTP_handleListFilesystems(t *testing.T) {
 }
 
 func TestHTTP_handleSetFilesystemProps(t *testing.T) {
-	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
+	httpHandlerTest(t, func(server *httptest.Server) {
 		props := SetProperties{
 			Set: map[string]string{"nl.test:blaat": "disk"},
 		}
@@ -70,7 +77,7 @@ func TestHTTP_handleSetFilesystemProps(t *testing.T) {
 }
 
 func TestHTTP_handleMakeSnapshot(t *testing.T) {
-	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
+	httpHandlerTest(t, func(server *httptest.Server) {
 		const snapName = "snappie"
 
 		req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s",
@@ -98,7 +105,7 @@ func TestHTTP_handleMakeSnapshot(t *testing.T) {
 }
 
 func TestHTTP_handleGetSnapshot(t *testing.T) {
-	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
+	httpHandlerTest(t, func(server *httptest.Server) {
 		const snapName = "snappie"
 
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
@@ -130,7 +137,7 @@ func TestHTTP_handleGetSnapshot(t *testing.T) {
 }
 
 func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
-	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
+	httpHandlerTest(t, func(server *httptest.Server) {
 		const snapName1 = "snappie1"
 		const snapName2 = "snappie2"
 
@@ -181,7 +188,7 @@ func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
 }
 
 func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
-	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
+	httpHandlerTest(t, func(server *httptest.Server) {
 		const snapName = "snappie"
 
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
@@ -236,7 +243,7 @@ func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
 }
 
 func TestHTTP_handleReceiveSnapshot(t *testing.T) {
-	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
+	httpHandlerTest(t, func(server *httptest.Server) {
 		const snapName = "send"
 		const testProp = "nl.test:dsk"
 		const testPropVal = "1234"
@@ -296,7 +303,7 @@ func TestHTTP_handleReceiveSnapshot(t *testing.T) {
 }
 
 func TestHTTP_handleReceiveSnapshotNoExplicitName(t *testing.T) {
-	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
+	httpHandlerTest(t, func(server *httptest.Server) {
 		const snapName = "send"
 
 		pipeRdr, pipeWrtr := io.Pipe()
@@ -343,7 +350,7 @@ func TestHTTP_handleReceiveSnapshotNoExplicitName(t *testing.T) {
 }
 
 func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
-	TestHTTPZPool(testZPool, testToken, testFilesystem, func(server *httptest.Server) {
+	httpHandlerTest(t, func(server *httptest.Server) {
 		const snapName = "send"
 
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem, nil)

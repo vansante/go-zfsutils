@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/vansante/go-zfs"
 )
 
@@ -24,14 +22,16 @@ var (
 type Client struct {
 	server    string
 	authToken string
+	logger    zfs.Logger
 	client    *http.Client
 }
 
 // NewClient creates a new client for a zfs http server
-func NewClient(server, authToken string) *Client {
+func NewClient(server, authToken string, logger zfs.Logger) *Client {
 	return &Client{
 		server:    server,
 		authToken: authToken,
+		logger:    logger,
 		client:    http.DefaultClient,
 	}
 }
@@ -103,16 +103,17 @@ func (c *Client) ResumableSendToken(ctx context.Context, dataset string) (string
 }
 
 // ResumeSend resumes a send for a dataset given the resume token
-func (c *Client) ResumeSend(ctx context.Context, dataset string, resumeToken string) error {
+func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string) error {
 	pipeRdr, pipeWrtr := io.Pipe()
 
+	sendCtx, cancelSend := context.WithCancel(ctx)
 	go func() {
-		logger := logrus.WithFields(logrus.Fields{
+		logger := c.logger.WithFields(map[string]interface{}{
 			"server":      c.server,
 			"dataset":     dataset,
 			"resumeToken": resumeToken,
 		})
-		err := zfs.ResumeSend(ctx, pipeWrtr, resumeToken)
+		err := zfs.ResumeSend(sendCtx, pipeWrtr, resumeToken)
 		if err != nil {
 			logger.WithError(err).Error("zfs.http.Client.ResumeSend: Error sending resume stream")
 		}
@@ -126,11 +127,11 @@ func (c *Client) ResumeSend(ctx context.Context, dataset string, resumeToken str
 		dataset, GETParamResumable, "true",
 	), pipeRdr)
 	if err != nil {
-		_ = pipeWrtr.Close()
+		cancelSend()
 		return fmt.Errorf("error creating resume request: %w", err)
 	}
 
-	return c.doSendStream(req, pipeWrtr)
+	return c.doSendStream(req, pipeWrtr, cancelSend)
 }
 
 // SnapshotSend is a struct for a send job to a remote server using a Client
@@ -151,13 +152,14 @@ type SnapshotSend struct {
 func (c *Client) Send(ctx context.Context, send SnapshotSend) error {
 	pipeRdr, pipeWrtr := io.Pipe()
 
+	sendCtx, cancelSend := context.WithCancel(ctx)
 	go func() {
-		logger := logrus.WithFields(logrus.Fields{
+		logger := c.logger.WithFields(map[string]interface{}{
 			"server":       c.client,
 			"snapshot":     send.Snapshot.Name,
 			"baseSnapshot": send.IncrementalBase,
 		})
-		err := send.Snapshot.SendSnapshot(ctx, pipeWrtr, send.SendOptions)
+		err := send.Snapshot.SendSnapshot(sendCtx, pipeWrtr, send.SendOptions)
 		if err != nil {
 			logger.Error("zfs.http.Client.sendWithBase: Error sending incremental snapshot stream")
 		}
@@ -174,7 +176,7 @@ func (c *Client) Send(ctx context.Context, send SnapshotSend) error {
 
 	req, err := c.request(ctx, http.MethodPut, url, pipeRdr)
 	if err != nil {
-		_ = pipeWrtr.Close()
+		cancelSend()
 		return fmt.Errorf("error creating incremental send request: %w", err)
 	}
 	q := req.URL.Query()
@@ -183,10 +185,10 @@ func (c *Client) Send(ctx context.Context, send SnapshotSend) error {
 		q.Set(GETParamReceiveProperties, send.Properties.Encode())
 	}
 	req.URL.RawQuery = q.Encode() // Add new GET params
-	return c.doSendStream(req, pipeWrtr)
+	return c.doSendStream(req, pipeWrtr, cancelSend)
 }
 
-func (c *Client) doSendStream(req *http.Request, pipeWrtr *io.PipeWriter) error {
+func (c *Client) doSendStream(req *http.Request, pipeWrtr *io.PipeWriter, cancelSend context.CancelFunc) error {
 	resp, err := c.client.Do(req)
 	if err != nil {
 		_ = pipeWrtr.Close()
@@ -194,6 +196,7 @@ func (c *Client) doSendStream(req *http.Request, pipeWrtr *io.PipeWriter) error 
 	}
 	defer resp.Body.Close()
 
+	cancelSend()
 	err = pipeWrtr.Close()
 	if err != nil {
 		return fmt.Errorf("error closing transfer pipe: %w", err)
