@@ -16,7 +16,7 @@ func TestRunner_sendSnapshots(t *testing.T) {
 		createdProp := runner.config.Properties.snapshotCreatedAt()
 		sendToProp := runner.config.Properties.snapshotSendTo()
 
-		ds, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
 		require.NoError(t, err)
 
 		err = ds.SetProperty(context.Background(), sendToProp, server.URL)
@@ -56,7 +56,7 @@ func TestRunner_sendSnapshots(t *testing.T) {
 		require.Equal(t, 1, sendingCount)
 		require.Equal(t, 1, sentCount)
 
-		snaps, err := zfs.Snapshots(context.Background(), testHTTPZPool+"/"+datasetName(testFilesystem, true), nil)
+		snaps, err := zfs.Snapshots(context.Background(), testHTTPZPool+"/"+datasetName(testFilesystem, true))
 		require.NoError(t, err)
 		require.Len(t, snaps, 1)
 		require.Equal(t, testHTTPZPool+"/"+datasetName(testFilesystem, true)+"@"+runner.snapshotName(snapshotTm), snaps[0].Name)

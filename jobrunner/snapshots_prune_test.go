@@ -16,7 +16,7 @@ func TestRunner_pruneSnapshots(t *testing.T) {
 		createdProp := runner.config.Properties.snapshotCreatedAt()
 		deleteProp := runner.config.Properties.deleteAt()
 
-		ds, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
 		require.NoError(t, err)
 
 		const snap1, snap2, snap3, snap4 = "s1", "s2", "s3", "s4"
@@ -52,7 +52,7 @@ func TestRunner_pruneSnapshots(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 2, events)
 
-		snaps, err := ds.Snapshots(context.Background(), nil)
+		snaps, err := ds.Snapshots(context.Background())
 		require.NoError(t, err)
 		require.Len(t, snaps, 2)
 		require.Equal(t, snaps[0].Name, fmt.Sprintf("%s@%s", testFilesystem, snap3))

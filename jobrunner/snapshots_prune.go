@@ -21,7 +21,7 @@ func (r *Runner) pruneSnapshots() error {
 			return r.ctx.Err()
 		}
 
-		snap, err := zfs.GetDataset(r.ctx, snapshot, []string{deleteProp})
+		snap, err := zfs.GetDataset(r.ctx, snapshot, deleteProp)
 		if err != nil {
 			return fmt.Errorf("error getting snapshot %s: %w", snapshot, err)
 		}

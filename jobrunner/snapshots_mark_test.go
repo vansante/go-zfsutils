@@ -16,7 +16,7 @@ func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
 		createdProp := runner.config.Properties.snapshotCreatedAt()
 		deleteProp := runner.config.Properties.deleteAt()
 
-		ds, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
 		require.NoError(t, err)
 
 		err = ds.SetProperty(context.Background(), retCountProp, "2")
@@ -51,7 +51,7 @@ func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, events)
 
-		snaps, err := ds.Snapshots(context.Background(), []string{deleteProp})
+		snaps, err := ds.Snapshots(context.Background(), deleteProp)
 		require.NoError(t, err)
 		require.Len(t, snaps, 3)
 
@@ -73,7 +73,7 @@ func TestRunner_markPrunableSnapshotsByAge(t *testing.T) {
 		createdProp := runner.config.Properties.snapshotCreatedAt()
 		deleteProp := runner.config.Properties.deleteAt()
 
-		ds, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
 		require.NoError(t, err)
 
 		err = ds.SetProperty(context.Background(), retentionProp, "2")
@@ -112,7 +112,7 @@ func TestRunner_markPrunableSnapshotsByAge(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, events)
 
-		snaps, err := ds.Snapshots(context.Background(), []string{deleteProp})
+		snaps, err := ds.Snapshots(context.Background(), deleteProp)
 		require.NoError(t, err)
 		require.Len(t, snaps, 4)
 

@@ -21,7 +21,7 @@ func (r *Runner) pruneFilesystems() error {
 			return r.ctx.Err()
 		}
 
-		fs, err := zfs.GetDataset(r.ctx, filesystem, []string{deleteProp})
+		fs, err := zfs.GetDataset(r.ctx, filesystem, deleteProp)
 		if err != nil {
 			return fmt.Errorf("error getting filesystem %s: %w", filesystem, err)
 		}
@@ -39,7 +39,7 @@ func (r *Runner) pruneFilesystems() error {
 			continue // Not due for removal yet
 		}
 
-		children, err := fs.Children(r.ctx, 0, nil)
+		children, err := fs.Children(r.ctx, 0)
 		if err != nil {
 			return fmt.Errorf("error listing %s children: %w", filesystem, err)
 		}

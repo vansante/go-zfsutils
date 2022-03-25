@@ -14,7 +14,7 @@ import (
 func TestRunner_pruneFilesystems(t *testing.T) {
 	runnerTest(t, func(server *httptest.Server, runner *Runner) {
 		delProp := runner.config.Properties.deleteAt()
-		fs, err := zfs.GetDataset(context.Background(), testFilesystem, nil)
+		fs, err := zfs.GetDataset(context.Background(), testFilesystem)
 		require.NoError(t, err)
 		require.NoError(t, fs.SetProperty(context.Background(), delProp, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
@@ -63,10 +63,10 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 2, events)
 
-		ds, err := zfs.GetDataset(context.Background(), testZPool, nil)
+		ds, err := zfs.GetDataset(context.Background(), testZPool)
 		require.NoError(t, err)
 
-		datasets, err := ds.Children(context.Background(), 0, nil)
+		datasets, err := ds.Children(context.Background(), 0)
 		require.NoError(t, err)
 		require.Len(t, datasets, 5)
 		require.Equal(t, fmt.Sprintf("%s/%s", testZPool, fsWithoutDel), datasets[0].Name)

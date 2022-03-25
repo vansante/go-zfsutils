@@ -35,7 +35,7 @@ func TestRunner_createSnapshots(t *testing.T) {
 			createTm := arguments[2].(time.Time)
 			require.WithinDuration(t, tm, createTm, time.Second)
 
-			snaps, err := ds.Snapshots(context.Background(), []string{createProp})
+			snaps, err := ds.Snapshots(context.Background(), createProp)
 			require.NoError(t, err)
 			require.Len(t, snaps, 1)
 			require.Equal(t, snaps[0].Name, testZPool+"/"+fsName+"@"+name)

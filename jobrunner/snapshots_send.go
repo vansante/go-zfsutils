@@ -18,7 +18,7 @@ func (r *Runner) sendSnapshots() error {
 	}
 
 	for dataset := range datasets {
-		ds, err := zfs.GetDataset(r.ctx, dataset, []string{sendToProp})
+		ds, err := zfs.GetDataset(r.ctx, dataset, sendToProp)
 		if err != nil {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
@@ -34,7 +34,7 @@ func (r *Runner) sendSnapshotsForDataset(ds *zfs.Dataset) error {
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	sentProp := r.config.Properties.snapshotSentAt()
 	sendToProp := r.config.Properties.snapshotSendTo()
-	localSnaps, err := zfs.ListByType(r.ctx, zfs.DatasetSnapshot, ds.Name, []string{createdProp, sentProp})
+	localSnaps, err := zfs.ListByType(r.ctx, zfs.DatasetSnapshot, ds.Name, createdProp, sentProp)
 	if err != nil {
 		return fmt.Errorf("error listing existing snapshots: %w", err)
 	}

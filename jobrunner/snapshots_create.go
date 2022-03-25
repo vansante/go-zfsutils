@@ -22,7 +22,7 @@ func (r *Runner) createSnapshots() error {
 			return r.ctx.Err()
 		}
 
-		ds, err := zfs.GetDataset(r.ctx, dataset, []string{intervalProp})
+		ds, err := zfs.GetDataset(r.ctx, dataset, intervalProp)
 		if err != nil {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
@@ -50,7 +50,7 @@ func (r *Runner) createSnapshotsForDataset(ds *zfs.Dataset) error {
 	}
 
 	createdProp := r.config.Properties.snapshotCreatedAt()
-	snapshots, err := zfs.ListByType(r.ctx, zfs.DatasetSnapshot, ds.Name, []string{createdProp})
+	snapshots, err := zfs.ListByType(r.ctx, zfs.DatasetSnapshot, ds.Name, createdProp)
 	if err != nil {
 		return fmt.Errorf("error listing existing snapshots: %w", err)
 	}
