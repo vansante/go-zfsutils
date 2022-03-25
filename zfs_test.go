@@ -18,10 +18,10 @@ func TestDatasets(t *testing.T) {
 	t.Helper()
 
 	TestZPool(testZPool, func() {
-		_, err := Datasets(context.Background(), "", nil)
+		_, err := Datasets(context.Background(), "")
 		require.NoError(t, err)
 
-		ds, err := GetDataset(context.Background(), testZPool, nil)
+		ds, err := GetDataset(context.Background(), testZPool)
 		require.NoError(t, err)
 		require.Equal(t, DatasetFilesystem, ds.Type)
 		require.Equal(t, "", ds.Origin)
@@ -31,7 +31,7 @@ func TestDatasets(t *testing.T) {
 
 func TestDatasetsWithProps(t *testing.T) {
 	TestZPool(testZPool, func() {
-		ds, err := GetDataset(context.Background(), testZPool, []string{"name", "refquota"})
+		ds, err := GetDataset(context.Background(), testZPool, "name", "refquota")
 		require.NoError(t, err)
 
 		require.Len(t, ds.ExtraProps, 2)
@@ -42,7 +42,7 @@ func TestDatasetsWithProps(t *testing.T) {
 
 func TestGetNotExistingDataset(t *testing.T) {
 	TestZPool(testZPool, func() {
-		_, err := GetDataset(context.Background(), testZPool+"/doesnt-exist", nil)
+		_, err := GetDataset(context.Background(), testZPool+"/doesnt-exist")
 		require.Error(t, err)
 		require.ErrorIs(t, err, ErrDatasetNotFound)
 	})
@@ -50,7 +50,7 @@ func TestGetNotExistingDataset(t *testing.T) {
 
 func TestDatasetGetProperty(t *testing.T) {
 	TestZPool(testZPool, func() {
-		ds, err := GetDataset(context.Background(), testZPool, nil)
+		ds, err := GetDataset(context.Background(), testZPool)
 		require.NoError(t, err)
 
 		prop, err := ds.GetProperty(context.Background(), PropertyReadOnly)
@@ -65,7 +65,7 @@ func TestDatasetGetProperty(t *testing.T) {
 
 func TestDatasetSetInheritProperty(t *testing.T) {
 	TestZPool(testZPool, func() {
-		ds, err := GetDataset(context.Background(), testZPool, nil)
+		ds, err := GetDataset(context.Background(), testZPool)
 		require.NoError(t, err)
 
 		const testProp = "nl.bla:nope"
@@ -85,7 +85,7 @@ func TestDatasetSetInheritProperty(t *testing.T) {
 
 func TestSnapshots(t *testing.T) {
 	TestZPool(testZPool, func() {
-		snapshots, err := Snapshots(context.Background(), "", nil)
+		snapshots, err := Snapshots(context.Background(), "")
 		require.NoError(t, err)
 
 		for _, snapshot := range snapshots {
@@ -99,7 +99,7 @@ func TestFilesystems(t *testing.T) {
 		f, err := CreateFilesystem(context.Background(), testZPool+"/filesystem-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		filesystems, err := Filesystems(context.Background(), "", nil)
+		filesystems, err := Filesystems(context.Background(), "")
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
@@ -121,7 +121,7 @@ func TestCreateFilesystemWithProperties(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "lz4", f.Compression)
 
-		filesystems, err := Filesystems(context.Background(), "", nil)
+		filesystems, err := Filesystems(context.Background(), "")
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
@@ -141,7 +141,7 @@ func TestVolumes(t *testing.T) {
 		time.Sleep(time.Second)
 
 		require.Equal(t, DatasetVolume, v.Type)
-		volumes, err := Volumes(context.Background(), "", nil)
+		volumes, err := Volumes(context.Background(), "")
 		require.NoError(t, err)
 
 		for _, volume := range volumes {
@@ -157,7 +157,7 @@ func TestSnapshot(t *testing.T) {
 		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		filesystems, err := Filesystems(context.Background(), "", nil)
+		filesystems, err := Filesystems(context.Background(), "")
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
@@ -197,7 +197,7 @@ func TestClone(t *testing.T) {
 		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		filesystems, err := Filesystems(context.Background(), "", nil)
+		filesystems, err := Filesystems(context.Background(), "")
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
@@ -224,7 +224,7 @@ func TestSendSnapshot(t *testing.T) {
 		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		filesystems, err := Filesystems(context.Background(), "", nil)
+		filesystems, err := Filesystems(context.Background(), "")
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
@@ -265,7 +265,7 @@ func TestSendSnapshotResume(t *testing.T) {
 		require.True(t, errors.As(err, &zfsErr))
 		require.NotEmpty(t, zfsErr.ResumeToken(), zfsErr)
 
-		list, err := Filesystems(context.Background(), testZPool+"/recv-test", []string{PropertyReceiveResumeToken})
+		list, err := Filesystems(context.Background(), testZPool+"/recv-test", PropertyReceiveResumeToken)
 		require.NoError(t, err)
 		require.Len(t, list, 1)
 		require.Len(t, list[0].ExtraProps, 1)
@@ -289,7 +289,7 @@ func TestSendSnapshotResume(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		snaps, err := Snapshots(context.Background(), testZPool+"/recv-test", nil)
+		snaps, err := Snapshots(context.Background(), testZPool+"/recv-test")
 		require.NoError(t, err)
 		require.Len(t, snaps, 1)
 		require.Equal(t, snaps[0].Name, testZPool+"/recv-test@test")
@@ -307,7 +307,7 @@ func TestChildren(t *testing.T) {
 		require.Equal(t, DatasetSnapshot, s.Type)
 		require.Equal(t, testZPool+"/snapshot-test@test", s.Name)
 
-		children, err := f.Children(context.Background(), 0, []string{PropertyRefQuota})
+		children, err := f.Children(context.Background(), 0, PropertyRefQuota)
 		require.NoError(t, err)
 
 		require.Equal(t, 1, len(children))
@@ -325,7 +325,7 @@ func TestRollback(t *testing.T) {
 		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
 		require.NoError(t, err)
 
-		filesystems, err := Filesystems(context.Background(), "", nil)
+		filesystems, err := Filesystems(context.Background(), "")
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {

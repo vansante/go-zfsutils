@@ -22,7 +22,7 @@ func clientTest(t *testing.T, fn func(client *Client)) {
 func TestClient_Send(t *testing.T) {
 	clientTest(t, func(client *Client) {
 		const fsName = testZPool + "/" + testFilesystemName
-		ds, err := zfs.GetDataset(context.Background(), fsName, nil)
+		ds, err := zfs.GetDataset(context.Background(), fsName)
 		require.NoError(t, err)
 
 		snap1, err := ds.Snapshot(context.Background(), "lala1", false)
@@ -55,10 +55,10 @@ func TestClient_Send(t *testing.T) {
 		require.NoError(t, err)
 
 		const fullNewFs = testZPool + "/" + newFs
-		ds, err = zfs.GetDataset(context.Background(), fullNewFs, nil)
+		ds, err = zfs.GetDataset(context.Background(), fullNewFs)
 		require.NoError(t, err)
 
-		snaps, err := ds.Snapshots(context.Background(), nil)
+		snaps, err := ds.Snapshots(context.Background())
 		require.NoError(t, err)
 		require.Len(t, snaps, 2)
 		require.Equal(t, fullNewFs+"@lala1", snaps[0].Name)
