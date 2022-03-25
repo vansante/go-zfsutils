@@ -1,4 +1,4 @@
-package jobrunner
+package job
 
 import (
 	"context"
@@ -26,7 +26,7 @@ func (r *Runner) createSnapshots() error {
 		if err != nil {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
-		err = r.createSnapshotsForDataset(ds)
+		err = r.createDatasetSnapshot(ds)
 		if err != nil {
 			return err
 		}
@@ -42,7 +42,7 @@ func (r *Runner) snapshotName(tm time.Time) string {
 	return name
 }
 
-func (r *Runner) createSnapshotsForDataset(ds *zfs.Dataset) error {
+func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	intervalMinsProp := r.config.Properties.snapshotIntervalMinutes()
 	intervalMins, err := strconv.ParseInt(ds.ExtraProps[intervalMinsProp], 10, 64)
 	if err != nil {

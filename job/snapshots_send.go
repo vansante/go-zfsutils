@@ -1,4 +1,4 @@
-package jobrunner
+package job
 
 import (
 	"context"
@@ -22,7 +22,8 @@ func (r *Runner) sendSnapshots() error {
 		if err != nil {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
-		err = r.sendSnapshotsForDataset(ds)
+
+		err = r.sendDatasetSnapshots(ds)
 		if err != nil {
 			return err
 		}
@@ -30,7 +31,16 @@ func (r *Runner) sendSnapshots() error {
 	return nil
 }
 
-func (r *Runner) sendSnapshotsForDataset(ds *zfs.Dataset) error {
+func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
+	locked, unlock := r.sendLock(datasetName(ds.Name, true))
+	if !locked {
+		return nil // Some other goroutine is sending this dataset already, continue to next.
+	}
+	defer func() {
+		// Unlock the send for this dataset again
+		unlock()
+	}()
+
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	sentProp := r.config.Properties.snapshotSentAt()
 	sendToProp := r.config.Properties.snapshotSendTo()
@@ -149,11 +159,11 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset) ([]zfshttp.Snap
 			setErr := snap.SetProperty(r.ctx, sentProp, val)
 			if setErr != nil {
 				logger.WithError(setErr).Errorf(
-					"jobrunner.reconcileSnapshots: Error setting %s after property was missing", sentProp,
+					"zfs.job.Runner.reconcileSnapshots: Error setting %s after property was missing", sentProp,
 				)
 			} else {
 				logger.WithError(setErr).WithField("value", val).Infof(
-					"jobrunner.reconcileSnapshots: Set %s after property was missing", sentProp,
+					"zfs.job.Runner.reconcileSnapshots: Set %s after property was missing", sentProp,
 				)
 			}
 			continue // No more to do

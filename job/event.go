@@ -1,4 +1,4 @@
-package jobrunner
+package job
 
 import eventemitter "github.com/vansante/go-event-emitter"
 

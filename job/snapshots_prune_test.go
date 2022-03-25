@@ -1,4 +1,4 @@
-package jobrunner
+package job
 
 import (
 	"context"
@@ -43,9 +43,17 @@ func TestRunner_pruneSnapshots(t *testing.T) {
 			events++
 
 			require.Len(t, arguments, 3)
-			require.Equal(t, fmt.Sprintf("%s@s%d", testFilesystem, events), arguments[0])
 			require.Equal(t, datasetName(testFilesystem, true), arguments[1])
-			require.Equal(t, fmt.Sprintf("s%d", events), arguments[2])
+
+			switch arguments[0] {
+			case fmt.Sprintf("%s@s1", testFilesystem):
+				require.Equal(t, "s1", arguments[2])
+			case fmt.Sprintf("%s@s2", testFilesystem):
+				require.Equal(t, "s2", arguments[2])
+			default:
+				t.Logf("unexpected snapshot: %s", arguments[0])
+				t.Fail()
+			}
 		})
 
 		err = runner.pruneSnapshots()

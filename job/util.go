@@ -1,7 +1,8 @@
-package jobrunner
+package job
 
 import (
 	"fmt"
+	"math/rand"
 	"sort"
 	"strconv"
 	"strings"
@@ -85,4 +86,11 @@ func reverse[T any](s []T) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
+}
+
+// randomizeDuration adds or removes up to 5% of the duration to randomize background routine wake up times
+func randomizeDuration(d time.Duration) time.Duration {
+	rnd := time.Duration(rand.Int63n(int64(d / 10)))
+
+	return d - (d / 20) + rnd
 }

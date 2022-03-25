@@ -1,4 +1,4 @@
-package jobrunner
+package job
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ const (
 	defaultDatasetType            = zfs.DatasetFilesystem
 	defaultSnapshotNameTemplate   = "backup_%UNIXTIME%"
 	defaultMaximumSendTimeMinutes = 12 * 60
+	defaultSendRoutines           = 3
 )
 
 // Config configures the runner
@@ -19,6 +20,13 @@ type Config struct {
 	AuthorisationToken   string          `json:"AuthorisationToken" yaml:"AuthorisationToken"`
 	SnapshotNameTemplate string          `json:"SnapshotNameTemplate" yaml:"SnapshotNameTemplate"`
 
+	EnableSnapshotCreate  bool `json:"EnableSnapshotCreate" yaml:"EnableSnapshotCreate"`
+	EnableSnapshotSend    bool `json:"EnableSnapshotSend" yaml:"EnableSnapshotSend"`
+	EnableSnapshotMark    bool `json:"EnableSnapshotMark" yaml:"EnableSnapshotMark"`
+	EnableSnapshotPrune   bool `json:"EnableSnapshotPrune" yaml:"EnableSnapshotPrune"`
+	EnableFilesystemPrune bool `json:"EnableFilesystemPrune" yaml:"EnableFilesystemPrune"`
+
+	SendRoutines          int               `json:"SendRoutines" yaml:"SendRoutines"`
 	SendRaw               bool              `json:"SendRaw" yaml:"SendRaw"`
 	SendIncludeProperties bool              `json:"SendIncludeProperties" yaml:"SendIncludeProperties"`
 	SendCopyProperties    []string          `json:"SendCopyProperties" yaml:"SendCopyProperties"`
@@ -38,8 +46,15 @@ func (c *Config) ApplyDefaults() {
 	c.SnapshotNameTemplate = defaultSnapshotNameTemplate
 	c.MaximumSendTimeMinutes = defaultMaximumSendTimeMinutes
 
+	c.EnableSnapshotCreate = true
+	c.EnableSnapshotSend = true
+	c.EnableSnapshotMark = true
+	c.EnableSnapshotPrune = true
+	c.EnableFilesystemPrune = false
+
 	c.IgnoreSnapshotsWithoutCreatedProperty = true
 
+	c.SendRoutines = defaultSendRoutines
 	c.SendRaw = true
 	c.SendIncludeProperties = false
 
