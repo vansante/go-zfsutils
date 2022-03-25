@@ -29,7 +29,7 @@ const (
 )
 
 // ListByType lists the datasets by type and allows you to fetch extra custom fields
-func ListByType(ctx context.Context, t DatasetType, filter string, extraProps []string) ([]Dataset, error) {
+func ListByType(ctx context.Context, t DatasetType, filter string, extraProps ...string) ([]Dataset, error) {
 	allFields := append(dsPropList, extraProps...) // nolint: gocritic
 
 	dsPropListOptions := strings.Join(allFields, ",")
@@ -61,26 +61,26 @@ func ListByType(ctx context.Context, t DatasetType, filter string, extraProps []
 
 // Datasets returns a slice of ZFS datasets, regardless of type.
 // A filter argument may be passed to select a dataset with the matching name, or empty string ("") may be used to select all datasets.
-func Datasets(ctx context.Context, filter string, extraFields []string) ([]Dataset, error) {
-	return ListByType(ctx, DatasetAll, filter, extraFields)
+func Datasets(ctx context.Context, filter string, extraProperties ...string) ([]Dataset, error) {
+	return ListByType(ctx, DatasetAll, filter, extraProperties...)
 }
 
 // Snapshots returns a slice of ZFS snapshots.
 // A filter argument may be passed to select a snapshot with the matching name, or empty string ("") may be used to select all snapshots.
-func Snapshots(ctx context.Context, filter string, extraFields []string) ([]Dataset, error) {
-	return ListByType(ctx, DatasetSnapshot, filter, extraFields)
+func Snapshots(ctx context.Context, filter string, extraProperties ...string) ([]Dataset, error) {
+	return ListByType(ctx, DatasetSnapshot, filter, extraProperties...)
 }
 
 // Filesystems returns a slice of ZFS filesystems.
 // A filter argument may be passed to select a filesystem with the matching name, or empty string ("") may be used to select all filesystems.
-func Filesystems(ctx context.Context, filter string, extraFields []string) ([]Dataset, error) {
-	return ListByType(ctx, DatasetFilesystem, filter, extraFields)
+func Filesystems(ctx context.Context, filter string, extraProperties ...string) ([]Dataset, error) {
+	return ListByType(ctx, DatasetFilesystem, filter, extraProperties...)
 }
 
 // Volumes returns a slice of ZFS volumes.
 // A filter argument may be passed to select a volume with the matching name, or empty string ("") may be used to select all volumes.
-func Volumes(ctx context.Context, filter string, extraFields []string) ([]Dataset, error) {
-	return ListByType(ctx, DatasetVolume, filter, extraFields)
+func Volumes(ctx context.Context, filter string, extraProperties ...string) ([]Dataset, error) {
+	return ListByType(ctx, DatasetVolume, filter, extraProperties...)
 }
 
 // ListWithProperty returns a map of dataset names mapped to the properties value for datasets which have the given ZFS property.
@@ -102,8 +102,8 @@ func ListWithProperty(ctx context.Context, t DatasetType, filter, prop string) (
 
 // GetDataset retrieves a single ZFS dataset by name.
 // This dataset could be any valid ZFS dataset type, such as a clone, filesystem, snapshot, or volume.
-func GetDataset(ctx context.Context, name string, extraProps []string) (*Dataset, error) {
-	fields := append(dsPropList, extraProps...) // nolint: gocritic
+func GetDataset(ctx context.Context, name string, extraProperties ...string) (*Dataset, error) {
+	fields := append(dsPropList, extraProperties...) // nolint: gocritic
 	out, err := zfsOutput(ctx, "list", "-Hp", "-o", strings.Join(fields, ","), name)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func GetDataset(ctx context.Context, name string, extraProps []string) (*Dataset
 		return nil, fmt.Errorf("more output than expected: %v", out)
 	}
 
-	return datasetFromFields(out[0], extraProps)
+	return datasetFromFields(out[0], extraProperties)
 }
 
 // Clone clones a ZFS snapshot and returns a clone dataset.
@@ -134,7 +134,7 @@ func (d *Dataset) Clone(ctx context.Context, dest string, properties map[string]
 	if err != nil {
 		return nil, err
 	}
-	return GetDataset(ctx, dest, nil)
+	return GetDataset(ctx, dest)
 }
 
 // Unmount unmounts currently mounted ZFS file systems.
@@ -153,7 +153,7 @@ func (d *Dataset) Unmount(ctx context.Context, force bool) (*Dataset, error) {
 	if err != nil {
 		return nil, err
 	}
-	return GetDataset(ctx, d.Name, nil)
+	return GetDataset(ctx, d.Name)
 }
 
 // LoadKey loads the encryption key for this and optionally children datasets.
@@ -188,7 +188,7 @@ func (d *Dataset) UnloadKey(ctx context.Context, recursive bool) error {
 }
 
 // Mount mounts ZFS file systems.
-func (d *Dataset) Mount(ctx context.Context, overlay bool, options []string) (*Dataset, error) {
+func (d *Dataset) Mount(ctx context.Context, overlay bool, options ...string) (*Dataset, error) {
 	if d.Type == DatasetSnapshot {
 		return nil, errors.New("cannot mount snapshots")
 	}
@@ -207,7 +207,7 @@ func (d *Dataset) Mount(ctx context.Context, overlay bool, options []string) (*D
 	if err != nil {
 		return nil, err
 	}
-	return GetDataset(ctx, d.Name, nil)
+	return GetDataset(ctx, d.Name)
 }
 
 // ReceiveOptions are options you can specify to customize the ZFS snapshot reception
@@ -249,7 +249,7 @@ func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, recvOpti
 	if err != nil {
 		return nil, err
 	}
-	return GetDataset(ctx, name, nil)
+	return GetDataset(ctx, name)
 }
 
 // SendOptions are options you can specify to customize the ZFS send stream
@@ -365,7 +365,7 @@ func CreateVolume(ctx context.Context, name string, size uint64, properties map[
 		return nil, err
 	}
 
-	return GetDataset(ctx, name, nil)
+	return GetDataset(ctx, name)
 }
 
 // Destroy destroys a ZFS dataset.
@@ -440,12 +440,12 @@ func (d *Dataset) Rename(ctx context.Context, name string, createParent, recursi
 		return d, err
 	}
 
-	return GetDataset(ctx, name, nil)
+	return GetDataset(ctx, name)
 }
 
 // Snapshots returns a slice of all ZFS snapshots of a given dataset.
-func (d *Dataset) Snapshots(ctx context.Context, extraFields []string) ([]Dataset, error) {
-	return Snapshots(ctx, d.Name, extraFields)
+func (d *Dataset) Snapshots(ctx context.Context, extraProperties ...string) ([]Dataset, error) {
+	return Snapshots(ctx, d.Name, extraProperties...)
 }
 
 // CreateFilesystem creates a new ZFS filesystem with the specified name and properties.
@@ -471,7 +471,7 @@ func CreateFilesystem(ctx context.Context, name string, properties map[string]st
 		return nil, err
 	}
 
-	return GetDataset(ctx, name, nil)
+	return GetDataset(ctx, name)
 }
 
 // Snapshot creates a new ZFS snapshot of the receiving dataset, using the specified name.
@@ -489,7 +489,7 @@ func (d *Dataset) Snapshot(ctx context.Context, name string, recursive bool) (*D
 	if err != nil {
 		return nil, err
 	}
-	return GetDataset(ctx, snapName, nil)
+	return GetDataset(ctx, snapName)
 }
 
 // Rollback rolls back the receiving ZFS dataset to a previous snapshot.
@@ -513,8 +513,8 @@ func (d *Dataset) Rollback(ctx context.Context, destroyMoreRecent bool) error {
 
 // Children returns a slice of children of the receiving ZFS dataset.
 // A recursion depth may be specified, or a depth of 0 allows unlimited recursion.
-func (d *Dataset) Children(ctx context.Context, depth uint64, extraProps []string) ([]Dataset, error) {
-	allFields := append(dsPropList, extraProps...) // nolint: gocritic
+func (d *Dataset) Children(ctx context.Context, depth uint64, extraProperties ...string) ([]Dataset, error) {
+	allFields := append(dsPropList, extraProperties...) // nolint: gocritic
 
 	args := []string{"list"}
 	if depth > 0 {
@@ -537,7 +537,7 @@ func (d *Dataset) Children(ctx context.Context, depth uint64, extraProps []strin
 			continue
 		}
 
-		ds, err := datasetFromFields(fields, extraProps)
+		ds, err := datasetFromFields(fields, extraProperties)
 		if err != nil {
 			return nil, err
 		}
