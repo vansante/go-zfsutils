@@ -18,7 +18,7 @@ func (r *Runner) pruneSnapshots() error {
 	now := time.Now()
 	for snapshot := range snapshots {
 		if r.ctx.Err() != nil {
-			return r.ctx.Err()
+			return nil // context expired, no problem
 		}
 
 		snap, err := zfs.GetDataset(r.ctx, snapshot, deleteProp)

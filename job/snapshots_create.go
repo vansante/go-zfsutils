@@ -21,7 +21,7 @@ func (r *Runner) createSnapshots() error {
 
 	for dataset := range datasets {
 		if r.ctx.Err() != nil {
-			return r.ctx.Err()
+			return nil // context expired, no problem
 		}
 
 		ds, err := zfs.GetDataset(r.ctx, dataset, intervalProp)
@@ -79,7 +79,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	}
 
 	// Log an error whenever more than twice the interval time has passed without a snapshot
-	if latestSnap != earliestSnapshot && time.Since(latestSnap) >= 2*interval {
+	if !latestSnap.Equal(earliestSnapshot) && time.Since(latestSnap) >= 2*interval {
 		r.logger.WithFields(map[string]interface{}{
 			"dataset":          ds.Name,
 			"previousSnapshot": latestSnap,

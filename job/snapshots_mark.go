@@ -24,7 +24,7 @@ func (r *Runner) markPrunableExcessSnapshots() error {
 
 	for dataset := range datasets {
 		if r.ctx.Err() != nil {
-			return r.ctx.Err()
+			return nil // context expired, no problem
 		}
 
 		ds, err := zfs.GetDataset(r.ctx, dataset, countProp)

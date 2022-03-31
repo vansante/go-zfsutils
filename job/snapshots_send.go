@@ -18,6 +18,10 @@ func (r *Runner) sendSnapshots() error {
 	}
 
 	for dataset := range datasets {
+		if r.ctx.Err() != nil {
+			return nil // context expired, no problem
+		}
+
 		ds, err := zfs.GetDataset(r.ctx, dataset, sendToProp)
 		if err != nil {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
