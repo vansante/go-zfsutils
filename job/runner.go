@@ -91,7 +91,10 @@ func (r *Runner) runCreateSnapshots() {
 		select {
 		case <-ticker.C:
 			err := r.createSnapshots()
-			if err != nil {
+			switch {
+			case isContextError(err):
+				r.logger.WithError(err).Info("zfs.job.Runner.runCreateSnapshots: Job interrupted")
+			case err != nil:
 				r.logger.WithError(err).Error("zfs.job.Runner.runCreateSnapshots: Error making snapshots")
 			}
 		case <-r.ctx.Done():
@@ -116,7 +119,10 @@ func (r *Runner) runSendSnapshotRoutine(id int) {
 		select {
 		case <-ticker.C:
 			err := r.sendSnapshots()
-			if err != nil {
+			switch {
+			case isContextError(err):
+				r.logger.WithError(err).Info("zfs.job.Runner.runSendSnapshots: Job interrupted")
+			case err != nil:
 				r.logger.WithError(err).Error("zfs.job.Runner.runSendSnapshots: Error sending snapshots")
 			}
 		case <-r.ctx.Done():
@@ -137,7 +143,10 @@ func (r *Runner) runMarkSnapshots() {
 		select {
 		case <-ticker.C:
 			err := r.markPrunableSnapshots()
-			if err != nil {
+			switch {
+			case isContextError(err):
+				r.logger.WithError(err).Info("zfs.job.Runner.runMarkSnapshots: Job interrupted")
+			case err != nil:
 				r.logger.WithError(err).Error("zfs.job.Runner.runMarkSnapshots: Error marking snapshots")
 			}
 		case <-r.ctx.Done():
@@ -158,7 +167,10 @@ func (r *Runner) runPruneSnapshots() {
 		select {
 		case <-ticker.C:
 			err := r.pruneSnapshots()
-			if err != nil {
+			switch {
+			case isContextError(err):
+				r.logger.WithError(err).Info("zfs.job.Runner.runPruneSnapshots: Job interrupted")
+			case err != nil:
 				r.logger.WithError(err).Error("zfs.job.Runner.runPruneSnapshots: Error pruning snapshots")
 			}
 		case <-r.ctx.Done():
@@ -179,7 +191,10 @@ func (r *Runner) runPruneFilesystems() {
 		select {
 		case <-ticker.C:
 			err := r.pruneFilesystems()
-			if err != nil {
+			switch {
+			case isContextError(err):
+				r.logger.WithError(err).Info("zfs.job.Runner.runPruneFilesystems: Job interrupted")
+			case err != nil:
 				r.logger.WithError(err).Error("zfs.job.Runner.runPruneFilesystems: Error pruning filesystems")
 			}
 		case <-r.ctx.Done():

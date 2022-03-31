@@ -1,6 +1,8 @@
 package job
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -10,6 +12,10 @@ import (
 
 	"github.com/vansante/go-zfs"
 )
+
+func isContextError(err error) bool {
+	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
+}
 
 func parseDatasetTimeProperty(ds *zfs.Dataset, prop string) (time.Time, error) {
 	return time.Parse(dateTimeFormat, ds.ExtraProps[prop])

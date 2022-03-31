@@ -29,8 +29,17 @@ func (r *Runner) createSnapshots() error {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
 		err = r.createDatasetSnapshot(ds)
-		if err != nil {
-			return err
+		switch {
+		case isContextError(err):
+			r.logger.WithFields(map[string]interface{}{
+				"dataset": dataset,
+			}).WithError(err).Info("zfs.job.Runner.createSnapshots: Create snapshot job interrupted")
+			return nil // Return no error
+		case err != nil:
+			r.logger.WithFields(map[string]interface{}{
+				"dataset": dataset,
+			}).WithError(err).Error("zfs.job.Runner.createSnapshots: Error creating snapshot")
+			continue // on to the next dataset :-/
 		}
 	}
 

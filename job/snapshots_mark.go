@@ -42,8 +42,17 @@ func (r *Runner) markPrunableExcessSnapshots() error {
 		}
 
 		err = r.markExcessDatasetSnapshots(ds, retentionCount)
-		if err != nil {
-			return fmt.Errorf("error marking excess snapshots for %s: %w", dataset, err)
+		switch {
+		case isContextError(err):
+			r.logger.WithFields(map[string]interface{}{
+				"dataset": dataset,
+			}).WithError(err).Info("zfs.job.Runner.markPrunableExcessSnapshots: Mark snapshot job interrupted")
+			return nil // Return no error
+		case err != nil:
+			r.logger.WithFields(map[string]interface{}{
+				"dataset": dataset,
+			}).WithError(err).Error("zfs.job.Runner.markPrunableExcessSnapshots: Error marking snapshots")
+			continue // on to the next dataset :-/
 		}
 	}
 
@@ -51,10 +60,6 @@ func (r *Runner) markPrunableExcessSnapshots() error {
 }
 
 func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) error {
-	if r.ctx.Err() != nil {
-		return r.ctx.Err()
-	}
-
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	deleteProp := r.config.Properties.deleteAt()
 
@@ -69,7 +74,7 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 	now := time.Now()
 	for i := range snaps {
 		if r.ctx.Err() != nil {
-			return r.ctx.Err()
+			return nil // context expired, no problem
 		}
 		snap := &snaps[i]
 
@@ -102,7 +107,7 @@ func (r *Runner) markPrunableSnapshotsByAge() error {
 
 	for dataset := range datasets {
 		if r.ctx.Err() != nil {
-			return r.ctx.Err()
+			return nil // context expired, no problem
 		}
 
 		ds, err := zfs.GetDataset(r.ctx, dataset, retentionProp)
@@ -129,10 +134,6 @@ func (r *Runner) markPrunableSnapshotsByAge() error {
 }
 
 func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Duration) error {
-	if r.ctx.Err() != nil {
-		return r.ctx.Err()
-	}
-
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	deleteProp := r.config.Properties.deleteAt()
 
@@ -144,7 +145,7 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 	now := time.Now()
 	for i := range snaps {
 		if r.ctx.Err() != nil {
-			return r.ctx.Err()
+			return nil // context expired, no problem
 		}
 		snap := &snaps[i]
 

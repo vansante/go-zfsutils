@@ -15,38 +15,61 @@ func (r *Runner) pruneSnapshots() error {
 		return fmt.Errorf("error finding prunable datasets: %w", err)
 	}
 
-	now := time.Now()
 	for snapshot := range snapshots {
 		if r.ctx.Err() != nil {
 			return nil // context expired, no problem
 		}
 
-		snap, err := zfs.GetDataset(r.ctx, snapshot, deleteProp)
-		if err != nil {
-			return fmt.Errorf("error getting snapshot %s: %w", snapshot, err)
+		err = r.pruneAgedSnapshot(snapshot)
+		switch {
+		case isContextError(err):
+			r.logger.WithFields(map[string]interface{}{
+				"dataset":  datasetName(snapshot, true),
+				"snapshot": snapshotName(snapshot),
+				"full":     snapshot,
+			}).WithError(err).Info("zfs.job.Runner.pruneSnapshots: Prune snapshot job interrupted")
+			return nil // Return no error
+		case err != nil:
+			r.logger.WithFields(map[string]interface{}{
+				"dataset":  datasetName(snapshot, true),
+				"snapshot": snapshotName(snapshot),
+				"full":     snapshot,
+			}).WithError(err).Info("zfs.job.Runner.pruneSnapshots: Prune snapshot job interrupted")
+			continue // on to the next dataset :-/
 		}
-
-		if snap.Type != zfs.DatasetSnapshot {
-			return fmt.Errorf("unexpected dataset type %s for %s: %w", snap.Type, snapshot, err)
-		}
-
-		deleteAt, err := parseDatasetTimeProperty(snap, deleteProp)
-		if err != nil {
-			return fmt.Errorf("error parsing %s for %s: %s", deleteProp, snapshot, err)
-		}
-
-		if deleteAt.After(now) {
-			continue // Not due for removal yet
-		}
-
-		// TODO: FIXME: Do we want deferred destroy?
-		err = snap.Destroy(r.ctx, zfs.DestroyDefault)
-		if err != nil {
-			return fmt.Errorf("error destroying %s: %s", snapshot, err)
-		}
-
-		r.EmitEvent(DeletedSnapshotEvent, snapshot, datasetName(snapshot, true), snapshotName(snapshot))
 	}
+
+	return nil
+}
+
+func (r *Runner) pruneAgedSnapshot(snapshot string) error {
+	deleteProp := r.config.Properties.deleteAt()
+
+	snap, err := zfs.GetDataset(r.ctx, snapshot, deleteProp)
+	if err != nil {
+		return fmt.Errorf("error getting snapshot %s: %w", snapshot, err)
+	}
+
+	if snap.Type != zfs.DatasetSnapshot {
+		return fmt.Errorf("unexpected dataset type %s for %s", snap.Type, snap.Name)
+	}
+
+	deleteAt, err := parseDatasetTimeProperty(snap, deleteProp)
+	if err != nil {
+		return fmt.Errorf("error parsing %s for %s: %s", deleteProp, snap.Name, err)
+	}
+
+	if deleteAt.After(time.Now()) {
+		return nil // Not due for removal yet
+	}
+
+	// TODO: FIXME: Do we want deferred destroy?
+	err = snap.Destroy(r.ctx, zfs.DestroyDefault)
+	if err != nil {
+		return fmt.Errorf("error destroying %s: %s", snap.Name, err)
+	}
+
+	r.EmitEvent(DeletedSnapshotEvent, snap.Name, datasetName(snap.Name, true), snapshotName(snap.Name))
 
 	return nil
 }

@@ -28,8 +28,17 @@ func (r *Runner) sendSnapshots() error {
 		}
 
 		err = r.sendDatasetSnapshots(ds)
-		if err != nil {
-			return err
+		switch {
+		case isContextError(err):
+			r.logger.WithFields(map[string]interface{}{
+				"dataset": dataset,
+			}).WithError(err).Info("zfs.job.Runner.sendSnapshots: Send snapshot job interrupted")
+			return nil // Return no error
+		case err != nil:
+			r.logger.WithFields(map[string]interface{}{
+				"dataset": dataset,
+			}).WithError(err).Error("zfs.job.Runner.sendSnapshots: Error sending snapshot")
+			continue // on to the next dataset :-/
 		}
 	}
 	return nil
@@ -75,6 +84,8 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 
 	resumeToken, err := client.ResumableSendToken(ctx, remoteDataset)
 	switch {
+	case isContextError(err):
+		return nil // context expired, no problem
 	case errors.Is(err, zfshttp.ErrDatasetNotFound):
 		// Nothing to do.
 	case err != nil:
@@ -110,7 +121,7 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 
 	for _, send := range toSend {
 		if r.ctx.Err() != nil {
-			return r.ctx.Err()
+			return nil // context expired, no problem
 		}
 
 		r.EmitEvent(SendingSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
@@ -132,6 +143,7 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset) ([]zfshttp.SnapshotSend, error) {
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	sentProp := r.config.Properties.snapshotSentAt()
+
 	var err error
 	local, err = orderSnapshotsByCreated(local, createdProp)
 	if err != nil {
