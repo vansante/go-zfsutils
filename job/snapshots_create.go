@@ -10,6 +10,8 @@ import (
 	"github.com/vansante/go-zfs"
 )
 
+var earliestSnapshot = time.Unix(1, 0)
+
 func (r *Runner) createSnapshots() error {
 	intervalProp := r.config.Properties.snapshotIntervalMinutes()
 	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, intervalProp)
@@ -54,7 +56,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	if err != nil {
 		return fmt.Errorf("error listing existing snapshots: %w", err)
 	}
-	latestSnap := time.Unix(1, 0) // A long, long time ago...
+	latestSnap := earliestSnapshot // A long, long time ago...
 
 	for i := range snapshots {
 		snap := &snapshots[i]
@@ -71,8 +73,18 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 		}
 	}
 
-	if time.Since(latestSnap) < time.Minute*time.Duration(intervalMins) {
+	interval := time.Duration(intervalMins) * time.Minute
+	if time.Since(latestSnap) < interval {
 		return nil // The snapshot interval since last snapshot has not elapsed
+	}
+
+	// Log an error whenever more than twice the interval time has passed without a snapshot
+	if latestSnap != earliestSnapshot && time.Since(latestSnap) >= 2*interval {
+		r.logger.WithFields(map[string]interface{}{
+			"dataset":          ds.Name,
+			"previousSnapshot": latestSnap,
+			"interval":         interval,
+		}).Error("zfs.job.Runner.createDatasetSnapshot: Snapshot creation running behind")
 	}
 
 	tm := time.Now()

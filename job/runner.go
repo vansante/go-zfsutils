@@ -53,6 +53,7 @@ func (r *Runner) sendLock(dataset string) (succeeded bool, unlock func()) {
 	}
 }
 
+// Run starts the goroutines for the different types of jobs
 func (r *Runner) Run() {
 	if r.config.EnableSnapshotCreate {
 		go r.runCreateSnapshots()
