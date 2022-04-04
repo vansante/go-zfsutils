@@ -78,7 +78,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 			return fmt.Errorf("error parsing %s on snapshot %s: %w", createdProp, snap.Name, err)
 		}
 		if created.After(latestSnap) {
-			created = latestSnap
+			latestSnap = created
 		}
 	}
 
