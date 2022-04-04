@@ -34,7 +34,7 @@ func (r *Runner) pruneSnapshots() error {
 				"dataset":  datasetName(snapshot, true),
 				"snapshot": snapshotName(snapshot),
 				"full":     snapshot,
-			}).WithError(err).Info("zfs.job.Runner.pruneSnapshots: Prune snapshot job interrupted")
+			}).WithError(err).Error("zfs.job.Runner.pruneSnapshots: Error pruning snapshot")
 			continue // on to the next dataset :-/
 		}
 	}
@@ -56,7 +56,7 @@ func (r *Runner) pruneAgedSnapshot(snapshot string) error {
 
 	deleteAt, err := parseDatasetTimeProperty(snap, deleteProp)
 	if err != nil {
-		return fmt.Errorf("error parsing %s for %s: %s", deleteProp, snap.Name, err)
+		return fmt.Errorf("error parsing %s for %s: %w", deleteProp, snap.Name, err)
 	}
 
 	if deleteAt.After(time.Now()) {
@@ -66,7 +66,7 @@ func (r *Runner) pruneAgedSnapshot(snapshot string) error {
 	// TODO: FIXME: Do we want deferred destroy?
 	err = snap.Destroy(r.ctx, zfs.DestroyDefault)
 	if err != nil {
-		return fmt.Errorf("error destroying %s: %s", snap.Name, err)
+		return fmt.Errorf("error destroying %s: %w", snap.Name, err)
 	}
 
 	r.EmitEvent(DeletedSnapshotEvent, snap.Name, datasetName(snap.Name, true), snapshotName(snap.Name))
