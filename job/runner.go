@@ -22,6 +22,17 @@ const (
 	pruneFilesystemInterval = time.Minute
 )
 
+// NewRunner creates a new job runner
+func NewRunner(ctx context.Context, conf Config, logger zfs.Logger) *Runner {
+	return &Runner{
+		config:          conf,
+		datasetSendLock: make(map[string]struct{}),
+		logger:          logger,
+		ctx:             ctx,
+	}
+}
+
+// Runner runs Create, Send and Prune snapshot jobs. Additionally, it can prune filesystems.
 type Runner struct {
 	eventemitter.Emitter
 
