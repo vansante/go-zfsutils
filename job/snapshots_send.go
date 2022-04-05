@@ -10,6 +10,8 @@ import (
 	zfshttp "github.com/vansante/go-zfs/http"
 )
 
+var ErrNoCommonSnapshots = errors.New("local and remote datasets do not have a common snapshot")
+
 func (r *Runner) sendSnapshots() error {
 	sendToProp := r.config.Properties.snapshotSendTo()
 	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, sendToProp)
@@ -112,7 +114,6 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 	}
 
 	localSnaps = filterSnapshotsWithProp(localSnaps, createdProp)
-	remoteSnaps = filterSnapshotsWithProp(remoteSnaps, createdProp)
 
 	toSend, err := r.reconcileSnapshots(localSnaps, remoteSnaps)
 	if err != nil {
@@ -144,12 +145,11 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset) ([]zfshttp.Snap
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	sentProp := r.config.Properties.snapshotSentAt()
 
-	var err error
-	local, err = orderSnapshotsByCreated(local, createdProp)
-	if err != nil {
-		return nil, err
+	if len(local) == 0 {
+		return nil, errors.New("no local snapshots to send")
 	}
-	remote, err = orderSnapshotsByCreated(remote, createdProp)
+
+	local, err := orderSnapshotsByCreated(local, createdProp)
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +185,11 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset) ([]zfshttp.Snap
 			continue // No more to do
 		}
 
+		if len(remote) > 0 && prevRemoteSnap == nil {
+			// If remote has snapshots, but we haven't found the common snapshot yet, continue
+			continue
+		}
+
 		props := make(map[string]string, len(r.config.SendSetProperties)+len(r.config.SendCopyProperties))
 		for k, v := range r.config.SendSetProperties {
 			props[k] = v
@@ -216,5 +221,10 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset) ([]zfshttp.Snap
 		// Once we have sent the first snapshot, the next one can be incremental upon that one
 		prevRemoteSnap = snap
 	}
+
+	if len(remote) > 0 && prevRemoteSnap == nil {
+		return toSend, fmt.Errorf("%w: %s", ErrNoCommonSnapshots, datasetName(local[0].Name, true))
+	}
+
 	return toSend, nil
 }
