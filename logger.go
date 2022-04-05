@@ -37,6 +37,7 @@ func (n NoopLogger) Errorf(format string, args ...interface{}) {}
 // TestLogger is a logger for testing
 type TestLogger struct {
 	t      *testing.T
+	ErrOk  bool
 	fields map[string]interface{}
 }
 
@@ -89,13 +90,19 @@ func (t *TestLogger) Info(msg string) {
 }
 
 func (t *TestLogger) Infof(format string, args ...interface{}) {
-	t.t.Logf("[INF] "+format+" [%#v]", append(args, t.fields)...)
+	t.t.Logf("[INF] "+format+" [%v]", append(args, t.fields)...)
 }
 
 func (t *TestLogger) Error(msg string) {
 	t.Errorf(msg)
+	if !t.ErrOk {
+		t.t.Fail()
+	}
 }
 
 func (t *TestLogger) Errorf(format string, args ...interface{}) {
-	t.t.Logf("[ERR] "+format+" [%#v]", append(args, t.fields)...)
+	t.t.Logf("[ERR] "+format+" [%v]", append(args, t.fields)...)
+	if !t.ErrOk {
+		t.t.Fail()
+	}
 }
