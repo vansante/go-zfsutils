@@ -95,7 +95,12 @@ func ListWithProperty(ctx context.Context, t DatasetType, filter, prop string) (
 	}
 	result := make(map[string]string, len(lines))
 	for _, line := range lines {
-		result[line[0]] = line[1]
+		switch len(line) {
+		case 2:
+			result[line[0]] = line[1]
+		case 1:
+			result[line[0]] = PropertyUnset
+		}
 	}
 	return result, nil
 }
