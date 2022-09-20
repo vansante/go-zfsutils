@@ -49,8 +49,14 @@ linters:
     - revive
     - unconvert
     - unparam
+    - unused
   disable:
     - gosec
+    - nilerr
+    - deadcode
+    - varcheck
+    - scopelint
+    - structcheck
   presets:
     - bugs
     - unused
