@@ -95,7 +95,7 @@ func reverseDatasets(s []zfs.Dataset) {
 }
 
 // randomizeDuration adds or removes up to 5% of the duration to randomize background routine wake up times
-func randomizeDuration(d time.Duration) time.Duration {
+func randomizeDuration(d time.Duration) time.Duration { // nolint:unparam
 	rnd := time.Duration(rand.Int63n(int64(d / 10)))
 
 	return d - (d / 20) + rnd
