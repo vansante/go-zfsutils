@@ -3,7 +3,6 @@ package zfs
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"os"
 	"os/exec"
@@ -51,7 +50,7 @@ func TestZPool(zpool string, fn func()) {
 	}
 
 	for i := 0; i < 3; i++ {
-		f, err := ioutil.TempFile(os.TempDir(), "zfs-zpool-")
+		f, err := os.CreateTemp(os.TempDir(), "zfs-zpool-")
 		noErr(err, "")
 		err = f.Truncate(pow2(29))
 		noErr(err, "")
