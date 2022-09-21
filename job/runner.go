@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	eventemitter "github.com/vansante/go-event-emitter"
+	zfs "github.com/vansante/go-zfsutils"
 
-	"github.com/vansante/go-zfs"
+	eventemitter "github.com/vansante/go-event-emitter"
 )
 
 const (

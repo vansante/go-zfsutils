@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/vansante/go-zfs"
+	zfs "github.com/vansante/go-zfsutils"
 
 	"github.com/julienschmidt/httprouter"
 )

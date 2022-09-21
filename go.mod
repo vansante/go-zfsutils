@@ -1,4 +1,4 @@
-module github.com/vansante/go-zfs
+module github.com/vansante/go-zfsutils
 
 go 1.18
 

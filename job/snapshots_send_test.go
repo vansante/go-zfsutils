@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/vansante/go-zfsutils"
 
-	"github.com/vansante/go-zfs"
+	"github.com/stretchr/testify/require"
 )
 
 var sendSnaps = []string{

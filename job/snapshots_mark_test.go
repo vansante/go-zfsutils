@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
+	zfs "github.com/vansante/go-zfsutils"
+
 	"github.com/stretchr/testify/require"
-	"github.com/vansante/go-zfs"
 )
 
 func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
