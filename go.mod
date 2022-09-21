@@ -3,7 +3,7 @@ module github.com/vansante/go-zfsutils
 go 1.18
 
 require (
-	github.com/juju/ratelimit v1.0.1
+	github.com/juju/ratelimit v1.0.2
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/stretchr/testify v1.7.1
 	github.com/vansante/go-event-emitter v1.0.2
