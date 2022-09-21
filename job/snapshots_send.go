@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vansante/go-zfs"
-	zfshttp "github.com/vansante/go-zfs/http"
+	zfs "github.com/vansante/go-zfsutils"
+	zfshttp "github.com/vansante/go-zfsutils/http"
 )
 
 var ErrNoCommonSnapshots = errors.New("local and remote datasets do not have a common snapshot")

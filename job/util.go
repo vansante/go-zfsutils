@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vansante/go-zfs"
+	zfs "github.com/vansante/go-zfsutils"
 )
 
 func isContextError(err error) bool {

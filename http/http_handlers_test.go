@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vansante/go-zfs"
+	zfs "github.com/vansante/go-zfsutils"
 
 	"github.com/stretchr/testify/require"
 )

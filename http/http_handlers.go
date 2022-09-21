@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vansante/go-zfs"
+	zfs "github.com/vansante/go-zfsutils"
 
 	"github.com/julienschmidt/httprouter"
 )

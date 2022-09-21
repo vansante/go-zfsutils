@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vansante/go-zfs"
+	zfs "github.com/vansante/go-zfsutils"
 )
 
 var earliestSnapshot = time.Unix(1, 0)
