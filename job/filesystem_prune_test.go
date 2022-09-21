@@ -18,15 +18,19 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, fs.SetProperty(context.Background(), delProp, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
+		createOpts := zfs.CreateFilesystemOptions{
+			Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+		}
+
 		const otherFs, fsWithoutDel, fsWithSnap, otherVol, deleteLater = "test1", "test2", "test3", "test4", "test5"
-		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+otherFs, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+otherFs, createOpts)
 		require.NoError(t, err)
 		require.NoError(t, fs.SetProperty(context.Background(), delProp, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
-		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsWithoutDel, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsWithoutDel, createOpts)
 		require.NoError(t, err)
 
-		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsWithSnap, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsWithSnap, createOpts)
 		require.NoError(t, err)
 		require.NoError(t, fs.SetProperty(context.Background(), delProp, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
@@ -34,12 +38,12 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 		_, err = fs.Snapshot(context.Background(), snap, false)
 		require.NoError(t, err)
 
-		vol, err := zfs.CreateVolume(context.Background(), testZPool+"/"+otherVol, 10_000, nil, nil)
+		vol, err := zfs.CreateVolume(context.Background(), testZPool+"/"+otherVol, 10_000, zfs.CreateVolumeOptions{})
 		require.NoError(t, err)
 		time.Sleep(time.Second / 3)
 		require.NoError(t, vol.SetProperty(context.Background(), delProp, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
-		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+deleteLater, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+		fs, err = zfs.CreateFilesystem(context.Background(), testZPool+"/"+deleteLater, createOpts)
 		require.NoError(t, err)
 		require.NoError(t, fs.SetProperty(context.Background(), delProp, time.Now().Add(time.Second*3).Format(dateTimeFormat)))
 

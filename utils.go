@@ -84,7 +84,7 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 }
 
 func propsSlice(properties map[string]string) []string {
-	args := make([]string, 0, len(properties)*3)
+	args := make([]string, 0, len(properties)*2)
 	for k, v := range properties {
 		args = append(args, "-o")
 		args = append(args, fmt.Sprintf("%s=%s", k, v))

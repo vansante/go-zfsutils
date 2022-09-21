@@ -32,7 +32,9 @@ func TestHTTPZPool(testZPool, testAuthToken, testFs string, logger zfs.Logger, f
 		h.registerRoutes()
 
 		if testFs != "" {
-			_, err := zfs.CreateFilesystem(context.Background(), testFs, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+			_, err := zfs.CreateFilesystem(context.Background(), testFs, zfs.CreateFilesystemOptions{
+				Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+			})
 			if err != nil {
 				panic(err)
 			}
