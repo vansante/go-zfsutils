@@ -45,7 +45,9 @@ func runnerTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) 
 				defaultNamespace + ":" + defaultSnapshotCreatedAtProperty,
 			}
 
-			_, err := zfs.CreateFilesystem(context.Background(), testFilesystem, map[string]string{zfs.PropertyCanMount: zfs.PropertyOff}, nil)
+			_, err := zfs.CreateFilesystem(context.Background(), testFilesystem, zfs.CreateFilesystemOptions{
+				Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+			})
 			if err != nil {
 				panic(err)
 			}

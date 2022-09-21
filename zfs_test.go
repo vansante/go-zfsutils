@@ -96,7 +96,9 @@ func TestSnapshots(t *testing.T) {
 
 func TestFilesystems(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(context.Background(), testZPool+"/filesystem-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/filesystem-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
 		require.NoError(t, err)
 
 		filesystems, err := Filesystems(context.Background(), "")
@@ -112,12 +114,12 @@ func TestFilesystems(t *testing.T) {
 
 func TestCreateFilesystemWithProperties(t *testing.T) {
 	TestZPool(testZPool, func() {
-		props := map[string]string{
-			PropertyCompression: "lz4",
-			PropertyCanMount:    PropertyOff,
-		}
-
-		f, err := CreateFilesystem(context.Background(), testZPool+"/filesystem-test", props, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/filesystem-test", CreateFilesystemOptions{
+			Properties: map[string]string{
+				PropertyCompression: "lz4",
+				PropertyCanMount:    PropertyOff,
+			},
+		})
 		require.NoError(t, err)
 		require.Equal(t, "lz4", f.Compression)
 
@@ -134,7 +136,7 @@ func TestCreateFilesystemWithProperties(t *testing.T) {
 
 func TestVolumes(t *testing.T) {
 	TestZPool(testZPool, func() {
-		v, err := CreateVolume(context.Background(), testZPool+"/volume-test", uint64(pow2(23)), nil, nil)
+		v, err := CreateVolume(context.Background(), testZPool+"/volume-test", uint64(pow2(23)), CreateVolumeOptions{})
 		require.NoError(t, err)
 
 		// volumes are sometimes "busy" if you try to manipulate them right away
@@ -154,7 +156,9 @@ func TestVolumes(t *testing.T) {
 
 func TestSnapshot(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
 		require.NoError(t, err)
 
 		filesystems, err := Filesystems(context.Background(), "")
@@ -179,7 +183,9 @@ func TestListWithProperty(t *testing.T) {
 	TestZPool(testZPool, func() {
 		const prop = "nl.test:bla"
 
-		f, err := CreateFilesystem(context.Background(), testZPool+"/list-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/list-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
 		require.NoError(t, err)
 		require.NoError(t, f.SetProperty(context.Background(), prop, "123"))
 
@@ -194,7 +200,9 @@ func TestListWithProperty(t *testing.T) {
 
 func TestClone(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
 		require.NoError(t, err)
 
 		filesystems, err := Filesystems(context.Background(), "")
@@ -221,7 +229,9 @@ func TestClone(t *testing.T) {
 
 func TestSendSnapshot(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
 		require.NoError(t, err)
 
 		filesystems, err := Filesystems(context.Background(), "")
@@ -243,7 +253,9 @@ func TestSendSnapshot(t *testing.T) {
 
 func TestSendSnapshotResume(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
 		require.NoError(t, err)
 
 		s, err := f.Snapshot(context.Background(), "test", false)
@@ -298,7 +310,9 @@ func TestSendSnapshotResume(t *testing.T) {
 
 func TestChildren(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
 		require.NoError(t, err)
 
 		s, err := f.Snapshot(context.Background(), "test", false)
@@ -322,7 +336,9 @@ func TestChildren(t *testing.T) {
 
 func TestRollback(t *testing.T) {
 	TestZPool(testZPool, func() {
-		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", noMountProps, nil)
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
 		require.NoError(t, err)
 
 		filesystems, err := Filesystems(context.Background(), "")

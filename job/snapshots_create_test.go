@@ -16,10 +16,12 @@ func TestRunner_createSnapshots(t *testing.T) {
 		intervalProp := runner.config.Properties.snapshotIntervalMinutes()
 		createProp := runner.config.Properties.snapshotCreatedAt()
 
-		ds, err := zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsName, map[string]string{
-			intervalProp:         "1",
-			zfs.PropertyCanMount: zfs.PropertyOff,
-		}, nil)
+		ds, err := zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsName, zfs.CreateFilesystemOptions{
+			Properties: map[string]string{
+				intervalProp:         "1",
+				zfs.PropertyCanMount: zfs.PropertyOff,
+			},
+		})
 		require.NoError(t, err)
 
 		emitCount := 0
