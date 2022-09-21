@@ -165,12 +165,15 @@ func (d *Dataset) Unmount(ctx context.Context, force bool) (*Dataset, error) {
 type LoadKeyOptions struct {
 	// Recursively loads the keys for the specified filesystem and all descendent encryption roots.
 	Recursive bool
+
 	// Do a dry-run (Qq No-op ) load-key. This will cause zfs to simply check that the provided key is correct.
 	// This command may be run even if the key is already loaded.
-	Noop bool
+	DryRun bool
+
 	// When the key is in a file, load it using this keylocation.
 	// This is optional when the ZFS dataset already has this property set.
 	KeyLocation string
+
 	// Provide a reader to read the key from stdin
 	KeyReader io.Reader
 }
@@ -183,7 +186,7 @@ func (d *Dataset) LoadKey(ctx context.Context, loadOptions LoadKeyOptions) error
 	if loadOptions.Recursive {
 		args = append(args, "-r")
 	}
-	if loadOptions.Noop {
+	if loadOptions.DryRun {
 		args = append(args, "-n")
 	}
 	if loadOptions.KeyLocation != "" {
@@ -365,25 +368,58 @@ func ResumeSend(ctx context.Context, output io.Writer, resumeToken string, sendO
 	return err
 }
 
+// CreateVolumeOptions are options you can specify to customize the ZFS create volume command
+type CreateVolumeOptions struct {
+	// Sets the specified properties as if the command zfs set property=value was invoked at the same time the dataset was created.
+	Properties map[string]string
+
+	// Creates all the non-existing parent datasets. Datasets created in this manner are automatically mounted according
+	// to the mountpoint property inherited from their parent. Any property specified on the command line using the -o option
+	// is ignored. If the target filesystem already exists, the operation completes successfully.
+	CreateParents bool
+
+	// Creates a sparse volume with no reservation.
+	Sparse bool
+
+	// Do a dry-run creation. No datasets will be created. This is useful in conjunction with the -v or -P flags
+	// to validate properties that are passed via -o options and those implied by other options. The actual dataset creation
+	// can still fail due to insufficient privileges or available capacity.
+	DryRun bool
+
+	// Provide input to stdin, for instance for loading keys
+	Stdin io.Reader
+}
+
 // CreateVolume creates a new ZFS volume with the specified name, size, and properties.
 //
 // A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
-func CreateVolume(ctx context.Context, name string, size uint64, properties map[string]string, stdin io.Reader) (*Dataset, error) {
-	args := make([]string, 4, 5)
+func CreateVolume(ctx context.Context, name string, size uint64, createOptions CreateVolumeOptions) (*Dataset, error) {
+	args := make([]string, 4, 10)
 	args[0] = "create"
 	args[1] = "-p"
 	args[2] = "-V"
 	args[3] = strconv.FormatUint(size, 10)
-	if properties != nil {
-		args = append(args, propsSlice(properties)...)
+
+	if createOptions.Properties != nil {
+		args = append(args, propsSlice(createOptions.Properties)...)
 	}
+	if createOptions.CreateParents {
+		args = append(args, "-p")
+	}
+	if createOptions.Sparse {
+		args = append(args, "-s")
+	}
+	if createOptions.DryRun {
+		args = append(args, "-n")
+	}
+
 	args = append(args, name)
 
 	cmd := command{
 		cmd:   Binary,
 		ctx:   ctx,
-		stdin: stdin,
+		stdin: createOptions.Stdin,
 	}
 	_, err := cmd.Run(args...)
 	if err != nil {
@@ -397,7 +433,7 @@ func CreateVolume(ctx context.Context, name string, size uint64, properties map[
 // If the destroy bit flag is set, any descendents of the dataset will be recursively destroyed, including snapshots.
 // If the deferred bit flag is set, the snapshot is marked for deferred deletion.
 func (d *Dataset) Destroy(ctx context.Context, flags DestroyFlag) error {
-	args := make([]string, 1, 3)
+	args := make([]string, 1, 5)
 	args[0] = "destroy"
 	if flags&DestroyRecursive != 0 {
 		args = append(args, "-r")
@@ -473,23 +509,56 @@ func (d *Dataset) Snapshots(ctx context.Context, extraProperties ...string) ([]D
 	return Snapshots(ctx, d.Name, extraProperties...)
 }
 
+// CreateFilesystemOptions are options you can specify to customize the ZFS create command
+type CreateFilesystemOptions struct {
+	// Sets the specified properties as if the command zfs set property=value was invoked at the same time the dataset was created.
+	Properties map[string]string
+
+	// Creates all the non-existing parent datasets. Datasets created in this manner are automatically mounted according
+	// to the mountpoint property inherited from their parent. Any property specified on the command line using the -o option
+	// is ignored. If the target filesystem already exists, the operation completes successfully.
+	CreateParents bool
+
+	// Do a dry-run creation. No datasets will be created. This is useful in conjunction with the -v or -P flags
+	// to validate properties that are passed via -o options and those implied by other options. The actual dataset creation
+	// can still fail due to insufficient privileges or available capacity.
+	DryRun bool
+
+	// Do not mount the newly created file system.
+	NoMount bool
+
+	// Provide input to stdin, for instance for loading keys
+	Stdin io.Reader
+}
+
 // CreateFilesystem creates a new ZFS filesystem with the specified name and properties.
 //
 // A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
-func CreateFilesystem(ctx context.Context, name string, properties map[string]string, stdin io.Reader) (*Dataset, error) {
-	args := make([]string, 1, 4)
+func CreateFilesystem(ctx context.Context, name string, createOptions CreateFilesystemOptions) (*Dataset, error) {
+	args := make([]string, 1, 10)
 	args[0] = "create"
 
-	if properties != nil {
-		args = append(args, propsSlice(properties)...)
+	if createOptions.Properties != nil {
+		args = append(args, propsSlice(createOptions.Properties)...)
 	}
+
+	if createOptions.CreateParents {
+		args = append(args, "-p")
+	}
+	if createOptions.DryRun {
+		args = append(args, "-n")
+	}
+	if createOptions.NoMount {
+		args = append(args, "-u")
+	}
+
 	args = append(args, name)
 
 	cmd := command{
 		cmd:   Binary,
 		ctx:   ctx,
-		stdin: stdin,
+		stdin: createOptions.Stdin,
 	}
 	_, err := cmd.Run(args...)
 	if err != nil {
