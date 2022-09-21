@@ -161,21 +161,39 @@ func (d *Dataset) Unmount(ctx context.Context, force bool) (*Dataset, error) {
 	return GetDataset(ctx, d.Name)
 }
 
+// LoadKeyOptions are options you can specify to customize the ZFS key loading
+type LoadKeyOptions struct {
+	// Recursively loads the keys for the specified filesystem and all descendent encryption roots.
+	Recursive bool
+	// Do a dry-run (Qq No-op ) load-key. This will cause zfs to simply check that the provided key is correct.
+	// This command may be run even if the key is already loaded.
+	Noop bool
+	// When the key is in a file, load it using this keylocation.
+	// This is optional when the ZFS dataset already has this property set.
+	KeyLocation string
+	// Provide a reader to read the key from stdin
+	KeyReader io.Reader
+}
+
 // LoadKey loads the encryption key for this and optionally children datasets.
 // See: https://openzfs.github.io/openzfs-docs/man/8/zfs-load-key.8.html
-func (d *Dataset) LoadKey(ctx context.Context, recursive bool, keyLocation string, stdin io.Reader) error {
-	args := []string{"load-key"}
-	if recursive {
+func (d *Dataset) LoadKey(ctx context.Context, loadOptions LoadKeyOptions) error {
+	args := make([]string, 1, 4)
+	args[0] = "load-key"
+	if loadOptions.Recursive {
 		args = append(args, "-r")
 	}
-	if keyLocation != "" {
-		args = append(args, "-L", keyLocation)
+	if loadOptions.Noop {
+		args = append(args, "-n")
+	}
+	if loadOptions.KeyLocation != "" {
+		args = append(args, "-L", loadOptions.KeyLocation)
 	}
 	args = append(args, d.Name)
 	cmd := command{
 		cmd:   Binary,
 		ctx:   ctx,
-		stdin: stdin,
+		stdin: loadOptions.KeyReader,
 	}
 	_, err := cmd.Run(args...)
 	return err
@@ -184,7 +202,8 @@ func (d *Dataset) LoadKey(ctx context.Context, recursive bool, keyLocation strin
 // UnloadKey unloads the encryption key for this dataset and optionally for child datasets as well.
 // See: https://openzfs.github.io/openzfs-docs/man/8/zfs-unload-key.8.html
 func (d *Dataset) UnloadKey(ctx context.Context, recursive bool) error {
-	args := []string{"unload-key"}
+	args := make([]string, 1, 4)
+	args[0] = "unload-key"
 	if recursive {
 		args = append(args, "-r")
 	}
@@ -243,7 +262,8 @@ func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, recvOpti
 		stdin: wrapReader(input, recvOptions.BytesPerSecond),
 	}
 
-	args := []string{"receive"}
+	args := make([]string, 1, 3)
+	args[0] = "receive"
 	if recvOptions.Resumable {
 		args = append(args, "-s")
 	}
@@ -521,7 +541,8 @@ func (d *Dataset) Rollback(ctx context.Context, destroyMoreRecent bool) error {
 func (d *Dataset) Children(ctx context.Context, depth uint64, extraProperties ...string) ([]Dataset, error) {
 	allFields := append(dsPropList, extraProperties...) // nolint: gocritic
 
-	args := []string{"list"}
+	args := make([]string, 1, 16)
+	args[0] = "list"
 	if depth > 0 {
 		args = append(args, "-d")
 		args = append(args, strconv.FormatUint(depth, 10))
