@@ -431,11 +431,10 @@ type CreateVolumeOptions struct {
 // A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
 func CreateVolume(ctx context.Context, name string, size uint64, options CreateVolumeOptions) (*Dataset, error) {
-	args := make([]string, 4, 10)
+	args := make([]string, 3, 10)
 	args[0] = "create"
-	args[1] = "-p"
-	args[2] = "-V"
-	args[3] = strconv.FormatUint(size, 10)
+	args[1] = "-V"
+	args[2] = strconv.FormatUint(size, 10)
 
 	if options.Properties != nil {
 		args = append(args, propsSlice(options.Properties)...)
