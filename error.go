@@ -12,8 +12,16 @@ const (
 	resumableErrorMessage  = "resuming stream can be generated on the sending system"
 )
 
-// ErrDatasetNotFound is returned when the dataset was not found
-var ErrDatasetNotFound = errors.New("dataset not found")
+var (
+	// ErrDatasetNotFound is returned when the dataset was not found
+	ErrDatasetNotFound = errors.New("dataset not found")
+
+	// ErrOnlySnapshotsSupported is returned when a snapshot only action is executed on another type of dataset
+	ErrOnlySnapshotsSupported = errors.New("only snapshots are supported for this action")
+
+	// ErrSnapshotsNotSupported is returned when an unsupported action is executed on a snapshot
+	ErrSnapshotsNotSupported = errors.New("snapshots are not supported for this action")
+)
 
 // CommandError is an error which is returned when the `zfs` or `zpool` shell
 // commands return with a non-zero exit code.

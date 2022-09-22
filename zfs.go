@@ -3,7 +3,6 @@ package zfs
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -124,7 +123,7 @@ type CloneOptions struct {
 // An error will be returned if the input dataset is not of snapshot type.
 func (d *Dataset) Clone(ctx context.Context, dest string, options CloneOptions) (*Dataset, error) {
 	if d.Type != DatasetSnapshot {
-		return nil, errors.New("can only clone snapshots")
+		return nil, ErrOnlySnapshotsSupported
 	}
 	args := make([]string, 1, 8)
 	args[0] = "clone"
@@ -155,7 +154,7 @@ type UnmountOptions struct {
 // Unmount unmounts currently mounted ZFS file systems.
 func (d *Dataset) Unmount(ctx context.Context, options UnmountOptions) (*Dataset, error) {
 	if d.Type == DatasetSnapshot {
-		return nil, errors.New("cannot unmount snapshots")
+		return nil, ErrSnapshotsNotSupported
 	}
 	args := make([]string, 1, 5)
 	args[0] = "umount"
@@ -250,7 +249,7 @@ type MountOptions struct {
 // Mount mounts ZFS file systems.
 func (d *Dataset) Mount(ctx context.Context, options MountOptions) (*Dataset, error) {
 	if d.Type == DatasetSnapshot {
-		return nil, errors.New("cannot mount snapshots")
+		return nil, ErrSnapshotsNotSupported
 	}
 	args := make([]string, 1, 5)
 	args[0] = "mount"
@@ -357,10 +356,12 @@ func wrapWriter(writer io.Writer, bytesPerSecond int64) io.Writer {
 // An error will be returned if the input dataset is not of snapshot type.
 func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, options SendOptions) error {
 	if d.Type != DatasetSnapshot {
-		return errors.New("can only send snapshots")
+		return ErrOnlySnapshotsSupported
 	}
 
-	args := make([]string, 0, 8)
+	args := make([]string, 1, 8)
+	args[0] = "send"
+
 	if options.Raw {
 		args = append(args, "-w")
 	}
@@ -369,7 +370,7 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, options Se
 	}
 	if options.IncrementalBase != nil {
 		if options.IncrementalBase.Type != DatasetSnapshot {
-			return errors.New("base is not a snapshot")
+			return fmt.Errorf("send base %s: %w", options.IncrementalBase.Name, ErrOnlySnapshotsSupported)
 		}
 		args = append(args, "-i", options.IncrementalBase.Name)
 	}
@@ -379,7 +380,6 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, options Se
 		ctx:    ctx,
 		stdout: wrapWriter(output, options.BytesPerSecond),
 	}
-	args = append([]string{"send"}, args...)
 	args = append(args, d.Name)
 	_, err := c.Run(args...)
 	return err
@@ -693,7 +693,7 @@ type RollbackOptions struct {
 // An error will be returned if the input dataset is not of snapshot type.
 func (d *Dataset) Rollback(ctx context.Context, options RollbackOptions) error {
 	if d.Type != DatasetSnapshot {
-		return errors.New("can only rollback snapshots")
+		return ErrOnlySnapshotsSupported
 	}
 
 	args := make([]string, 1, 5)
