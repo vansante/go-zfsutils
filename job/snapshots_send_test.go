@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vansante/go-zfsutils"
+	zfs "github.com/vansante/go-zfsutils"
 
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +33,7 @@ func sendTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) {
 
 		snapshotTm := time.Now().Add(-time.Minute)
 		for _, snap := range sendSnaps {
-			snapshot, err := ds.Snapshot(context.Background(), snap, false)
+			snapshot, err := ds.Snapshot(context.Background(), snap, zfs.SnapshotOptions{})
 			require.NoError(t, err)
 			err = snapshot.SetProperty(context.Background(), createdProp, snapshotTm.Format(dateTimeFormat))
 			require.NoError(t, err)
@@ -207,10 +207,10 @@ func TestRunner_sendNoCommonSnapshots(t *testing.T) {
 		snap, err := zfs.GetDataset(context.Background(), testHTTPZPool+"/"+datasetName(ds.Name, true)+"@"+sendSnaps[2])
 		require.NoError(t, err)
 
-		err = snap.Destroy(context.Background(), zfs.DestroyDefault)
+		err = snap.Destroy(context.Background(), zfs.DestroyOptions{})
 		require.NoError(t, err)
 
-		_, err = ds.Snapshot(context.Background(), "blaat", false)
+		_, err = ds.Snapshot(context.Background(), "blaat", zfs.SnapshotOptions{})
 		require.NoError(t, err)
 
 		dataset, err := zfs.GetDataset(context.Background(), testFilesystem, runner.config.Properties.snapshotSendTo())

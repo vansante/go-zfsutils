@@ -26,15 +26,15 @@ func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
 		const snap1, snap2, snap3 = "s1", "s2", "s3"
 		now := time.Now()
 
-		snap, err := ds.Snapshot(context.Background(), snap1, false)
+		snap, err := ds.Snapshot(context.Background(), snap1, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Format(dateTimeFormat)))
 
-		snap, err = ds.Snapshot(context.Background(), snap2, false)
+		snap, err = ds.Snapshot(context.Background(), snap2, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Format(dateTimeFormat)))
 
-		snap, err = ds.Snapshot(context.Background(), snap3, false)
+		snap, err = ds.Snapshot(context.Background(), snap3, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Format(dateTimeFormat)))
 
@@ -83,19 +83,19 @@ func TestRunner_markPrunableSnapshotsByAge(t *testing.T) {
 		const snap1, snap2, snap3, snap4 = "s1", "s2", "s3", "s4"
 		now := time.Now()
 
-		snap, err := ds.Snapshot(context.Background(), snap1, false)
+		snap, err := ds.Snapshot(context.Background(), snap1, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Add(-time.Minute*3).Format(dateTimeFormat)))
 
-		snap, err = ds.Snapshot(context.Background(), snap2, false)
+		snap, err = ds.Snapshot(context.Background(), snap2, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Add(-time.Minute).Format(dateTimeFormat)))
 
-		snap, err = ds.Snapshot(context.Background(), snap3, false)
+		snap, err = ds.Snapshot(context.Background(), snap3, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Add(time.Minute).Format(dateTimeFormat)))
 
-		snap, err = ds.Snapshot(context.Background(), snap4, false)
+		snap, err = ds.Snapshot(context.Background(), snap4, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Add(time.Minute*3).Format(dateTimeFormat)))
 

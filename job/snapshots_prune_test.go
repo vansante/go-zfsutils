@@ -23,19 +23,19 @@ func TestRunner_pruneSnapshots(t *testing.T) {
 		const snap1, snap2, snap3, snap4 = "s1", "s2", "s3", "s4"
 		now := time.Now()
 
-		snap, err := ds.Snapshot(context.Background(), snap1, false)
+		snap, err := ds.Snapshot(context.Background(), snap1, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 		require.NoError(t, snap.SetProperty(context.Background(), deleteProp, now.Add(-time.Minute*2).Format(dateTimeFormat)))
 
-		snap, err = ds.Snapshot(context.Background(), snap2, false)
+		snap, err = ds.Snapshot(context.Background(), snap2, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 		require.NoError(t, snap.SetProperty(context.Background(), deleteProp, now.Add(-time.Second*6).Format(dateTimeFormat)))
 
-		snap, err = ds.Snapshot(context.Background(), snap3, false)
+		snap, err = ds.Snapshot(context.Background(), snap3, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Add(time.Second).Format(dateTimeFormat)))
 
-		snap, err = ds.Snapshot(context.Background(), snap4, false)
+		snap, err = ds.Snapshot(context.Background(), snap4, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Add(time.Minute).Format(dateTimeFormat)))
 

@@ -64,7 +64,7 @@ func (r *Runner) pruneAgedSnapshot(snapshot string) error {
 	}
 
 	// TODO: FIXME: Do we want deferred destroy?
-	err = snap.Destroy(r.ctx, zfs.DestroyDefault)
+	err = snap.Destroy(r.ctx, zfs.DestroyOptions{})
 	if err != nil {
 		return fmt.Errorf("error destroying %s: %w", snap.Name, err)
 	}

@@ -69,7 +69,7 @@ func (r *Runner) pruneAgedFilesystem(filesystem string) error {
 	}
 
 	// TODO: FIXME: Do we want deferred destroy?
-	err = fs.Destroy(r.ctx, zfs.DestroyDefault)
+	err = fs.Destroy(r.ctx, zfs.DestroyOptions{})
 	if err != nil {
 		return fmt.Errorf("error destroying %s: %w", filesystem, err)
 	}

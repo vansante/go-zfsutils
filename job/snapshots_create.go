@@ -98,7 +98,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 
 	tm := time.Now()
 	name := r.snapshotName(tm)
-	snap, err := ds.Snapshot(r.ctx, name, false)
+	snap, err := ds.Snapshot(r.ctx, name, zfs.SnapshotOptions{})
 	if err != nil {
 		return fmt.Errorf("error creating snapshot %s for %s: %w", name, ds.Name, err)
 	}
