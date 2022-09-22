@@ -16,18 +16,6 @@ const (
 	Binary = "zfs"
 )
 
-// DestroyFlag is the options flag passed to Destroy.
-type DestroyFlag int
-
-// Valid destroy options.
-const (
-	DestroyDefault         DestroyFlag = 1 << iota
-	DestroyRecursive                   = 1 << iota
-	DestroyRecursiveClones             = 1 << iota
-	DestroyDeferDeletion               = 1 << iota
-	DestroyForceUmount                 = 1 << iota
-)
-
 // ListByType lists the datasets by type and allows you to fetch extra custom fields
 func ListByType(ctx context.Context, t DatasetType, filter string, extraProps ...string) ([]Dataset, error) {
 	allFields := append(dsPropList, extraProps...) // nolint: gocritic
@@ -121,17 +109,30 @@ func GetDataset(ctx context.Context, name string, extraProperties ...string) (*D
 	return datasetFromFields(out[0], extraProperties)
 }
 
+// CloneOptions are options you can specify to customize the clone command
+type CloneOptions struct {
+	// Properties to be applied to the new dataset
+	Properties map[string]string
+
+	// Creates all the non-existing parent datasets. Datasets created in this manner are automatically mounted according
+	// to the mountpoint property inherited from their parent. If the target filesystem or volume already exists,
+	// the operation completes successfully.
+	CreateParents bool
+}
+
 // Clone clones a ZFS snapshot and returns a clone dataset.
 // An error will be returned if the input dataset is not of snapshot type.
-func (d *Dataset) Clone(ctx context.Context, dest string, properties map[string]string) (*Dataset, error) {
+func (d *Dataset) Clone(ctx context.Context, dest string, options CloneOptions) (*Dataset, error) {
 	if d.Type != DatasetSnapshot {
 		return nil, errors.New("can only clone snapshots")
 	}
-	args := make([]string, 2, 4)
+	args := make([]string, 1, 8)
 	args[0] = "clone"
-	args[1] = "-p"
-	if properties != nil {
-		args = append(args, propsSlice(properties)...)
+	if options.CreateParents {
+		args = append(args, "-p")
+	}
+	if options.Properties != nil {
+		args = append(args, propsSlice(options.Properties)...)
 	}
 	args = append(args, []string{d.Name, dest}...)
 
@@ -142,15 +143,27 @@ func (d *Dataset) Clone(ctx context.Context, dest string, properties map[string]
 	return GetDataset(ctx, dest)
 }
 
+// UnmountOptions are options you can specify to customize the unmount command
+type UnmountOptions struct {
+	// Forcefully unmount the file system, even if it is currently in use.
+	Force bool
+
+	// Unload keys for any encryption roots unmounted by this command.
+	UnloadKeys bool
+}
+
 // Unmount unmounts currently mounted ZFS file systems.
-func (d *Dataset) Unmount(ctx context.Context, force bool) (*Dataset, error) {
+func (d *Dataset) Unmount(ctx context.Context, options UnmountOptions) (*Dataset, error) {
 	if d.Type == DatasetSnapshot {
 		return nil, errors.New("cannot unmount snapshots")
 	}
-	args := make([]string, 1, 3)
+	args := make([]string, 1, 5)
 	args[0] = "umount"
-	if force {
+	if options.Force {
 		args = append(args, "-f")
+	}
+	if options.UnloadKeys {
+		args = append(args, "-u")
 	}
 	args = append(args, d.Name)
 
@@ -161,12 +174,12 @@ func (d *Dataset) Unmount(ctx context.Context, force bool) (*Dataset, error) {
 	return GetDataset(ctx, d.Name)
 }
 
-// LoadKeyOptions are options you can specify to customize the ZFS key loading
+// LoadKeyOptions are options you can specify to customize the load-key command
 type LoadKeyOptions struct {
 	// Recursively loads the keys for the specified filesystem and all descendent encryption roots.
 	Recursive bool
 
-	// Do a dry-run (Qq No-op ) load-key. This will cause zfs to simply check that the provided key is correct.
+	// Do a dry-run (no-op) load-key. This will cause zfs to simply check that the provided key is correct.
 	// This command may be run even if the key is already loaded.
 	DryRun bool
 
@@ -180,53 +193,76 @@ type LoadKeyOptions struct {
 
 // LoadKey loads the encryption key for this and optionally children datasets.
 // See: https://openzfs.github.io/openzfs-docs/man/8/zfs-load-key.8.html
-func (d *Dataset) LoadKey(ctx context.Context, loadOptions LoadKeyOptions) error {
-	args := make([]string, 1, 4)
+func (d *Dataset) LoadKey(ctx context.Context, options LoadKeyOptions) error {
+	args := make([]string, 1, 5)
 	args[0] = "load-key"
-	if loadOptions.Recursive {
+	if options.Recursive {
 		args = append(args, "-r")
 	}
-	if loadOptions.DryRun {
+	if options.DryRun {
 		args = append(args, "-n")
 	}
-	if loadOptions.KeyLocation != "" {
-		args = append(args, "-L", loadOptions.KeyLocation)
+	if options.KeyLocation != "" {
+		args = append(args, "-L", options.KeyLocation)
 	}
 	args = append(args, d.Name)
 	cmd := command{
 		cmd:   Binary,
 		ctx:   ctx,
-		stdin: loadOptions.KeyReader,
+		stdin: options.KeyReader,
 	}
 	_, err := cmd.Run(args...)
 	return err
 }
 
+// UnloadKeyOptions are options you can specify to customize the unload-key command
+type UnloadKeyOptions struct {
+	// Recursively loads the keys for the specified filesystem and all descendent encryption roots.
+	Recursive bool
+}
+
 // UnloadKey unloads the encryption key for this dataset and optionally for child datasets as well.
 // See: https://openzfs.github.io/openzfs-docs/man/8/zfs-unload-key.8.html
-func (d *Dataset) UnloadKey(ctx context.Context, recursive bool) error {
-	args := make([]string, 1, 4)
+func (d *Dataset) UnloadKey(ctx context.Context, options UnloadKeyOptions) error {
+	args := make([]string, 1, 3)
 	args[0] = "unload-key"
-	if recursive {
+	if options.Recursive {
 		args = append(args, "-r")
 	}
 	args = append(args, d.Name)
 	return zfs(ctx, args...)
 }
 
+// MountOptions are options you can specify to customize the mount command
+type MountOptions struct {
+	// Perform an overlay mount. Allows mounting in non-empty mountpoint.
+	OverlayMount bool
+
+	// An optional, comma-separated list of mount options to use temporarily for the duration of the mount.
+	Options []string
+
+	// Load keys for encrypted filesystems as they are being mounted. This is equivalent to executing zfs load-key
+	// on each encryption root before mounting it. Note that if a filesystem has keylocation=prompt, this will cause
+	// the terminal to interactively block after asking for the key.
+	LoadKeys bool
+}
+
 // Mount mounts ZFS file systems.
-func (d *Dataset) Mount(ctx context.Context, overlay bool, options ...string) (*Dataset, error) {
+func (d *Dataset) Mount(ctx context.Context, options MountOptions) (*Dataset, error) {
 	if d.Type == DatasetSnapshot {
 		return nil, errors.New("cannot mount snapshots")
 	}
 	args := make([]string, 1, 5)
 	args[0] = "mount"
-	if overlay {
+	if options.OverlayMount {
 		args = append(args, "-O")
 	}
-	if options != nil {
+	if options.LoadKeys {
+		args = append(args, "-l")
+	}
+	if len(options.Options) > 0 {
 		args = append(args, "-o")
-		args = append(args, strings.Join(options, ","))
+		args = append(args, strings.Join(options.Options, ","))
 	}
 	args = append(args, d.Name)
 
@@ -237,7 +273,7 @@ func (d *Dataset) Mount(ctx context.Context, overlay bool, options ...string) (*
 	return GetDataset(ctx, d.Name)
 }
 
-// ReceiveOptions are options you can specify to customize the ZFS snapshot reception
+// ReceiveOptions are options you can specify to customize the receive command
 type ReceiveOptions struct {
 	// When set, uses a rate-limiter to limit the flow to this amount of bytes per second
 	BytesPerSecond int64
@@ -258,19 +294,19 @@ func wrapReader(reader io.Reader, bytesPerSecond int64) io.Reader {
 
 // ReceiveSnapshot receives a ZFS stream from the input io.Reader.
 // A new snapshot is created with the specified name, and streams the input data into the newly-created snapshot.
-func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, recvOptions ReceiveOptions) (*Dataset, error) {
+func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, options ReceiveOptions) (*Dataset, error) {
 	c := command{
 		cmd:   Binary,
 		ctx:   ctx,
-		stdin: wrapReader(input, recvOptions.BytesPerSecond),
+		stdin: wrapReader(input, options.BytesPerSecond),
 	}
 
 	args := make([]string, 1, 3)
 	args[0] = "receive"
-	if recvOptions.Resumable {
+	if options.Resumable {
 		args = append(args, "-s")
 	}
-	args = append(args, propsSlice(recvOptions.Properties)...)
+	args = append(args, propsSlice(options.Properties)...)
 	args = append(args, name)
 
 	_, err := c.Run(args...)
@@ -280,7 +316,7 @@ func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, recvOpti
 	return GetDataset(ctx, name)
 }
 
-// SendOptions are options you can specify to customize the ZFS send stream
+// SendOptions are options you can specify to customize the send command
 type SendOptions struct {
 	// When set, uses a rate-limiter to limit the flow to this amount of bytes per second
 	BytesPerSecond int64
@@ -319,29 +355,29 @@ func wrapWriter(writer io.Writer, bytesPerSecond int64) io.Writer {
 
 // SendSnapshot sends a ZFS stream of a snapshot to the input io.Writer.
 // An error will be returned if the input dataset is not of snapshot type.
-func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, sendOptions SendOptions) error {
+func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, options SendOptions) error {
 	if d.Type != DatasetSnapshot {
 		return errors.New("can only send snapshots")
 	}
 
 	args := make([]string, 0, 8)
-	if sendOptions.Raw {
+	if options.Raw {
 		args = append(args, "-w")
 	}
-	if sendOptions.IncludeProperties {
+	if options.IncludeProperties {
 		args = append(args, "-p")
 	}
-	if sendOptions.IncrementalBase != nil {
-		if sendOptions.IncrementalBase.Type != DatasetSnapshot {
+	if options.IncrementalBase != nil {
+		if options.IncrementalBase.Type != DatasetSnapshot {
 			return errors.New("base is not a snapshot")
 		}
-		args = append(args, "-i", sendOptions.IncrementalBase.Name)
+		args = append(args, "-i", options.IncrementalBase.Name)
 	}
 
 	c := command{
 		cmd:    Binary,
 		ctx:    ctx,
-		stdout: wrapWriter(output, sendOptions.BytesPerSecond),
+		stdout: wrapWriter(output, options.BytesPerSecond),
 	}
 	args = append([]string{"send"}, args...)
 	args = append(args, d.Name)
@@ -349,7 +385,7 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, sendOption
 	return err
 }
 
-// ResumeSendOptions are options you can specify to customize the ZFS send resume stream
+// ResumeSendOptions are options you can specify to customize the send resume command
 type ResumeSendOptions struct {
 	// When set, uses a rate-limiter to limit the flow to this amount of bytes per second
 	BytesPerSecond int64
@@ -357,18 +393,18 @@ type ResumeSendOptions struct {
 
 // ResumeSend resumes an interrupted ZFS stream of a snapshot to the input io.Writer using the receive_resume_token.
 // An error will be returned if the input dataset is not of snapshot type.
-func ResumeSend(ctx context.Context, output io.Writer, resumeToken string, sendOptions ResumeSendOptions) error {
+func ResumeSend(ctx context.Context, output io.Writer, resumeToken string, options ResumeSendOptions) error {
 	c := command{
 		cmd:    Binary,
 		ctx:    ctx,
-		stdout: wrapWriter(output, sendOptions.BytesPerSecond),
+		stdout: wrapWriter(output, options.BytesPerSecond),
 	}
 	args := append([]string{"send"}, "-t", resumeToken)
 	_, err := c.Run(args...)
 	return err
 }
 
-// CreateVolumeOptions are options you can specify to customize the ZFS create volume command
+// CreateVolumeOptions are options you can specify to customize the create volume command
 type CreateVolumeOptions struct {
 	// Sets the specified properties as if the command zfs set property=value was invoked at the same time the dataset was created.
 	Properties map[string]string
@@ -394,23 +430,22 @@ type CreateVolumeOptions struct {
 //
 // A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
-func CreateVolume(ctx context.Context, name string, size uint64, createOptions CreateVolumeOptions) (*Dataset, error) {
-	args := make([]string, 4, 10)
+func CreateVolume(ctx context.Context, name string, size uint64, options CreateVolumeOptions) (*Dataset, error) {
+	args := make([]string, 3, 10)
 	args[0] = "create"
-	args[1] = "-p"
-	args[2] = "-V"
-	args[3] = strconv.FormatUint(size, 10)
+	args[1] = "-V"
+	args[2] = strconv.FormatUint(size, 10)
 
-	if createOptions.Properties != nil {
-		args = append(args, propsSlice(createOptions.Properties)...)
+	if options.Properties != nil {
+		args = append(args, propsSlice(options.Properties)...)
 	}
-	if createOptions.CreateParents {
+	if options.CreateParents {
 		args = append(args, "-p")
 	}
-	if createOptions.Sparse {
+	if options.Sparse {
 		args = append(args, "-s")
 	}
-	if createOptions.DryRun {
+	if options.DryRun {
 		args = append(args, "-n")
 	}
 
@@ -419,7 +454,7 @@ func CreateVolume(ctx context.Context, name string, size uint64, createOptions C
 	cmd := command{
 		cmd:   Binary,
 		ctx:   ctx,
-		stdin: createOptions.Stdin,
+		stdin: options.Stdin,
 	}
 	_, err := cmd.Run(args...)
 	if err != nil {
@@ -429,25 +464,40 @@ func CreateVolume(ctx context.Context, name string, size uint64, createOptions C
 	return GetDataset(ctx, name)
 }
 
+// DestroyOptions are options you can specify to customize the destroy command
+type DestroyOptions struct {
+	// Recursively destroy all children.
+	Recursive bool
+
+	// Recursively destroy all dependents, including cloned file systems outside the target hierarchy.
+	RecursiveClones bool
+
+	// Forcibly unmount file systems. This option has no effect on non-file systems or unmounted file systems.
+	Force bool
+
+	// Do a dry-run (no-op) deletion. No data will be deleted.
+	DryRun bool
+
+	// Only for snapshots. Destroy immediately. If a snapshot cannot be destroyed now, mark it for deferred destruction.
+	Defer bool
+}
+
 // Destroy destroys a ZFS dataset.
 // If the destroy bit flag is set, any descendents of the dataset will be recursively destroyed, including snapshots.
 // If the deferred bit flag is set, the snapshot is marked for deferred deletion.
-func (d *Dataset) Destroy(ctx context.Context, flags DestroyFlag) error {
-	args := make([]string, 1, 5)
+func (d *Dataset) Destroy(ctx context.Context, options DestroyOptions) error {
+	args := make([]string, 1, 6)
 	args[0] = "destroy"
-	if flags&DestroyRecursive != 0 {
+	if options.Recursive {
 		args = append(args, "-r")
 	}
-
-	if flags&DestroyRecursiveClones != 0 {
+	if options.RecursiveClones {
 		args = append(args, "-R")
 	}
-
-	if flags&DestroyDeferDeletion != 0 {
+	if options.Defer {
 		args = append(args, "-d")
 	}
-
-	if flags&DestroyForceUmount != 0 {
+	if options.Force {
 		args = append(args, "-f")
 	}
 	args = append(args, d.Name)
@@ -483,18 +533,44 @@ func (d *Dataset) InheritProperty(ctx context.Context, key string) error {
 	return zfs(ctx, "inherit", key, d.Name)
 }
 
+// RenameOptions are options you can specify to customize the rename command
+type RenameOptions struct {
+	// Creates all the nonexistent parent datasets. Datasets created in this manner are automatically mounted
+	// according to the mountpoint property inherited from their parent.
+	CreateParent bool
+
+	// Recursively rename the snapshots of all descendent datasets. Snapshots are the only dataset that can
+	// be renamed recursively.
+	Recursive bool
+
+	// Do not remount file systems during rename. If a file system's mountpoint property is set to legacy or none,
+	// the file system is not unmounted even if this option is not given.
+	NoMount bool
+
+	// Force unmount any file systems that need to be unmounted in the process. This flag has no effect if used together
+	// with the no mount flag.
+	Force bool
+}
+
 // Rename renames a dataset.
-func (d *Dataset) Rename(ctx context.Context, name string, createParent, recursiveRenameSnapshots bool) (*Dataset, error) {
-	args := make([]string, 3, 5)
+func (d *Dataset) Rename(ctx context.Context, name string, options RenameOptions) (*Dataset, error) {
+	args := make([]string, 1, 6)
 	args[0] = "rename"
-	args[1] = d.Name
-	args[2] = name
-	if createParent {
+	if options.CreateParent {
 		args = append(args, "-p")
 	}
-	if recursiveRenameSnapshots {
+	if options.Recursive {
 		args = append(args, "-r")
 	}
+	if options.NoMount {
+		args = append(args, "-u")
+	}
+	if options.Force {
+		args = append(args, "-f")
+	}
+
+	args = append(args, d.Name)
+	args = append(args, name)
 
 	err := zfs(ctx, args...)
 	if err != nil {
@@ -509,7 +585,7 @@ func (d *Dataset) Snapshots(ctx context.Context, extraProperties ...string) ([]D
 	return Snapshots(ctx, d.Name, extraProperties...)
 }
 
-// CreateFilesystemOptions are options you can specify to customize the ZFS create command
+// CreateFilesystemOptions are options you can specify to customize the create filesystem command
 type CreateFilesystemOptions struct {
 	// Sets the specified properties as if the command zfs set property=value was invoked at the same time the dataset was created.
 	Properties map[string]string
@@ -535,21 +611,21 @@ type CreateFilesystemOptions struct {
 //
 // A full list of available ZFS properties may be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
-func CreateFilesystem(ctx context.Context, name string, createOptions CreateFilesystemOptions) (*Dataset, error) {
+func CreateFilesystem(ctx context.Context, name string, options CreateFilesystemOptions) (*Dataset, error) {
 	args := make([]string, 1, 10)
 	args[0] = "create"
 
-	if createOptions.Properties != nil {
-		args = append(args, propsSlice(createOptions.Properties)...)
+	if options.Properties != nil {
+		args = append(args, propsSlice(options.Properties)...)
 	}
 
-	if createOptions.CreateParents {
+	if options.CreateParents {
 		args = append(args, "-p")
 	}
-	if createOptions.DryRun {
+	if options.DryRun {
 		args = append(args, "-n")
 	}
-	if createOptions.NoMount {
+	if options.NoMount {
 		args = append(args, "-u")
 	}
 
@@ -558,7 +634,7 @@ func CreateFilesystem(ctx context.Context, name string, createOptions CreateFile
 	cmd := command{
 		cmd:   Binary,
 		ctx:   ctx,
-		stdin: createOptions.Stdin,
+		stdin: options.Stdin,
 	}
 	_, err := cmd.Run(args...)
 	if err != nil {
@@ -568,14 +644,27 @@ func CreateFilesystem(ctx context.Context, name string, createOptions CreateFile
 	return GetDataset(ctx, name)
 }
 
+// SnapshotOptions are options you can specify to customize the snapshot command
+type SnapshotOptions struct {
+	// Sets the specified properties on the snapshot.
+	Properties map[string]string
+
+	// Recursively create snapshots of all descendent datasets.
+	Recursive bool
+}
+
 // Snapshot creates a new ZFS snapshot of the receiving dataset, using the specified name.
 // Optionally, the snapshot can be taken recursively, creating snapshots of all descendent filesystems in a single, atomic operation.
-func (d *Dataset) Snapshot(ctx context.Context, name string, recursive bool) (*Dataset, error) {
-	args := make([]string, 1, 4)
+func (d *Dataset) Snapshot(ctx context.Context, name string, options SnapshotOptions) (*Dataset, error) {
+	args := make([]string, 1, 10)
 	args[0] = "snapshot"
-	if recursive {
+	if options.Recursive {
 		args = append(args, "-r")
 	}
+	if options.Properties != nil {
+		args = append(args, propsSlice(options.Properties)...)
+	}
+
 	snapName := fmt.Sprintf("%s@%s", d.Name, name)
 	args = append(args, snapName)
 
@@ -586,19 +675,37 @@ func (d *Dataset) Snapshot(ctx context.Context, name string, recursive bool) (*D
 	return GetDataset(ctx, snapName)
 }
 
+// RollbackOptions are options you can specify to customize the rollback command
+type RollbackOptions struct {
+	// Destroy any snapshots and bookmarks more recent than the one specified.
+	DestroyMoreRecent bool
+
+	// Destroy any more recent snapshots and bookmarks, as well as any clones of those snapshots.
+	DestroyMoreRecentClones bool
+
+	// Used with the DestroyMoreRecentClones option to force an unmount of any clone file systems that are to be destroyed.
+	Force bool
+}
+
 // Rollback rolls back the receiving ZFS dataset to a previous snapshot.
 // Optionally, intermediate snapshots can be destroyed.
 // A ZFS snapshot rollback cannot be completed without this option, if more recent snapshots exist.
 // An error will be returned if the input dataset is not of snapshot type.
-func (d *Dataset) Rollback(ctx context.Context, destroyMoreRecent bool) error {
+func (d *Dataset) Rollback(ctx context.Context, options RollbackOptions) error {
 	if d.Type != DatasetSnapshot {
 		return errors.New("can only rollback snapshots")
 	}
 
-	args := make([]string, 1, 3)
+	args := make([]string, 1, 5)
 	args[0] = "rollback"
-	if destroyMoreRecent {
+	if options.DestroyMoreRecent {
 		args = append(args, "-r")
+	}
+	if options.DestroyMoreRecentClones {
+		args = append(args, "-R")
+	}
+	if options.Force {
+		args = append(args, "-f")
 	}
 	args = append(args, d.Name)
 

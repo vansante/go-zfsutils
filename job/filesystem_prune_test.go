@@ -36,7 +36,7 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 		require.NoError(t, fs.SetProperty(context.Background(), delProp, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
 		const snap = "snappie"
-		_, err = fs.Snapshot(context.Background(), snap, false)
+		_, err = fs.Snapshot(context.Background(), snap, zfs.SnapshotOptions{})
 		require.NoError(t, err)
 
 		vol, err := zfs.CreateVolume(context.Background(), testZPool+"/"+otherVol, 10_000, zfs.CreateVolumeOptions{})

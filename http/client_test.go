@@ -26,10 +26,10 @@ func TestClient_Send(t *testing.T) {
 		ds, err := zfs.GetDataset(context.Background(), fsName)
 		require.NoError(t, err)
 
-		snap1, err := ds.Snapshot(context.Background(), "lala1", false)
+		snap1, err := ds.Snapshot(context.Background(), "lala1", zfs.SnapshotOptions{})
 		require.NoError(t, err)
 
-		snap2, err := ds.Snapshot(context.Background(), "lala2", false)
+		snap2, err := ds.Snapshot(context.Background(), "lala2", zfs.SnapshotOptions{})
 		require.NoError(t, err)
 
 		const newFs = "testest"

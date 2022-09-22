@@ -108,7 +108,7 @@ func TestFilesystems(t *testing.T) {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
 	})
 }
 
@@ -130,7 +130,7 @@ func TestCreateFilesystemWithProperties(t *testing.T) {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
 	})
 }
 
@@ -150,7 +150,7 @@ func TestVolumes(t *testing.T) {
 			require.Equal(t, DatasetVolume, volume.Type)
 		}
 
-		require.NoError(t, v.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, v.Destroy(context.Background(), DestroyOptions{}))
 	})
 }
 
@@ -168,14 +168,14 @@ func TestSnapshot(t *testing.T) {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		s, err := f.Snapshot(context.Background(), "test", false)
+		s, err := f.Snapshot(context.Background(), "test", SnapshotOptions{})
 		require.NoError(t, err)
 
 		require.Equal(t, DatasetSnapshot, s.Type)
 		require.Equal(t, testZPool+"/snapshot-test@test", s.Name)
 
-		require.NoError(t, s.Destroy(context.Background(), DestroyDefault))
-		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, s.Destroy(context.Background(), DestroyOptions{}))
+		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
 	})
 }
 
@@ -212,18 +212,20 @@ func TestClone(t *testing.T) {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		s, err := f.Snapshot(context.Background(), "test", false)
+		s, err := f.Snapshot(context.Background(), "test", SnapshotOptions{})
 		require.NoError(t, err)
 
 		require.Equal(t, DatasetSnapshot, s.Type)
 		require.Equal(t, testZPool+"/snapshot-test@test", s.Name)
 
-		c, err := s.Clone(context.Background(), testZPool+"/clone-test", noMountProps)
+		c, err := s.Clone(context.Background(), testZPool+"/clone-test", CloneOptions{
+			Properties: noMountProps,
+		})
 		require.NoError(t, err)
 		require.Equal(t, DatasetFilesystem, c.Type)
-		require.NoError(t, c.Destroy(context.Background(), DestroyDefault))
-		require.NoError(t, s.Destroy(context.Background(), DestroyDefault))
-		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, c.Destroy(context.Background(), DestroyOptions{}))
+		require.NoError(t, s.Destroy(context.Background(), DestroyOptions{}))
+		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
 	})
 }
 
@@ -241,13 +243,13 @@ func TestSendSnapshot(t *testing.T) {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		s, err := f.Snapshot(context.Background(), "test", false)
+		s, err := f.Snapshot(context.Background(), "test", SnapshotOptions{})
 		require.NoError(t, err)
 
 		err = s.SendSnapshot(context.Background(), io.Discard, SendOptions{})
 		require.NoError(t, err)
-		require.NoError(t, s.Destroy(context.Background(), DestroyDefault))
-		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, s.Destroy(context.Background(), DestroyOptions{}))
+		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
 	})
 }
 
@@ -258,7 +260,7 @@ func TestSendSnapshotResume(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		s, err := f.Snapshot(context.Background(), "test", false)
+		s, err := f.Snapshot(context.Background(), "test", SnapshotOptions{})
 		require.NoError(t, err)
 
 		pipeRdr, pipeWrtr := io.Pipe()
@@ -315,7 +317,7 @@ func TestChildren(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		s, err := f.Snapshot(context.Background(), "test", false)
+		s, err := f.Snapshot(context.Background(), "test", SnapshotOptions{})
 		require.NoError(t, err)
 
 		require.Equal(t, DatasetSnapshot, s.Type)
@@ -329,8 +331,8 @@ func TestChildren(t *testing.T) {
 		require.Len(t, children[0].ExtraProps, 1)
 		require.Equal(t, children[0].ExtraProps, map[string]string{PropertyRefQuota: PropertyUnset})
 
-		require.NoError(t, s.Destroy(context.Background(), DestroyDefault))
-		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, s.Destroy(context.Background(), DestroyOptions{}))
+		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
 	})
 }
 
@@ -348,25 +350,25 @@ func TestRollback(t *testing.T) {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		s1, err := f.Snapshot(context.Background(), "test", false)
+		s1, err := f.Snapshot(context.Background(), "test", SnapshotOptions{})
 		require.NoError(t, err)
 
-		_, err = f.Snapshot(context.Background(), "test2", false)
+		_, err = f.Snapshot(context.Background(), "test2", SnapshotOptions{})
 		require.NoError(t, err)
 
-		s3, err := f.Snapshot(context.Background(), "test3", false)
+		s3, err := f.Snapshot(context.Background(), "test3", SnapshotOptions{})
 		require.NoError(t, err)
 
-		err = s3.Rollback(context.Background(), false)
+		err = s3.Rollback(context.Background(), RollbackOptions{})
 		require.NoError(t, err)
 
-		err = s1.Rollback(context.Background(), false)
+		err = s1.Rollback(context.Background(), RollbackOptions{})
 		require.Error(t, err, "should error when rolling back beyond most recent without destroyMoreRecent = true")
 
-		err = s1.Rollback(context.Background(), true)
+		err = s1.Rollback(context.Background(), RollbackOptions{DestroyMoreRecent: true})
 		require.NoError(t, err)
 
-		require.NoError(t, s1.Destroy(context.Background(), DestroyDefault))
-		require.NoError(t, f.Destroy(context.Background(), DestroyDefault))
+		require.NoError(t, s1.Destroy(context.Background(), DestroyOptions{}))
+		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
 	})
 }

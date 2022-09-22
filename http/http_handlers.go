@@ -494,7 +494,7 @@ func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, req *http.Request, ps h
 		return
 	}
 
-	ds, err = ds.Snapshot(req.Context(), snapshot, false)
+	ds, err = ds.Snapshot(req.Context(), snapshot, zfs.SnapshotOptions{})
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleMakeSnapshot: Error making snapshot")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -543,9 +543,8 @@ func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, req *http.Request,
 		return
 	}
 
-	flag := zfs.DestroyDefault
 	// TODO: FIXME: Allow recursive deletes?
-	err = ds.Destroy(req.Context(), flag)
+	err = ds.Destroy(req.Context(), zfs.DestroyOptions{})
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleDestroyFilesystem: Error destroying")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -590,7 +589,7 @@ func (h *HTTP) handleDestroySnapshot(w http.ResponseWriter, req *http.Request, p
 		return
 	}
 
-	err = ds.Destroy(req.Context(), zfs.DestroyDefault)
+	err = ds.Destroy(req.Context(), zfs.DestroyOptions{})
 	if err != nil {
 		logger.WithError(err).Error("zfs.http.handleDestroySnapshot: Error destroying")
 		w.WriteHeader(http.StatusInternalServerError)
