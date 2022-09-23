@@ -65,7 +65,7 @@ func TestRunner_sendSnapshots(t *testing.T) {
 			sentCount++
 		})
 
-		err := runner.sendSnapshots()
+		err := runner.sendSnapshots(1)
 		require.NoError(t, err)
 
 		require.Equal(t, 5, sendingCount)
@@ -118,7 +118,7 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 			sentCount++
 		})
 
-		err = runner.sendSnapshots()
+		err = runner.sendSnapshots(1)
 		require.NoError(t, err)
 
 		require.Equal(t, 4, sendingCount)
@@ -171,7 +171,7 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 			sentCount++
 		})
 
-		err = runner.sendSnapshots()
+		err = runner.sendSnapshots(1)
 		require.NoError(t, err)
 
 		require.Equal(t, 2, sendingCount)
@@ -216,7 +216,7 @@ func TestRunner_sendNoCommonSnapshots(t *testing.T) {
 		dataset, err := zfs.GetDataset(context.Background(), testFilesystem, runner.config.Properties.snapshotSendTo())
 		require.NoError(t, err)
 
-		err = runner.sendDatasetSnapshots(dataset)
+		err = runner.sendDatasetSnapshots(1, dataset)
 		require.ErrorIs(t, err, ErrNoCommonSnapshots)
 	})
 }
