@@ -1,7 +1,7 @@
 package zfs
 
 import (
-	"errors"
+	"fmt"
 	"strconv"
 )
 
@@ -38,9 +38,9 @@ type Dataset struct {
 	ExtraProps    map[string]string
 }
 
-func datasetFromFields(fields []string, extraProps []string) (*Dataset, error) {
+func datasetFromFields(fields, extraProps []string) (*Dataset, error) {
 	if len(fields) != len(dsPropList)+len(extraProps) {
-		return nil, errors.New("output does not match what is expected")
+		return nil, fmt.Errorf("output invalid: %d fields where %d were expected", len(fields), len(dsPropList)+len(extraProps))
 	}
 
 	d := &Dataset{
