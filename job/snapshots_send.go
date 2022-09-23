@@ -10,7 +10,10 @@ import (
 	zfshttp "github.com/vansante/go-zfsutils/http"
 )
 
-var ErrNoCommonSnapshots = errors.New("local and remote datasets do not have a common snapshot")
+var (
+	ErrNoCommonSnapshots = errors.New("local and remote datasets have no common snapshot")
+	ErrNoLocalSnapshots  = errors.New("no local snapshots to send")
+)
 
 func (r *Runner) sendSnapshots() error {
 	sendToProp := r.config.Properties.snapshotSendTo()
@@ -146,7 +149,7 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset) ([]zfshttp.Snap
 	sentProp := r.config.Properties.snapshotSentAt()
 
 	if len(local) == 0 {
-		return nil, errors.New("no local snapshots to send")
+		return nil, ErrNoLocalSnapshots
 	}
 
 	local, err := orderSnapshotsByCreated(local, createdProp)
