@@ -129,7 +129,7 @@ func (r *Runner) runSendSnapshotRoutine(id int) {
 	for {
 		select {
 		case <-ticker.C:
-			err := r.sendSnapshots()
+			err := r.sendSnapshots(id)
 			switch {
 			case isContextError(err):
 				r.logger.WithError(err).Info("zfs.job.Runner.runSendSnapshots: Job interrupted")

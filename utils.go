@@ -26,6 +26,10 @@ var dsPropList = []string{
 	PropertyUsedByDataset,
 }
 
+const (
+	fieldSeparator = "\t"
+)
+
 // zfs is a helper function to wrap typical calls to zfs that ignores stdout.
 func zfs(ctx context.Context, arg ...string) error {
 	_, err := zfsOutput(ctx, arg...)
@@ -77,7 +81,7 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 	lines = lines[0 : len(lines)-1]
 	output := make([][]string, len(lines))
 	for i, l := range lines {
-		output[i] = strings.Fields(l)
+		output[i] = strings.Split(l, fieldSeparator)
 	}
 
 	return output, nil
