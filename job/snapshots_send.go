@@ -32,6 +32,11 @@ func (r *Runner) sendSnapshots(routineID int) error {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
 
+		server := ds.ExtraProps[sendToProp]
+		if server == "" || server == zfs.PropertyUnset {
+			continue // Dont know where to send this one ¯\_(ツ)_/¯
+		}
+
 		err = r.sendDatasetSnapshots(routineID, ds)
 		switch {
 		case isContextError(err):
@@ -61,14 +66,10 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 		unlock()
 	}()
 
-	logger := r.logger.WithFields(map[string]interface{}{
-		"routineID": routineID,
-		"dataset":   ds.Name,
-	})
-
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	sentProp := r.config.Properties.snapshotSentAt()
 	sendToProp := r.config.Properties.snapshotSendTo()
+
 	localSnaps, err := zfs.ListByType(r.ctx, zfs.DatasetSnapshot, ds.Name, createdProp, sentProp)
 	if err != nil {
 		return fmt.Errorf("error listing existing snapshots: %w", err)
@@ -88,11 +89,6 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 	}
 
 	server := ds.ExtraProps[sendToProp]
-	if server == "" || server == zfs.PropertyUnset {
-		logger.Infof("zfs.job.Runner.sendDatasetSnapshots: Server property %s is unset", sendToProp)
-		return nil // Dont know where to send this one ¯\_(ツ)_/¯
-	}
-
 	client := zfshttp.NewClient(server, r.config.AuthorisationToken, r.logger)
 	remoteDataset := datasetName(ds.Name, true)
 
