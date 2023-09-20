@@ -22,20 +22,20 @@ const (
 // The field definitions can be found in the ZFS manual:
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
 type Dataset struct {
-	Name          string
-	Type          DatasetType
-	Origin        string
-	Used          uint64
-	Avail         uint64
-	Mountpoint    string
-	Compression   string
-	Written       uint64
-	Volsize       uint64
-	Logicalused   uint64
-	Usedbydataset uint64
-	Quota         uint64
-	Referenced    uint64
-	ExtraProps    map[string]string
+	Name          string            `json:"Name"`
+	Type          DatasetType       `json:"Type"`
+	Origin        string            `json:"Origin"`
+	Used          uint64            `json:"Used"`
+	Avail         uint64            `json:"Avail"`
+	Mountpoint    string            `json:"Mountpoint"`
+	Compression   string            `json:"Compression"`
+	Written       uint64            `json:"Written"`
+	Volsize       uint64            `json:"Volsize"`
+	Logicalused   uint64            `json:"Logicalused"`
+	Usedbydataset uint64            `json:"Usedbydataset"`
+	Quota         uint64            `json:"Quota"`
+	Referenced    uint64            `json:"Referenced"`
+	ExtraProps    map[string]string `json:"ExtraProps"`
 }
 
 func datasetFromFields(fields, extraProps []string) (*Dataset, error) {
