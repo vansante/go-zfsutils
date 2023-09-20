@@ -4,11 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"strconv"
-
-	zfs "github.com/vansante/go-zfsutils"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -23,14 +22,14 @@ type HTTP struct {
 	config     Config
 	httpSocket net.Listener
 	httpServer *http.Server
-	logger     zfs.Logger
+	logger     *slog.Logger
 	ctx        context.Context
 }
 
-type handle func(http.ResponseWriter, *http.Request, httprouter.Params, zfs.Logger)
+type handle func(http.ResponseWriter, *http.Request, httprouter.Params, *slog.Logger)
 
 // NewHTTP creates a new HTTP server for ZFS interactions
-func NewHTTP(ctx context.Context, conf Config, logger zfs.Logger) (*HTTP, error) {
+func NewHTTP(ctx context.Context, conf Config, logger *slog.Logger) (*HTTP, error) {
 	h := &HTTP{
 		router: httprouter.New(),
 		config: conf,
@@ -44,14 +43,14 @@ func NewHTTP(ctx context.Context, conf Config, logger zfs.Logger) (*HTTP, error)
 func (h *HTTP) init() error {
 	h.registerRoutes()
 
-	h.logger.Infof("zfs.http.init: Opening socket on port %d", h.config.Port)
+	h.logger.Info("zfs.http.init: Opening socket", "port", h.config.Port)
 	var err error
 	h.httpSocket, err = net.Listen("tcp", fmt.Sprintf("%s:%d", h.config.Host, h.config.Port))
 	if err != nil {
-		h.logger.WithError(err).Errorf("zfs.http.init: Failed to open socket on port %d", h.config.Port)
+		h.logger.Error("zfs.http.init: Failed to open socket", "port", h.config.Port)
 		return err
 	}
-	h.logger.Infof("zfs.http.init: Serving on %s:%d", h.config.Host, h.config.Port)
+	h.logger.Info("zfs.http.init: Serving", "host", h.config.Host, "port", h.config.Port)
 	h.httpServer = &http.Server{
 		Handler: h.router,
 		BaseContext: func(listener net.Listener) context.Context {
@@ -84,7 +83,7 @@ func (h *HTTP) registerRoutes() {
 func (h *HTTP) Serve() {
 	err := h.httpServer.Serve(h.httpSocket)
 	if !errors.Is(err, http.ErrServerClosed) && h.ctx.Err() == nil {
-		h.logger.WithError(err).Error("zfs.http.Serve: HTTP server error")
+		h.logger.Error("zfs.http.Serve: HTTP server error", "error", err)
 	} else {
 		h.logger.Info("zfs.http.Serve: HTTP server closed")
 	}
@@ -93,11 +92,6 @@ func (h *HTTP) Serve() {
 // authenticated is an HTTP handler wrapper that ensures a valid authentication is used for the request
 func (h *HTTP) authenticated(handle handle) httprouter.Handle {
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-		logger := h.logger.WithFields(map[string]interface{}{
-			"URL":    req.URL.String(),
-			"method": req.Method,
-		})
-
 		authToken := req.Header.Get(HeaderAuthenticationToken)
 
 		found := false
@@ -108,11 +102,18 @@ func (h *HTTP) authenticated(handle handle) httprouter.Handle {
 			}
 		}
 		if !found {
-			logger.Info("zfs.http.authenticated: Invalid authentication")
+			h.logger.Info("zfs.http.authenticated: Invalid authentication",
+				"URL", req.URL.String(),
+				"method", req.Method,
+			)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
+		logger := h.logger.With(slog.Group("req",
+			"URL", req.URL.String(),
+			"method", req.Method),
+		)
 		logger.Info("zfs.http.authenticated: Handling")
 
 		handle(w, req, ps, logger)

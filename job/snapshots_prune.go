@@ -23,18 +23,20 @@ func (r *Runner) pruneSnapshots() error {
 		err = r.pruneAgedSnapshot(snapshot)
 		switch {
 		case isContextError(err):
-			r.logger.WithFields(map[string]interface{}{
-				"dataset":  datasetName(snapshot, true),
-				"snapshot": snapshotName(snapshot),
-				"full":     snapshot,
-			}).WithError(err).Info("zfs.job.Runner.pruneSnapshots: Prune snapshot job interrupted")
+			r.logger.Info("zfs.job.Runner.pruneSnapshots: Prune snapshot job interrupted",
+				"error", err,
+				"dataset", datasetName(snapshot, true),
+				"snapshot", snapshotName(snapshot),
+				"full", snapshot,
+			)
 			return nil // Return no error
 		case err != nil:
-			r.logger.WithFields(map[string]interface{}{
-				"dataset":  datasetName(snapshot, true),
-				"snapshot": snapshotName(snapshot),
-				"full":     snapshot,
-			}).WithError(err).Error("zfs.job.Runner.pruneSnapshots: Error pruning snapshot")
+			r.logger.Error("zfs.job.Runner.pruneSnapshots: Error pruning snapshot",
+				"error", err,
+				"dataset", datasetName(snapshot, true),
+				"snapshot", snapshotName(snapshot),
+				"full", snapshot,
+			)
 			continue // on to the next dataset :-/
 		}
 	}

@@ -40,16 +40,18 @@ func (r *Runner) sendSnapshots(routineID int) error {
 		err = r.sendDatasetSnapshots(routineID, ds)
 		switch {
 		case isContextError(err):
-			r.logger.WithFields(map[string]interface{}{
-				"routineID": routineID,
-				"dataset":   dataset,
-			}).WithError(err).Info("zfs.job.Runner.sendSnapshots: Send snapshot job interrupted")
+			r.logger.Info("zfs.job.Runner.sendSnapshots: Send snapshot job interrupted",
+				"error", err,
+				"routineID", routineID,
+				"dataset", dataset,
+			)
 			return nil // Return no error
 		case err != nil:
-			r.logger.WithFields(map[string]interface{}{
-				"routineID": routineID,
-				"dataset":   dataset,
-			}).WithError(err).Error("zfs.job.Runner.sendSnapshots: Error sending snapshot")
+			r.logger.Error("zfs.job.Runner.sendSnapshots: Error sending snapshot",
+				"error", err,
+				"routineID", routineID,
+				"dataset", dataset,
+			)
 			continue // on to the next dataset :-/
 		}
 	}
@@ -170,11 +172,11 @@ func (r *Runner) reconcileSnapshots(routineID int, local, remote []zfs.Dataset) 
 		remoteExists := snapshotsContain(remote, datasetName(snap.Name, true), snapshotName(snap.Name))
 		localSent := snap.ExtraProps[sentProp] != zfs.PropertyUnset
 
-		logger := r.logger.WithFields(map[string]interface{}{
-			"routineID": routineID,
-			"dataset":   datasetName(snap.Name, true),
-			"snapshot":  snapshotName(snap.Name),
-		})
+		logger := r.logger.With(
+			"routineID", routineID,
+			"dataset", datasetName(snap.Name, true),
+			"snapshot", snapshotName(snap.Name),
+		)
 
 		if remoteExists {
 			prevRemoteSnap = snap
@@ -184,12 +186,16 @@ func (r *Runner) reconcileSnapshots(routineID int, local, remote []zfs.Dataset) 
 			val := time.Now().Format(dateTimeFormat)
 			setErr := snap.SetProperty(r.ctx, sentProp, val)
 			if setErr != nil {
-				logger.WithError(setErr).Errorf(
-					"zfs.job.Runner.reconcileSnapshots: Error setting %s after property was missing", sentProp,
+				logger.Error(
+					"zfs.job.Runner.reconcileSnapshots: Error setting sent property after property was missing",
+					"error", setErr,
+					"property", sentProp,
 				)
 			} else {
-				logger.WithError(setErr).WithField("value", val).Infof(
-					"zfs.job.Runner.reconcileSnapshots: Set %s after property was missing", sentProp,
+				logger.Info(
+					"zfs.job.Runner.reconcileSnapshots: Set sent property after property was missing",
+					"value", val,
+					"property", sentProp,
 				)
 			}
 			continue // No more to do

@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"log/slog"
 	"net/http/httptest"
 
 	zfs "github.com/vansante/go-zfsutils"
@@ -9,7 +10,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func TestHTTPZPool(testZPool, testAuthToken, testFs string, logger zfs.Logger, fn func(server *httptest.Server)) {
+func TestHTTPZPool(testZPool, testAuthToken, testFs string, fn func(server *httptest.Server)) {
 	zfs.TestZPool(testZPool, func() {
 		rtr := httprouter.New()
 		h := HTTP{
@@ -26,7 +27,7 @@ func TestHTTPZPool(testZPool, testAuthToken, testFs string, logger zfs.Logger, f
 					AllowDestroySnapshots:   true,
 				},
 			},
-			logger: logger,
+			logger: slog.Default(),
 			ctx:    context.Background(),
 		}
 		h.registerRoutes()

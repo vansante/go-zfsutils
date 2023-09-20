@@ -27,7 +27,7 @@ const (
 
 func httpHandlerTest(t *testing.T, fn func(server *httptest.Server)) {
 	t.Helper()
-	TestHTTPZPool(testZPool, testAuthToken, testFilesystem, zfs.NewTestLogger(t), func(server *httptest.Server) {
+	TestHTTPZPool(testZPool, testAuthToken, testFilesystem, func(server *httptest.Server) {
 		fn(server)
 	})
 }

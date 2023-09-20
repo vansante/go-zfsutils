@@ -44,14 +44,10 @@ func (r *Runner) markPrunableExcessSnapshots() error {
 		err = r.markExcessDatasetSnapshots(ds, retentionCount)
 		switch {
 		case isContextError(err):
-			r.logger.WithFields(map[string]interface{}{
-				"dataset": dataset,
-			}).WithError(err).Info("zfs.job.Runner.markPrunableExcessSnapshots: Mark snapshot job interrupted")
+			r.logger.Info("zfs.job.Runner.markPrunableExcessSnapshots: Mark snapshot job interrupted", "error", err, "dataset", dataset)
 			return nil // Return no error
 		case err != nil:
-			r.logger.WithFields(map[string]interface{}{
-				"dataset": dataset,
-			}).WithError(err).Error("zfs.job.Runner.markPrunableExcessSnapshots: Error marking snapshots")
+			r.logger.Error("zfs.job.Runner.markPrunableExcessSnapshots: Error marking snapshots", "error", err, "dataset", dataset)
 			continue // on to the next dataset :-/
 		}
 	}

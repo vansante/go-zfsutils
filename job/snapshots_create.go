@@ -31,14 +31,10 @@ func (r *Runner) createSnapshots() error {
 		err = r.createDatasetSnapshot(ds)
 		switch {
 		case isContextError(err):
-			r.logger.WithFields(map[string]interface{}{
-				"dataset": dataset,
-			}).WithError(err).Info("zfs.job.Runner.createSnapshots: Create snapshot job interrupted")
+			r.logger.Info("zfs.job.Runner.createSnapshots: Create snapshot job interrupted", "error", err, "dataset", dataset)
 			return nil // Return no error
 		case err != nil:
-			r.logger.WithFields(map[string]interface{}{
-				"dataset": dataset,
-			}).WithError(err).Error("zfs.job.Runner.createSnapshots: Error creating snapshot")
+			r.logger.Error("zfs.job.Runner.createSnapshots: Error creating snapshot", "error", err, "dataset", dataset)
 			continue // on to the next dataset :-/
 		}
 	}
@@ -89,11 +85,11 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 
 	// Log an error whenever more than twice the interval time has passed without a snapshot
 	if !latestSnap.Equal(earliestSnapshot) && time.Since(latestSnap) >= 2*interval {
-		r.logger.WithFields(map[string]interface{}{
-			"dataset":          ds.Name,
-			"previousSnapshot": latestSnap,
-			"interval":         interval,
-		}).Error("zfs.job.Runner.createDatasetSnapshot: Snapshot creation running behind")
+		r.logger.Error("zfs.job.Runner.createDatasetSnapshot: Snapshot creation running behind",
+			"dataset", ds.Name,
+			"previousSnapshot", latestSnap,
+			"interval", interval,
+		)
 	}
 
 	tm := time.Now()
