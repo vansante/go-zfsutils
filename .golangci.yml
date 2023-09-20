@@ -31,7 +31,6 @@ linters-settings:
 linters:
   enable:
     - asciicheck
-    - depguard
     - dogsled
     - exportloopref
     - funlen
