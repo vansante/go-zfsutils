@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 
@@ -21,7 +22,7 @@ const (
 func runnerTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) {
 	t.Helper()
 
-	zfshttp.TestHTTPZPool(testHTTPZPool, testToken, "", zfs.NewTestLogger(t), func(server *httptest.Server) {
+	zfshttp.TestHTTPZPool(testHTTPZPool, testToken, "", func(server *httptest.Server) {
 		// Create another zpool as 'source':
 		zfs.TestZPool(testZPool, func() {
 			r := &Runner{
@@ -32,7 +33,7 @@ func runnerTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) 
 					DatasetType:        zfs.DatasetFilesystem,
 					AuthorisationToken: testToken,
 				},
-				logger: zfs.NewTestLogger(t),
+				logger: slog.Default(),
 				ctx:    context.Background(),
 			}
 

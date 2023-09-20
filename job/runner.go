@@ -2,10 +2,9 @@ package job
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
-
-	zfs "github.com/vansante/go-zfsutils"
 
 	eventemitter "github.com/vansante/go-event-emitter"
 )
@@ -23,7 +22,7 @@ const (
 )
 
 // NewRunner creates a new job runner
-func NewRunner(ctx context.Context, conf Config, logger zfs.Logger) *Runner {
+func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
 	return &Runner{
 		config:          conf,
 		datasetSendLock: make(map[string]struct{}),
@@ -40,7 +39,7 @@ type Runner struct {
 	mapLock         sync.Mutex
 	datasetSendLock map[string]struct{}
 
-	logger zfs.Logger
+	logger *slog.Logger
 	ctx    context.Context
 }
 
@@ -95,7 +94,7 @@ func (r *Runner) runCreateSnapshots() {
 	ticker := time.NewTicker(dur)
 	defer ticker.Stop()
 
-	r.logger.Infof("zfs.job.Runner.runCreateSnapshots: Running every %v", dur)
+	r.logger.Info("zfs.job.Runner.runCreateSnapshots: Running", "interval", dur)
 	defer r.logger.Info("zfs.job.Runner.runCreateSnapshots: Stopped")
 
 	for {
@@ -104,9 +103,9 @@ func (r *Runner) runCreateSnapshots() {
 			err := r.createSnapshots()
 			switch {
 			case isContextError(err):
-				r.logger.WithError(err).Info("zfs.job.Runner.runCreateSnapshots: Job interrupted")
+				r.logger.Info("zfs.job.Runner.runCreateSnapshots: Job interrupted", "error", err)
 			case err != nil:
-				r.logger.WithError(err).Error("zfs.job.Runner.runCreateSnapshots: Error making snapshots")
+				r.logger.Error("zfs.job.Runner.runCreateSnapshots: Error making snapshots", "error", err)
 			}
 		case <-r.ctx.Done():
 			return
@@ -123,8 +122,8 @@ func (r *Runner) runSendSnapshotRoutine(id int) {
 	ticker := time.NewTicker(dur)
 	defer ticker.Stop()
 
-	r.logger.WithField("routineID", id).Infof("zfs.job.Runner.runSendSnapshotRoutine: Running every %v", dur)
-	defer r.logger.WithField("routineID", id).Info("zfs.job.Runner.runSendSnapshotRoutine: Stopped")
+	r.logger.Info("zfs.job.Runner.runSendSnapshotRoutine: Running", "interval", dur, "routineID", id)
+	defer r.logger.Info("zfs.job.Runner.runSendSnapshotRoutine: Stopped", "interval", dur, "routineID", id)
 
 	for {
 		select {
@@ -132,9 +131,9 @@ func (r *Runner) runSendSnapshotRoutine(id int) {
 			err := r.sendSnapshots(id)
 			switch {
 			case isContextError(err):
-				r.logger.WithError(err).Info("zfs.job.Runner.runSendSnapshots: Job interrupted")
+				r.logger.Info("zfs.job.Runner.runSendSnapshots: Job interrupted", "error", err)
 			case err != nil:
-				r.logger.WithError(err).Error("zfs.job.Runner.runSendSnapshots: Error sending snapshots")
+				r.logger.Error("zfs.job.Runner.runSendSnapshots: Error sending snapshots", "error", err)
 			}
 		case <-r.ctx.Done():
 			return
@@ -147,7 +146,7 @@ func (r *Runner) runMarkSnapshots() {
 	ticker := time.NewTicker(dur)
 	defer ticker.Stop()
 
-	r.logger.Infof("zfs.job.Runner.runMarkSnapshots: Running every %v", dur)
+	r.logger.Info("zfs.job.Runner.runMarkSnapshots: Running", "interval", dur)
 	defer r.logger.Info("zfs.job.Runner.runMarkSnapshots: Stopped")
 
 	for {
@@ -156,9 +155,9 @@ func (r *Runner) runMarkSnapshots() {
 			err := r.markPrunableSnapshots()
 			switch {
 			case isContextError(err):
-				r.logger.WithError(err).Info("zfs.job.Runner.runMarkSnapshots: Job interrupted")
+				r.logger.Info("zfs.job.Runner.runMarkSnapshots: Job interrupted", "error", err)
 			case err != nil:
-				r.logger.WithError(err).Error("zfs.job.Runner.runMarkSnapshots: Error marking snapshots")
+				r.logger.Error("zfs.job.Runner.runMarkSnapshots: Error marking snapshots", "error", err)
 			}
 		case <-r.ctx.Done():
 			return
@@ -171,7 +170,7 @@ func (r *Runner) runPruneSnapshots() {
 	ticker := time.NewTicker(dur)
 	defer ticker.Stop()
 
-	r.logger.Infof("zfs.job.Runner.runPruneSnapshots: Running every %v", dur)
+	r.logger.Info("zfs.job.Runner.runPruneSnapshots: Running", "interval", dur)
 	defer r.logger.Info("zfs.job.Runner.runPruneSnapshots: Stopped")
 
 	for {
@@ -180,9 +179,9 @@ func (r *Runner) runPruneSnapshots() {
 			err := r.pruneSnapshots()
 			switch {
 			case isContextError(err):
-				r.logger.WithError(err).Info("zfs.job.Runner.runPruneSnapshots: Job interrupted")
+				r.logger.Info("zfs.job.Runner.runPruneSnapshots: Job interrupted", "error", err)
 			case err != nil:
-				r.logger.WithError(err).Error("zfs.job.Runner.runPruneSnapshots: Error pruning snapshots")
+				r.logger.Error("zfs.job.Runner.runPruneSnapshots: Error pruning snapshots", "error", err)
 			}
 		case <-r.ctx.Done():
 			return
@@ -195,7 +194,7 @@ func (r *Runner) runPruneFilesystems() {
 	ticker := time.NewTicker(dur)
 	defer ticker.Stop()
 
-	r.logger.Infof("zfs.job.Runner.runPruneFilesystems: Running every %v", dur)
+	r.logger.Info("zfs.job.Runner.runPruneFilesystems: Running", "interval", dur)
 	defer r.logger.Info("zfs.job.Runner.runPruneFilesystems: Stopped")
 
 	for {
@@ -204,9 +203,9 @@ func (r *Runner) runPruneFilesystems() {
 			err := r.pruneFilesystems()
 			switch {
 			case isContextError(err):
-				r.logger.WithError(err).Info("zfs.job.Runner.runPruneFilesystems: Job interrupted")
+				r.logger.Info("zfs.job.Runner.runPruneFilesystems: Job interrupted", "error", err)
 			case err != nil:
-				r.logger.WithError(err).Error("zfs.job.Runner.runPruneFilesystems: Error pruning filesystems")
+				r.logger.Error("zfs.job.Runner.runPruneFilesystems: Error pruning filesystems", "error", err)
 			}
 		case <-r.ctx.Done():
 			return

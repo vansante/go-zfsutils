@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -22,12 +23,12 @@ var (
 type Client struct {
 	server    string
 	authToken string
-	logger    zfs.Logger
+	logger    *slog.Logger
 	client    *http.Client
 }
 
 // NewClient creates a new client for a zfs http server
-func NewClient(server, authToken string, logger zfs.Logger) *Client {
+func NewClient(server, authToken string, logger *slog.Logger) *Client {
 	return &Client{
 		server:    server,
 		authToken: authToken,
@@ -108,18 +109,23 @@ func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string) er
 
 	sendCtx, cancelSend := context.WithCancel(ctx)
 	go func() {
-		logger := c.logger.WithFields(map[string]interface{}{
-			"server":      c.server,
-			"dataset":     dataset,
-			"resumeToken": resumeToken,
-		})
 		err := zfs.ResumeSend(sendCtx, pipeWrtr, resumeToken, zfs.ResumeSendOptions{})
 		if err != nil {
-			logger.WithError(err).Error("zfs.http.Client.ResumeSend: Error sending resume stream")
+			c.logger.Error("zfs.http.Client.ResumeSend: Error sending resume stream",
+				"error", err,
+				"server", c.server,
+				"dataset", dataset,
+				"resumeToken", resumeToken,
+			)
 		}
 		err = pipeWrtr.Close()
 		if err != nil {
-			logger.WithError(err).Error("zfs.http.Client.sendWithBase: Error closing snapshot pipe")
+			c.logger.Error("zfs.http.Client.sendWithBase: Error closing snapshot pipe",
+				"error", err,
+				"server", c.server,
+				"dataset", dataset,
+				"resumeToken", resumeToken,
+			)
 		}
 	}()
 
@@ -154,18 +160,23 @@ func (c *Client) Send(ctx context.Context, send SnapshotSend) error {
 
 	sendCtx, cancelSend := context.WithCancel(ctx)
 	go func() {
-		logger := c.logger.WithFields(map[string]interface{}{
-			"server":       c.client,
-			"snapshot":     send.Snapshot.Name,
-			"baseSnapshot": send.IncrementalBase,
-		})
 		err := send.Snapshot.SendSnapshot(sendCtx, pipeWrtr, send.SendOptions)
 		if err != nil {
-			logger.Error("zfs.http.Client.sendWithBase: Error sending incremental snapshot stream")
+			c.logger.Error("zfs.http.Client.sendWithBase: Error sending incremental snapshot stream",
+				"error", err,
+				"server", c.client,
+				"snapshot", send.Snapshot.Name,
+				"baseSnapshot", send.IncrementalBase,
+			)
 		}
 		err = pipeWrtr.Close()
 		if err != nil {
-			logger.WithError(err).Error("zfs.http.Client.sendWithBase: Error closing snapshot pipe")
+			c.logger.Error("zfs.http.Client.sendWithBase: Error closing snapshot pipe",
+				"error", err,
+				"server", c.client,
+				"snapshot", send.Snapshot.Name,
+				"baseSnapshot", send.IncrementalBase,
+			)
 		}
 	}()
 

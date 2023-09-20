@@ -23,14 +23,10 @@ func (r *Runner) pruneFilesystems() error {
 		err = r.pruneAgedFilesystem(filesystem)
 		switch {
 		case isContextError(err):
-			r.logger.WithFields(map[string]interface{}{
-				"dataset": filesystem,
-			}).WithError(err).Info("zfs.job.Runner.pruneFilesystems: Prune filesystem job interrupted")
+			r.logger.Info("zfs.job.Runner.pruneFilesystems: Prune filesystem job interrupted", "error", err, "dataset", filesystem)
 			return nil // Return no error
 		case err != nil:
-			r.logger.WithFields(map[string]interface{}{
-				"dataset": filesystem,
-			}).WithError(err).Error("zfs.job.Runner.pruneFilesystems: Error pruning filesystem")
+			r.logger.Error("zfs.job.Runner.pruneFilesystems: Error pruning filesystem", "error", err, "dataset", filesystem)
 			continue // on to the next dataset :-/
 		}
 	}

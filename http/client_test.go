@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -13,8 +14,8 @@ import (
 
 func clientTest(t *testing.T, fn func(client *Client)) {
 	t.Helper()
-	TestHTTPZPool(testZPool, testAuthToken, testFilesystem, zfs.NewTestLogger(t), func(server *httptest.Server) {
-		c := NewClient(server.URL, testAuthToken, zfs.NewTestLogger(t))
+	TestHTTPZPool(testZPool, testAuthToken, testFilesystem, func(server *httptest.Server) {
+		c := NewClient(server.URL, testAuthToken, slog.Default())
 
 		fn(c)
 	})
