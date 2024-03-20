@@ -3,6 +3,7 @@ package zfs
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // DatasetType is the zfs dataset type
@@ -26,7 +27,7 @@ type Dataset struct {
 	Type          DatasetType       `json:"Type"`
 	Origin        string            `json:"Origin"`
 	Used          uint64            `json:"Used"`
-	Avail         uint64            `json:"Avail"`
+	Available     uint64            `json:"Available"`
 	Mountpoint    string            `json:"Mountpoint"`
 	Compression   string            `json:"Compression"`
 	Written       uint64            `json:"Written"`
@@ -34,85 +35,98 @@ type Dataset struct {
 	Logicalused   uint64            `json:"Logicalused"`
 	Usedbydataset uint64            `json:"Usedbydataset"`
 	Quota         uint64            `json:"Quota"`
+	Refquota      uint64            `json:"Refquota"`
 	Referenced    uint64            `json:"Referenced"`
 	ExtraProps    map[string]string `json:"ExtraProps"`
 }
 
-func datasetFromFields(fields, extraProps []string) (*Dataset, error) {
-	if len(fields) != len(dsPropList)+len(extraProps) {
-		return nil, fmt.Errorf("output invalid: %d fields where %d were expected", len(fields), len(dsPropList)+len(extraProps))
+const (
+	nameField = iota
+	propertyField
+	valueField
+)
+
+func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
+	multiple := len(dsPropList) + len(extraProps)
+	if len(output)%multiple != 0 {
+		return nil, fmt.Errorf("output invalid: %d lines where a multiple of %d was expected", len(output), multiple)
 	}
 
-	d := &Dataset{
-		Name: fields[0],
-		Type: DatasetType(fields[1]),
-	}
-	fields = setString(&d.Origin, fields[2:])
+	count := len(output) / (len(dsPropList) + len(extraProps))
+	curDataset := 0
+	datasets := make([]Dataset, count)
+	for i, fields := range output {
+		if len(fields) != 3 {
+			return nil, fmt.Errorf("output contains line with %d fields: %s", len(fields), strings.Join(fields, " "))
+		}
 
-	fields, err := setUint(&d.Used, fields)
-	if err != nil {
-		return nil, err
-	}
-	fields, err = setUint(&d.Avail, fields)
-	if err != nil {
-		return nil, err
-	}
-	fields = setString(&d.Mountpoint, fields)
-	fields = setString(&d.Compression, fields)
-	fields, err = setUint(&d.Volsize, fields)
-	if err != nil {
-		return nil, err
-	}
-	fields, err = setUint(&d.Quota, fields)
-	if err != nil {
-		return nil, err
-	}
-	fields, err = setUint(&d.Referenced, fields)
-	if err != nil {
-		return nil, err
-	}
-	fields, err = setUint(&d.Written, fields)
-	if err != nil {
-		return nil, err
-	}
-	fields, err = setUint(&d.Logicalused, fields)
-	if err != nil {
-		return nil, err
-	}
-	fields, err = setUint(&d.Usedbydataset, fields)
-	if err != nil {
-		return nil, err
+		if i > 0 && fields[nameField] != datasets[curDataset].Name {
+			curDataset++
+		}
+
+		ds := &datasets[curDataset]
+		ds.ExtraProps = make(map[string]string, len(extraProps))
+		ds.Name = fields[nameField]
+
+		val := fields[valueField]
+
+		var setError error
+		switch fields[propertyField] {
+		case PropertyName:
+			ds.Name = val
+		case PropertyType:
+			ds.Type = DatasetType(val)
+		case PropertyOrigin:
+			setString(&ds.Origin, val)
+		case PropertyUsed:
+			setError = setUint(&ds.Used, val)
+		case PropertyAvailable:
+			setError = setUint(&ds.Available, val)
+		case PropertyMountPoint:
+			setString(&ds.Mountpoint, val)
+		case PropertyCompression:
+			setString(&ds.Compression, val)
+		case PropertyWritten:
+			setError = setUint(&ds.Written, val)
+		case PropertyVolSize:
+			setError = setUint(&ds.Volsize, val)
+		case PropertyLogicalUsed:
+			setError = setUint(&ds.Logicalused, val)
+		case PropertyUsedByDataset:
+			setError = setUint(&ds.Usedbydataset, val)
+		case PropertyQuota:
+			setError = setUint(&ds.Quota, val)
+		case PropertyRefQuota:
+			setError = setUint(&ds.Refquota, val)
+		case PropertyReferenced:
+			setError = setUint(&ds.Referenced, val)
+		default:
+			ds.ExtraProps[fields[propertyField]] = val
+		}
+		if setError != nil {
+			return nil, fmt.Errorf("error in dataset %d field %s [%s]: %w", curDataset, fields[propertyField], fields[valueField], setError)
+		}
 	}
 
-	d.ExtraProps = make(map[string]string, len(extraProps))
-	for i, field := range extraProps {
-		d.ExtraProps[field] = fields[i]
-	}
-
-	return d, nil
+	return datasets, nil
 }
 
-func setString(field *string, values []string) []string {
-	val, values := values[0], values[1:]
+func setString(field *string, val string) {
 	if val == PropertyUnset {
-		return values
+		return
 	}
 	*field = val
-	return values
 }
 
-func setUint(field *uint64, values []string) ([]string, error) {
-	var val string
-	val, values = values[0], values[1:]
+func setUint(field *uint64, val string) error {
 	if val == PropertyUnset {
-		return values, nil
+		return nil
 	}
 
 	v, err := strconv.ParseUint(val, 10, 64)
 	if err != nil {
-		return values, err
+		return err
 	}
-
 	*field = v
-	return values, nil
+	return nil
 }

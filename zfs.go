@@ -55,7 +55,7 @@ func (lo ListOptions) propertySourceStrings() []string {
 // ListDatasets lists the datasets by type and allows you to fetch extra custom fields
 func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	args := make([]string, 0, 16)
-	args = append(args, "get", "-Hp")
+	args = append(args, "get", "-Hp", "-o", "name,property,value")
 	if options.DatasetType != "" {
 		args = append(args, "-t", string(options.DatasetType))
 	}
@@ -85,36 +85,25 @@ func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 		return nil, err
 	}
 
-	datasets := make([]Dataset, 0, len(out))
-	if len(out) == 0 {
-		return datasets, nil
-	}
-
-	for _, fields := range out {
-		ds, err := datasetFromFields(fields, options.ExtraProperties)
-		if err != nil {
-			return datasets, err
-		}
-		datasets = append(datasets, *ds)
-	}
-
-	return datasets, nil
+	return readDatasets(out, options.ExtraProperties)
 }
 
 // GetDataset retrieves a single ZFS dataset by name.
 // This dataset could be any valid ZFS dataset type, such as a clone, filesystem, snapshot, or volume.
 func GetDataset(ctx context.Context, name string, extraProperties ...string) (*Dataset, error) {
-	fields := append(dsPropList, extraProperties...) // nolint: gocritic
-	out, err := zfsOutput(ctx, "list", "-Hp", "-o", strings.Join(fields, ","), name)
+	ds, err := ListDatasets(ctx, ListOptions{
+		ParentDataset:   name,
+		Recursive:       false,
+		ExtraProperties: extraProperties,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	if len(out) > 1 {
-		return nil, fmt.Errorf("more output than expected: %v", out)
+	if len(ds) > 1 {
+		return nil, fmt.Errorf("more datasets than expected: %d", len(ds))
 	}
-
-	return datasetFromFields(out[0], extraProperties)
+	return &ds[0], nil
 }
 
 // CloneOptions are options you can specify to customize the clone command
@@ -726,36 +715,8 @@ func (d *Dataset) Rollback(ctx context.Context, options RollbackOptions) error {
 
 // Children returns a slice of children of the receiving ZFS dataset.
 // A recursion depth may be specified, or a depth of 0 allows unlimited recursion.
-func (d *Dataset) Children(ctx context.Context, depth uint64, extraProperties ...string) ([]Dataset, error) {
-	allFields := append(dsPropList, extraProperties...) // nolint: gocritic
-
-	args := make([]string, 1, 16)
-	args[0] = "list"
-	if depth > 0 {
-		args = append(args, "-d")
-		args = append(args, strconv.FormatUint(depth, 10))
-	} else {
-		args = append(args, "-r")
-	}
-	args = append(args, "-t", "all", "-Hp", "-o", strings.Join(allFields, ","))
-	args = append(args, d.Name)
-
-	out, err := zfsOutput(ctx, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	datasets := make([]Dataset, 0, len(out)-1)
-	for i, fields := range out {
-		if i == 0 { // Skip the first parent entry, because we are looking for its children
-			continue
-		}
-
-		ds, err := datasetFromFields(fields, extraProperties)
-		if err != nil {
-			return nil, err
-		}
-		datasets = append(datasets, *ds)
-	}
-	return datasets, nil
+func (d *Dataset) Children(ctx context.Context, options ListOptions) ([]Dataset, error) {
+	options.ParentDataset = d.Name
+	options.Recursive = true
+	return ListDatasets(ctx, options)
 }

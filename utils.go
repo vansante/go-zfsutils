@@ -20,6 +20,7 @@ var dsPropList = []string{
 	PropertyCompression,
 	PropertyVolSize,
 	PropertyQuota,
+	PropertyRefQuota,
 	PropertyReferenced,
 	PropertyWritten,
 	PropertyLogicalUsed,
@@ -75,7 +76,11 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 		return nil, nil
 	}
 
-	lines := strings.Split(stdout.String(), "\n")
+	return splitOutput(stdout.String()), nil
+}
+
+func splitOutput(out string) [][]string {
+	lines := strings.Split(out, "\n")
 
 	// last line is always blank
 	lines = lines[0 : len(lines)-1]
@@ -83,8 +88,7 @@ func (c *command) Run(arg ...string) ([][]string, error) {
 	for i, l := range lines {
 		output[i] = strings.Split(l, fieldSeparator)
 	}
-
-	return output, nil
+	return output
 }
 
 func propsSlice(properties map[string]string) []string {

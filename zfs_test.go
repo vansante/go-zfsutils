@@ -351,13 +351,13 @@ func TestChildren(t *testing.T) {
 		require.Equal(t, DatasetSnapshot, s.Type)
 		require.Equal(t, testZPool+"/snapshot-test@test", s.Name)
 
-		children, err := f.Children(context.Background(), 0, PropertyRefQuota)
+		children, err := f.Children(context.Background(), ListOptions{Depth: 0, ExtraProperties: []string{PropertyMounted}})
 		require.NoError(t, err)
 
 		require.Equal(t, 1, len(children))
 		require.Equal(t, testZPool+"/snapshot-test@test", children[0].Name)
 		require.Len(t, children[0].ExtraProps, 1)
-		require.Equal(t, children[0].ExtraProps, map[string]string{PropertyRefQuota: PropertyUnset})
+		require.Equal(t, children[0].ExtraProps, map[string]string{PropertyMounted: PropertyUnset})
 
 		require.NoError(t, s.Destroy(context.Background(), DestroyOptions{}))
 		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
