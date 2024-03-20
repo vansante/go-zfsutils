@@ -54,11 +54,8 @@ func (lo ListOptions) propertySourceStrings() []string {
 
 // ListDatasets lists the datasets by type and allows you to fetch extra custom fields
 func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
-	allFields := append(dsPropList, options.ExtraProperties...) // nolint: gocritic
-	dsPropListOptions := strings.Join(allFields, ",")
-
 	args := make([]string, 0, 16)
-	args = append(args, "list", "-Hp", "-o", dsPropListOptions)
+	args = append(args, "get", "-Hp")
 	if options.DatasetType != "" {
 		args = append(args, "-t", string(options.DatasetType))
 	}
@@ -74,6 +71,10 @@ func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	if len(options.PropertySources) > 0 {
 		args = append(args, "-s", strings.Join(options.propertySourceStrings(), ","))
 	}
+
+	allFields := append(dsPropList, options.ExtraProperties...) // nolint: gocritic
+	dsPropListOptions := strings.Join(allFields, ",")
+	args = append(args, dsPropListOptions)
 
 	if options.ParentDataset != "" {
 		args = append(args, options.ParentDataset)

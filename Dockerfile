@@ -10,6 +10,5 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         golang-go \
 		zfsutils-linux \
-	&& rm -rf /var/lib/apt/lists/* \
-    && /sbin/modprobe zfs
+	&& rm -rf /var/lib/apt/lists/*
 
