@@ -59,7 +59,9 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	deleteProp := r.config.Properties.deleteAt()
 
-	snaps, err := ds.Snapshots(r.ctx, createdProp, deleteProp)
+	snaps, err := ds.Snapshots(r.ctx, zfs.ListOptions{
+		ExtraProperties: []string{createdProp, deleteProp},
+	})
 	if err != nil {
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
 	}
@@ -133,7 +135,9 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	deleteProp := r.config.Properties.deleteAt()
 
-	snaps, err := ds.Snapshots(r.ctx, createdProp, deleteProp)
+	snaps, err := ds.Snapshots(r.ctx, zfs.ListOptions{
+		ExtraProperties: []string{createdProp, deleteProp},
+	})
 	if err != nil {
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
 	}

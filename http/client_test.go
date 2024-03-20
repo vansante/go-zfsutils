@@ -60,7 +60,7 @@ func TestClient_Send(t *testing.T) {
 		ds, err = zfs.GetDataset(context.Background(), fullNewFs)
 		require.NoError(t, err)
 
-		snaps, err := ds.Snapshots(context.Background())
+		snaps, err := ds.Snapshots(context.Background(), zfs.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, snaps, 2)
 		require.Equal(t, fullNewFs+"@lala1", snaps[0].Name)

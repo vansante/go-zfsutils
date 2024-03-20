@@ -17,17 +17,21 @@ var (
 
 func (r *Runner) sendSnapshots(routineID int) error {
 	sendToProp := r.config.Properties.snapshotSendTo()
-	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, sendToProp)
+	datasets, err := zfs.ListDatasets(r.ctx, zfs.ListOptions{
+		DatasetType:     r.config.DatasetType,
+		ParentDataset:   r.config.ParentDataset,
+		ExtraProperties: []string{sendToProp},
+	})
 	if err != nil {
 		return fmt.Errorf("error finding snapshottable datasets: %w", err)
 	}
 
-	for dataset := range datasets {
+	for _, dataset := range datasets {
 		if r.ctx.Err() != nil {
 			return nil // context expired, no problem
 		}
 
-		ds, err := zfs.GetDataset(r.ctx, dataset, sendToProp)
+		ds, err := zfs.GetDataset(r.ctx, dataset.Name, sendToProp)
 		if err != nil {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
@@ -72,7 +76,11 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 	sentProp := r.config.Properties.snapshotSentAt()
 	sendToProp := r.config.Properties.snapshotSendTo()
 
-	localSnaps, err := zfs.ListByType(r.ctx, zfs.DatasetSnapshot, ds.Name, createdProp, sentProp)
+	localSnaps, err := zfs.ListDatasets(r.ctx, zfs.ListOptions{
+		DatasetType:     zfs.DatasetSnapshot,
+		ParentDataset:   ds.Name,
+		ExtraProperties: []string{createdProp, sentProp},
+	})
 	if err != nil {
 		return fmt.Errorf("error listing existing snapshots: %w", err)
 	}

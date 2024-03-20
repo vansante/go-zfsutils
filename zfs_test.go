@@ -32,11 +32,16 @@ func TestDatasets(t *testing.T) {
 
 func TestDatasetsWithProps(t *testing.T) {
 	TestZPool(testZPool, func() {
-		ds, err := GetDataset(context.Background(), testZPool, "xattr", "canmount")
+		ds, err := GetDataset(context.Background(), testZPool)
+		require.NoError(t, err)
+
+		require.NoError(t, ds.SetProperty(context.Background(), "nl.test:hello", "world"))
+
+		ds, err = GetDataset(context.Background(), testZPool, "nl.test:hello", "canmount")
 		require.NoError(t, err)
 
 		require.Len(t, ds.ExtraProps, 2, fmt.Sprintf("%#v", ds.ExtraProps))
-		require.Equal(t, "off", ds.ExtraProps["xattr"])
+		require.Equal(t, "world", ds.ExtraProps["nl.test:hello"])
 		require.Equal(t, "off", ds.ExtraProps["canmount"])
 	})
 }
@@ -180,7 +185,7 @@ func TestSnapshot(t *testing.T) {
 	})
 }
 
-func TestListWithProperty(t *testing.T) {
+func TestListingWithProperty(t *testing.T) {
 	TestZPool(testZPool, func() {
 		const prop = "nl.test:bla"
 
@@ -211,6 +216,25 @@ func TestListWithProperty(t *testing.T) {
 
 		require.Equal(t, f2.Name, ds[1].Name)
 		require.Equal(t, "321", ds[1].ExtraProps[prop])
+	})
+}
+
+func TestListWithProperty(t *testing.T) {
+	TestZPool(testZPool, func() {
+		const prop = "nl.test:bla"
+
+		f1, err := CreateFilesystem(context.Background(), testZPool+"/list-test1", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
+		require.NoError(t, err)
+		require.NoError(t, f1.SetProperty(context.Background(), prop, "123"))
+
+		ls, err := ListWithProperty(context.Background(), DatasetFilesystem, testZPool+"/list-test", prop)
+		require.NoError(t, err)
+		require.Len(t, ls, 1)
+		require.Equal(t, map[string]string{
+			f1.Name: "123",
+		}, ls)
 	})
 }
 

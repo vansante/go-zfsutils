@@ -30,6 +30,8 @@ type ListOptions struct {
 	// Recursively display any children of the dataset, limiting the recursion to depth.
 	// A depth of 1 will display only the dataset and its direct children.
 	Depth int
+	// FilterSelf: When true, it will filter out the parent dataset itself from the results
+	FilterSelf bool
 }
 
 // ListDatasets lists the datasets by type and allows you to fetch extra custom fields
@@ -49,8 +51,7 @@ func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	}
 
 	allFields := append(dsPropList, options.ExtraProperties...) // nolint: gocritic
-	dsPropListOptions := strings.Join(allFields, ",")
-	args = append(args, dsPropListOptions)
+	args = append(args, strings.Join(allFields, ","))
 
 	if options.ParentDataset != "" {
 		args = append(args, options.ParentDataset)
@@ -61,7 +62,40 @@ func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 		return nil, err
 	}
 
-	return readDatasets(out, options.ExtraProperties)
+	ds, err := readDatasets(out, options.ExtraProperties)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter out the parent dataset:
+	if options.FilterSelf {
+		ds = slices.DeleteFunc(ds, func(dataset Dataset) bool {
+			return dataset.Name == options.ParentDataset
+		})
+	}
+	return ds, nil
+}
+
+// ListWithProperty returns a map of dataset names mapped to the properties value for datasets which have the given ZFS property.
+func ListWithProperty(ctx context.Context, tp DatasetType, parentDataset, prop string) (map[string]string, error) {
+	c := command{
+		cmd: Binary,
+		ctx: ctx,
+	}
+	lines, err := c.Run("get", "-t", string(tp), "-Hp", "-o", "name,value", "-r", "-s", "local", prop, parentDataset)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]string, len(lines))
+	for _, line := range lines {
+		switch len(line) {
+		case 2:
+			result[line[0]] = line[1]
+		case 1:
+			result[line[0]] = PropertyUnset
+		}
+	}
+	return result, nil
 }
 
 // Volumes returns a slice of ZFS volumes.
@@ -715,15 +749,6 @@ func (d *Dataset) Rollback(ctx context.Context, options RollbackOptions) error {
 func (d *Dataset) Children(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	options.ParentDataset = d.Name
 	options.Recursive = true
-	ds, err := ListDatasets(ctx, options)
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter out the parent dataset.
-	ds = slices.DeleteFunc(ds, func(dataset Dataset) bool {
-		return dataset.Name == d.Name
-	})
-
-	return ds, nil
+	options.FilterSelf = true
+	return ListDatasets(ctx, options)
 }

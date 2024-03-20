@@ -57,7 +57,11 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	}
 
 	createdProp := r.config.Properties.snapshotCreatedAt()
-	snapshots, err := zfs.ListByType(r.ctx, zfs.DatasetSnapshot, ds.Name, createdProp)
+	snapshots, err := zfs.ListDatasets(r.ctx, zfs.ListOptions{
+		DatasetType:     zfs.DatasetSnapshot,
+		ParentDataset:   ds.Name,
+		ExtraProperties: []string{createdProp},
+	})
 	if err != nil {
 		return fmt.Errorf("error listing existing snapshots: %w", err)
 	}

@@ -79,7 +79,11 @@ func zfsExtraProperties(req *http.Request) []string {
 }
 
 func (h *HTTP) handleListFilesystems(w http.ResponseWriter, req *http.Request, _ httprouter.Params, logger *slog.Logger) {
-	list, err := zfs.Filesystems(req.Context(), h.config.ParentDataset, zfsExtraProperties(req)...)
+	list, err := zfs.Filesystems(req.Context(), zfs.ListOptions{
+		ParentDataset:   h.config.ParentDataset,
+		ExtraProperties: zfsExtraProperties(req),
+		Recursive:       true,
+	})
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.Info("zfs.http.handleListFilesystems: Parent dataset not found", "error", err)
@@ -178,7 +182,10 @@ func (h *HTTP) handleListSnapshots(w http.ResponseWriter, req *http.Request, ps 
 		return
 	}
 
-	list, err := zfs.Snapshots(req.Context(), fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem), zfsExtraProperties(req)...)
+	list, err := zfs.Snapshots(req.Context(), zfs.ListOptions{
+		ParentDataset:   fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem),
+		ExtraProperties: zfsExtraProperties(req),
+	})
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		logger.Info("zfs.http.handleListSnapshots: Filesystem not found", "error", err, "filesystem", filesystem)

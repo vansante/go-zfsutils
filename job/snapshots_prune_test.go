@@ -61,7 +61,7 @@ func TestRunner_pruneSnapshots(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 2, events)
 
-		snaps, err := ds.Snapshots(context.Background())
+		snaps, err := ds.Snapshots(context.Background(), zfs.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, snaps, 2)
 		require.Equal(t, snaps[0].Name, fmt.Sprintf("%s@%s", testFilesystem, snap3))

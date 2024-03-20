@@ -52,7 +52,7 @@ func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, events)
 
-		snaps, err := ds.Snapshots(context.Background(), deleteProp)
+		snaps, err := ds.Snapshots(context.Background(), zfs.ListOptions{ExtraProperties: []string{deleteProp}})
 		require.NoError(t, err)
 		require.Len(t, snaps, 3)
 
@@ -113,7 +113,7 @@ func TestRunner_markPrunableSnapshotsByAge(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, events)
 
-		snaps, err := ds.Snapshots(context.Background(), deleteProp)
+		snaps, err := ds.Snapshots(context.Background(), zfs.ListOptions{ExtraProperties: []string{deleteProp}})
 		require.NoError(t, err)
 		require.Len(t, snaps, 4)
 

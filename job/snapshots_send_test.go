@@ -71,7 +71,9 @@ func TestRunner_sendSnapshots(t *testing.T) {
 		require.Equal(t, 5, sendingCount)
 		require.Equal(t, 5, sentCount)
 
-		snaps, err := zfs.Snapshots(context.Background(), testHTTPZPool+"/"+datasetName(testFilesystem, true))
+		snaps, err := zfs.Snapshots(context.Background(), zfs.ListOptions{
+			ParentDataset: testHTTPZPool + "/" + datasetName(testFilesystem, true),
+		})
 		require.NoError(t, err)
 		require.Len(t, snaps, 5)
 
@@ -124,7 +126,9 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 		require.Equal(t, 4, sendingCount)
 		require.Equal(t, 4, sentCount)
 
-		snaps, err := zfs.Snapshots(context.Background(), testHTTPZPool+"/"+datasetName(testFilesystem, true))
+		snaps, err := zfs.Snapshots(context.Background(), zfs.ListOptions{
+			ParentDataset: testHTTPZPool + "/" + datasetName(testFilesystem, true),
+		})
 		require.NoError(t, err)
 		require.Len(t, snaps, 5)
 
@@ -177,7 +181,9 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 		require.Equal(t, 2, sendingCount)
 		require.Equal(t, 2, sentCount)
 
-		snaps, err := zfs.Snapshots(context.Background(), testHTTPZPool+"/"+datasetName(testFilesystem, true))
+		snaps, err := zfs.Snapshots(context.Background(), zfs.ListOptions{
+			ParentDataset: testHTTPZPool + "/" + datasetName(testFilesystem, true),
+		})
 		require.NoError(t, err)
 		require.Len(t, snaps, 3)
 
