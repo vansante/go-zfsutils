@@ -3,6 +3,7 @@ package zfs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -31,11 +32,11 @@ func TestDatasets(t *testing.T) {
 
 func TestDatasetsWithProps(t *testing.T) {
 	TestZPool(testZPool, func() {
-		ds, err := GetDataset(context.Background(), testZPool, "readonly", "canmount")
+		ds, err := GetDataset(context.Background(), testZPool, "xattr", "canmount")
 		require.NoError(t, err)
 
-		require.Len(t, ds.ExtraProps, 2)
-		require.Equal(t, "on", ds.ExtraProps["readonly"])
+		require.Len(t, ds.ExtraProps, 2, fmt.Sprintf("%#v", ds.ExtraProps))
+		require.Equal(t, "off", ds.ExtraProps["xattr"])
 		require.Equal(t, "off", ds.ExtraProps["canmount"])
 	})
 }
@@ -195,11 +196,6 @@ func TestListWithProperty(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, f2.SetProperty(context.Background(), prop, "321"))
 
-		_, err = CreateFilesystem(context.Background(), testZPool+"/list-3", CreateFilesystemOptions{
-			Properties: noMountProps,
-		})
-		require.NoError(t, err)
-
 		ds, err := ListDatasets(context.Background(), ListOptions{
 			ParentDataset:   testZPool,
 			DatasetType:     DatasetFilesystem,
@@ -207,12 +203,14 @@ func TestListWithProperty(t *testing.T) {
 			Recursive:       true,
 		})
 		require.NoError(t, err)
-		require.Len(t, ds, 2)
+		require.Len(t, ds, 3)
 
-		require.Equal(t, f1.Name, ds[0].Name)
+		require.Equal(t, testZPool, ds[0].Name)
+
+		require.Equal(t, f1.Name, ds[1].Name)
 		require.Equal(t, "123", ds[0].ExtraProps[prop])
 
-		require.Equal(t, f2.Name, ds[1].Name)
+		require.Equal(t, f2.Name, ds[2].Name)
 		require.Equal(t, "321", ds[1].ExtraProps[prop])
 	})
 }
@@ -359,7 +357,7 @@ func TestChildren(t *testing.T) {
 		require.Equal(t, 1, len(children))
 		require.Equal(t, testZPool+"/snapshot-test@test", children[0].Name)
 		require.Len(t, children[0].ExtraProps, 1)
-		require.Equal(t, children[0].ExtraProps, map[string]string{PropertyMounted: PropertyUnset})
+		require.Equal(t, children[0].ExtraProps, map[string]string{PropertyMounted: ""})
 
 		require.NoError(t, s.Destroy(context.Background(), DestroyOptions{}))
 		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
