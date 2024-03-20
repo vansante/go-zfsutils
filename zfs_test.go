@@ -31,12 +31,12 @@ func TestDatasets(t *testing.T) {
 
 func TestDatasetsWithProps(t *testing.T) {
 	TestZPool(testZPool, func() {
-		ds, err := GetDataset(context.Background(), testZPool, "name", "refquota")
+		ds, err := GetDataset(context.Background(), testZPool, "readonly", "canmount")
 		require.NoError(t, err)
 
 		require.Len(t, ds.ExtraProps, 2)
-		require.Equal(t, ds.ExtraProps["name"], testZPool)
-		require.Equal(t, ds.ExtraProps["refquota"], "0")
+		require.Equal(t, "on", ds.ExtraProps["readonly"])
+		require.Equal(t, "off", ds.ExtraProps["canmount"])
 	})
 }
 
@@ -200,7 +200,7 @@ func TestListWithProperty(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		ls, err := ListDatasets(context.Background(), ListOptions{
+		ds, err := ListDatasets(context.Background(), ListOptions{
 			ParentDataset:   testZPool,
 			DatasetType:     DatasetFilesystem,
 			ExtraProperties: []string{prop},
@@ -208,13 +208,13 @@ func TestListWithProperty(t *testing.T) {
 			PropertySources: []PropertySource{PropertySourceLocal},
 		})
 		require.NoError(t, err)
-		require.Len(t, ls, 2)
+		require.Len(t, ds, 2)
 
-		require.Equal(t, f1.Name, ls[0].Name)
-		require.Equal(t, "123", ls[0].ExtraProps[prop])
+		require.Equal(t, f1.Name, ds[0].Name)
+		require.Equal(t, "123", ds[0].ExtraProps[prop])
 
-		require.Equal(t, f2.Name, ls[1].Name)
-		require.Equal(t, "321", ls[1].ExtraProps[prop])
+		require.Equal(t, f2.Name, ds[1].Name)
+		require.Equal(t, "321", ds[1].ExtraProps[prop])
 	})
 }
 
@@ -351,7 +351,10 @@ func TestChildren(t *testing.T) {
 		require.Equal(t, DatasetSnapshot, s.Type)
 		require.Equal(t, testZPool+"/snapshot-test@test", s.Name)
 
-		children, err := f.Children(context.Background(), ListOptions{Depth: 0, ExtraProperties: []string{PropertyMounted}})
+		children, err := f.Children(context.Background(), ListOptions{
+			DatasetType:     DatasetSnapshot,
+			ExtraProperties: []string{PropertyMounted},
+		})
 		require.NoError(t, err)
 
 		require.Equal(t, 1, len(children))

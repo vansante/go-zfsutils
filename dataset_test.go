@@ -17,6 +17,7 @@ func Test_readDatasets(t *testing.T) {
 	require.Equal(t, ds[2].Name, "testpool/ds10")
 
 	for i := range ds {
+		require.Equal(t, "", ds[i].Origin)
 		require.NotEmpty(t, ds[i].Name)
 		require.NotEmpty(t, ds[i].Mountpoint)
 		require.NotZero(t, ds[i].Referenced)

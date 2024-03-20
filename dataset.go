@@ -49,7 +49,9 @@ const (
 func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
 	multiple := len(dsPropList) + len(extraProps)
 	if len(output)%multiple != 0 {
-		return nil, fmt.Errorf("output invalid: %d lines where a multiple of %d was expected", len(output), multiple)
+		return nil, fmt.Errorf("output invalid: %d lines where a multiple of %d was expected: %s",
+			len(output), multiple, strings.Join(output[0], " "),
+		)
 	}
 
 	count := len(output) / (len(dsPropList) + len(extraProps))
@@ -68,10 +70,11 @@ func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
 		ds.ExtraProps = make(map[string]string, len(extraProps))
 		ds.Name = fields[nameField]
 
+		prop := fields[propertyField]
 		val := fields[valueField]
 
 		var setError error
-		switch fields[propertyField] {
+		switch prop {
 		case PropertyName:
 			ds.Name = val
 		case PropertyType:
@@ -101,10 +104,14 @@ func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
 		case PropertyReferenced:
 			setError = setUint(&ds.Referenced, val)
 		default:
-			ds.ExtraProps[fields[propertyField]] = val
+			if val == PropertyUnset {
+				ds.ExtraProps[prop] = ""
+				continue
+			}
+			ds.ExtraProps[prop] = val
 		}
 		if setError != nil {
-			return nil, fmt.Errorf("error in dataset %d field %s [%s]: %w", curDataset, fields[propertyField], fields[valueField], setError)
+			return nil, fmt.Errorf("error in dataset %d (%s) field %s [%s]: %w", curDataset, ds.Name, prop, val, setError)
 		}
 	}
 

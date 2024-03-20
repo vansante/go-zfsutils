@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -69,6 +70,9 @@ func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	}
 
 	if len(options.PropertySources) > 0 {
+		if !slices.Contains(options.PropertySources, PropertySourceNone) {
+			options.PropertySources = append(options.PropertySources, PropertySourceNone)
+		}
 		args = append(args, "-s", strings.Join(options.propertySourceStrings(), ","))
 	}
 
@@ -718,5 +722,10 @@ func (d *Dataset) Rollback(ctx context.Context, options RollbackOptions) error {
 func (d *Dataset) Children(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	options.ParentDataset = d.Name
 	options.Recursive = true
-	return ListDatasets(ctx, options)
+	ds, err := ListDatasets(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	// Skip the first parent entry, because we are looking for its children
+	return ds[1:], nil
 }
