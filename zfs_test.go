@@ -205,7 +205,6 @@ func TestListWithProperty(t *testing.T) {
 			DatasetType:     DatasetFilesystem,
 			ExtraProperties: []string{prop},
 			Recursive:       true,
-			PropertySources: []PropertySource{PropertySourceLocal},
 		})
 		require.NoError(t, err)
 		require.Len(t, ds, 2)

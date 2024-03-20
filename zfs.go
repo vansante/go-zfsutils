@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -14,18 +13,6 @@ import (
 
 const (
 	Binary = "zfs"
-)
-
-// PropertySource specifies the source of a property
-type PropertySource string
-
-const (
-	PropertySourceLocal     PropertySource = "local"
-	PropertySourceDefault                  = "default"
-	PropertySourceInherited                = "inherited"
-	PropertySourceTemporary                = "temporary"
-	PropertySourceReceived                 = "received"
-	PropertySourceNone                     = "none"
 )
 
 // ListOptions are options you can specify to customize the list command
@@ -40,17 +27,6 @@ type ListOptions struct {
 	Recursive bool
 	// Depth specifies the depth to go below the parent dataset (or root if no parent)
 	Depth int
-	// PropertySources is a list of sources to display. Those properties coming from a source other than those in this
-	// list are ignored
-	PropertySources []PropertySource
-}
-
-func (lo ListOptions) propertySourceStrings() []string {
-	sl := make([]string, len(lo.PropertySources))
-	for i, ps := range lo.PropertySources {
-		sl[i] = string(ps)
-	}
-	return sl
 }
 
 // ListDatasets lists the datasets by type and allows you to fetch extra custom fields
@@ -67,13 +43,6 @@ func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 
 	if options.Depth > 0 {
 		args = append(args, "-d", strconv.Itoa(options.Depth))
-	}
-
-	if len(options.PropertySources) > 0 {
-		if !slices.Contains(options.PropertySources, PropertySourceNone) {
-			options.PropertySources = append(options.PropertySources, PropertySourceNone)
-		}
-		args = append(args, "-s", strings.Join(options.propertySourceStrings(), ","))
 	}
 
 	allFields := append(dsPropList, options.ExtraProperties...) // nolint: gocritic
@@ -722,10 +691,5 @@ func (d *Dataset) Rollback(ctx context.Context, options RollbackOptions) error {
 func (d *Dataset) Children(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	options.ParentDataset = d.Name
 	options.Recursive = true
-	ds, err := ListDatasets(ctx, options)
-	if err != nil {
-		return nil, err
-	}
-	// Skip the first parent entry, because we are looking for its children
-	return ds[1:], nil
+	return ListDatasets(ctx, options)
 }
