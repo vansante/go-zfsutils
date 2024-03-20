@@ -15,14 +15,68 @@ const (
 	Binary = "zfs"
 )
 
-// ListByType lists the datasets by type and allows you to fetch extra custom fields
-func ListByType(ctx context.Context, t DatasetType, filter string, extraProps ...string) ([]Dataset, error) {
-	allFields := append(dsPropList, extraProps...) // nolint: gocritic
+// PropertySource specifies the source of a property
+type PropertySource string
 
+const (
+	PropertySourceLocal     PropertySource = "local"
+	PropertySourceDefault                  = "default"
+	PropertySourceInherited                = "inherited"
+	PropertySourceTemporary                = "temporary"
+	PropertySourceReceived                 = "received"
+	PropertySourceNone                     = "none"
+)
+
+// ListOptions are options you can specify to customize the list command
+type ListOptions struct {
+	// ParentDataset filters by parent dataset, empty lists all
+	ParentDataset string
+	// DatasetType filters the results by type
+	DatasetType DatasetType
+	// ExtraProperties lists the properties to retrieve besides the ones in the Dataset struct (in the ExtraProps key)
+	ExtraProperties []string
+	// Recursive, if true will list all under the parent dataset
+	Recursive bool
+	// Depth specifies the depth to go below the parent dataset (or root if no parent)
+	Depth int
+	// PropertySources is a list of sources to display. Those properties coming from a source other than those in this
+	// list are ignored
+	PropertySources []PropertySource
+}
+
+func (lo ListOptions) propertySourceStrings() []string {
+	sl := make([]string, len(lo.PropertySources))
+	for i, ps := range lo.PropertySources {
+		sl[i] = string(ps)
+	}
+	return sl
+}
+
+// ListDatasets lists the datasets by type and allows you to fetch extra custom fields
+func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
+	allFields := append(dsPropList, options.ExtraProperties...) // nolint: gocritic
 	dsPropListOptions := strings.Join(allFields, ",")
-	args := []string{"list", "-rHp", "-t", string(t), "-o", dsPropListOptions}
-	if filter != "" {
-		args = append(args, filter)
+
+	args := make([]string, 0, 16)
+	args = append(args, "list", "-Hp", "-o", dsPropListOptions)
+	if options.DatasetType != "" {
+		args = append(args, "-t", string(options.DatasetType))
+	}
+
+	if options.Recursive {
+		args = append(args, "-r")
+	}
+
+	if options.Depth > 0 {
+		args = append(args, "-d", strconv.Itoa(options.Depth))
+	}
+
+	if len(options.PropertySources) > 0 {
+		args = append(args, "-s", strings.Join(options.propertySourceStrings(), ","))
+	}
+
+	if options.ParentDataset != "" {
+		args = append(args, options.ParentDataset)
 	}
 
 	out, err := zfsOutput(ctx, args...)
@@ -36,7 +90,7 @@ func ListByType(ctx context.Context, t DatasetType, filter string, extraProps ..
 	}
 
 	for _, fields := range out {
-		ds, err := datasetFromFields(fields, extraProps)
+		ds, err := datasetFromFields(fields, options.ExtraProperties)
 		if err != nil {
 			return datasets, err
 		}
@@ -44,52 +98,6 @@ func ListByType(ctx context.Context, t DatasetType, filter string, extraProps ..
 	}
 
 	return datasets, nil
-}
-
-// Datasets returns a slice of ZFS datasets, regardless of type.
-// A filter argument may be passed to select a dataset with the matching name, or empty string ("") may be used to select all datasets.
-func Datasets(ctx context.Context, filter string, extraProperties ...string) ([]Dataset, error) {
-	return ListByType(ctx, DatasetAll, filter, extraProperties...)
-}
-
-// Snapshots returns a slice of ZFS snapshots.
-// A filter argument may be passed to select a snapshot with the matching name, or empty string ("") may be used to select all snapshots.
-func Snapshots(ctx context.Context, filter string, extraProperties ...string) ([]Dataset, error) {
-	return ListByType(ctx, DatasetSnapshot, filter, extraProperties...)
-}
-
-// Filesystems returns a slice of ZFS filesystems.
-// A filter argument may be passed to select a filesystem with the matching name, or empty string ("") may be used to select all filesystems.
-func Filesystems(ctx context.Context, filter string, extraProperties ...string) ([]Dataset, error) {
-	return ListByType(ctx, DatasetFilesystem, filter, extraProperties...)
-}
-
-// Volumes returns a slice of ZFS volumes.
-// A filter argument may be passed to select a volume with the matching name, or empty string ("") may be used to select all volumes.
-func Volumes(ctx context.Context, filter string, extraProperties ...string) ([]Dataset, error) {
-	return ListByType(ctx, DatasetVolume, filter, extraProperties...)
-}
-
-// ListWithProperty returns a map of dataset names mapped to the properties value for datasets which have the given ZFS property.
-func ListWithProperty(ctx context.Context, t DatasetType, filter, prop string) (map[string]string, error) {
-	c := command{
-		cmd: Binary,
-		ctx: ctx,
-	}
-	lines, err := c.Run("get", "-t", string(t), "-Hp", "-o", "name,value", "-r", "-s", "local", prop, filter)
-	if err != nil {
-		return nil, err
-	}
-	result := make(map[string]string, len(lines))
-	for _, line := range lines {
-		switch len(line) {
-		case 2:
-			result[line[0]] = line[1]
-		case 1:
-			result[line[0]] = PropertyUnset
-		}
-	}
-	return result, nil
 }
 
 // GetDataset retrieves a single ZFS dataset by name.
@@ -581,8 +589,11 @@ func (d *Dataset) Rename(ctx context.Context, name string, options RenameOptions
 }
 
 // Snapshots returns a slice of all ZFS snapshots of a given dataset.
-func (d *Dataset) Snapshots(ctx context.Context, extraProperties ...string) ([]Dataset, error) {
-	return Snapshots(ctx, d.Name, extraProperties...)
+func (d *Dataset) Snapshots(ctx context.Context, options ListOptions) ([]Dataset, error) {
+	options.ParentDataset = d.Name
+	options.DatasetType = DatasetSnapshot
+	options.Recursive = true
+	return ListDatasets(ctx, options)
 }
 
 // CreateFilesystemOptions are options you can specify to customize the create filesystem command
