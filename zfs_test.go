@@ -86,7 +86,7 @@ func TestDatasetSetInheritProperty(t *testing.T) {
 
 func TestSnapshots(t *testing.T) {
 	TestZPool(testZPool, func() {
-		snapshots, err := ListDatasets(context.Background(), ListOptions{DatasetType: DatasetSnapshot})
+		snapshots, err := Snapshots(context.Background(), ListOptions{})
 		require.NoError(t, err)
 
 		for _, snapshot := range snapshots {
@@ -102,7 +102,7 @@ func TestFilesystems(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		filesystems, err := ListDatasets(context.Background(), ListOptions{DatasetType: DatasetFilesystem})
+		filesystems, err := Filesystems(context.Background(), ListOptions{})
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
@@ -144,7 +144,7 @@ func TestVolumes(t *testing.T) {
 		time.Sleep(time.Second)
 
 		require.Equal(t, DatasetVolume, v.Type)
-		volumes, err := ListDatasets(context.Background(), ListOptions{DatasetType: DatasetVolume})
+		volumes, err := Volumes(context.Background(), ListOptions{})
 		require.NoError(t, err)
 
 		for _, volume := range volumes {
@@ -162,7 +162,7 @@ func TestSnapshot(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		filesystems, err := ListDatasets(context.Background(), ListOptions{DatasetType: DatasetFilesystem})
+		filesystems, err := Filesystems(context.Background(), ListOptions{})
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
@@ -184,33 +184,32 @@ func TestListWithProperty(t *testing.T) {
 	TestZPool(testZPool, func() {
 		const prop = "nl.test:bla"
 
-		f1, err := CreateFilesystem(context.Background(), testZPool+"/list-test", CreateFilesystemOptions{
+		root, err := GetDataset(context.Background(), testZPool)
+		require.NoError(t, err)
+
+		f1, err := CreateFilesystem(context.Background(), testZPool+"/list-test1", CreateFilesystemOptions{
 			Properties: noMountProps,
 		})
 		require.NoError(t, err)
 		require.NoError(t, f1.SetProperty(context.Background(), prop, "123"))
 
-		f2, err := CreateFilesystem(context.Background(), testZPool+"/list-2", CreateFilesystemOptions{
+		f2, err := CreateFilesystem(context.Background(), testZPool+"/list-test2", CreateFilesystemOptions{
 			Properties: noMountProps,
 		})
 		require.NoError(t, err)
 		require.NoError(t, f2.SetProperty(context.Background(), prop, "321"))
 
-		ds, err := ListDatasets(context.Background(), ListOptions{
-			ParentDataset:   testZPool,
+		ds, err := root.Children(context.Background(), ListOptions{
 			DatasetType:     DatasetFilesystem,
 			ExtraProperties: []string{prop},
-			Recursive:       true,
 		})
 		require.NoError(t, err)
-		require.Len(t, ds, 3)
+		require.Len(t, ds, 2)
 
-		require.Equal(t, testZPool, ds[0].Name)
-
-		require.Equal(t, f1.Name, ds[1].Name)
+		require.Equal(t, f1.Name, ds[0].Name)
 		require.Equal(t, "123", ds[0].ExtraProps[prop])
 
-		require.Equal(t, f2.Name, ds[2].Name)
+		require.Equal(t, f2.Name, ds[1].Name)
 		require.Equal(t, "321", ds[1].ExtraProps[prop])
 	})
 }
@@ -222,7 +221,7 @@ func TestClone(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		filesystems, err := ListDatasets(context.Background(), ListOptions{DatasetType: DatasetFilesystem})
+		filesystems, err := Filesystems(context.Background(), ListOptions{})
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
@@ -253,7 +252,7 @@ func TestSendSnapshot(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		filesystems, err := ListDatasets(context.Background(), ListOptions{DatasetType: DatasetFilesystem})
+		filesystems, err := Filesystems(context.Background(), ListOptions{})
 		require.NoError(t, err)
 
 		for _, filesystem := range filesystems {
@@ -296,8 +295,7 @@ func TestSendSnapshotResume(t *testing.T) {
 		require.True(t, errors.As(err, &zfsErr))
 		require.NotEmpty(t, zfsErr.ResumeToken(), zfsErr)
 
-		list, err := ListDatasets(context.Background(), ListOptions{
-			DatasetType:     DatasetFilesystem,
+		list, err := Filesystems(context.Background(), ListOptions{
 			ParentDataset:   testZPool + "/recv-test",
 			ExtraProperties: []string{PropertyReceiveResumeToken},
 		})
@@ -324,8 +322,7 @@ func TestSendSnapshotResume(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		snaps, err := ListDatasets(context.Background(), ListOptions{
-			DatasetType:   DatasetSnapshot,
+		snaps, err := Snapshots(context.Background(), ListOptions{
 			ParentDataset: testZPool + "/recv-test",
 			Recursive:     true,
 		})

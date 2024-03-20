@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -26,6 +27,8 @@ type ListOptions struct {
 	// Recursive, if true will list all under the parent dataset
 	Recursive bool
 	// Depth specifies the depth to go below the parent dataset (or root if no parent)
+	// Recursively display any children of the dataset, limiting the recursion to depth.
+	// A depth of 1 will display only the dataset and its direct children.
 	Depth int
 }
 
@@ -59,6 +62,27 @@ func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	}
 
 	return readDatasets(out, options.ExtraProperties)
+}
+
+// Volumes returns a slice of ZFS volumes.
+// A filter argument may be passed to select a volume with the matching name, or empty string ("") may be used to select all volumes.
+func Volumes(ctx context.Context, options ListOptions) ([]Dataset, error) {
+	options.DatasetType = DatasetVolume
+	return ListDatasets(ctx, options)
+}
+
+// Filesystems returns a slice of ZFS filesystems.
+// A filter argument may be passed to select a filesystem with the matching name, or empty string ("") may be used to select all filesystems.
+func Filesystems(ctx context.Context, options ListOptions) ([]Dataset, error) {
+	options.DatasetType = DatasetFilesystem
+	return ListDatasets(ctx, options)
+}
+
+// Snapshots returns a slice of ZFS snapshots.
+// A filter argument may be passed to select a snapshot with the matching name, or empty string ("") may be used to select all snapshots.
+func Snapshots(ctx context.Context, options ListOptions) ([]Dataset, error) {
+	options.DatasetType = DatasetSnapshot
+	return ListDatasets(ctx, options)
 }
 
 // GetDataset retrieves a single ZFS dataset by name.
@@ -691,5 +715,15 @@ func (d *Dataset) Rollback(ctx context.Context, options RollbackOptions) error {
 func (d *Dataset) Children(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	options.ParentDataset = d.Name
 	options.Recursive = true
-	return ListDatasets(ctx, options)
+	ds, err := ListDatasets(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter out the parent dataset.
+	ds = slices.DeleteFunc(ds, func(dataset Dataset) bool {
+		return dataset.Name == d.Name
+	})
+
+	return ds, nil
 }
