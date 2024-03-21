@@ -84,11 +84,15 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 		}
 		snap := &snaps[i]
 
-		if snap.ExtraProps[createdProp] == zfs.PropertyUnset || snap.ExtraProps[deleteProp] != zfs.PropertyUnset {
+		if !PropertyIsSet(snap.ExtraProps[createdProp]) {
 			continue // Ignore
 		}
-
 		currentFound++
+
+		if PropertyIsSet(snap.ExtraProps[deleteProp]) {
+			continue // Already being deleted
+		}
+
 		if currentFound <= maxCount {
 			continue // Not at the max yet
 		}
@@ -157,7 +161,7 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 		}
 		snap := &snaps[i]
 
-		if snap.ExtraProps[createdProp] == zfs.PropertyUnset || snap.ExtraProps[deleteProp] != zfs.PropertyUnset {
+		if !PropertyIsSet(snap.ExtraProps[createdProp]) || PropertyIsSet(snap.ExtraProps[deleteProp]) {
 			continue // Ignore
 		}
 

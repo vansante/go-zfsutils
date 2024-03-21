@@ -62,9 +62,9 @@ func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
 		require.WithinDuration(t, now, tm, time.Second)
 
 		require.Equal(t, snap2, snapshotName(snaps[1].Name))
-		require.Equal(t, zfs.PropertyUnset, snaps[1].ExtraProps[deleteProp])
+		require.Equal(t, "", snaps[1].ExtraProps[deleteProp])
 		require.Equal(t, snap3, snapshotName(snaps[2].Name))
-		require.Equal(t, zfs.PropertyUnset, snaps[2].ExtraProps[deleteProp])
+		require.Equal(t, "", snaps[2].ExtraProps[deleteProp])
 	})
 }
 
@@ -123,10 +123,10 @@ func TestRunner_markPrunableSnapshotsByAge(t *testing.T) {
 		require.WithinDuration(t, now, tm, time.Second)
 
 		require.Equal(t, snap2, snapshotName(snaps[1].Name))
-		require.Equal(t, zfs.PropertyUnset, snaps[1].ExtraProps[deleteProp])
+		require.Equal(t, "", snaps[1].ExtraProps[deleteProp])
 		require.Equal(t, snap3, snapshotName(snaps[2].Name))
-		require.Equal(t, zfs.PropertyUnset, snaps[2].ExtraProps[deleteProp])
+		require.Equal(t, "", snaps[2].ExtraProps[deleteProp])
 		require.Equal(t, snap4, snapshotName(snaps[3].Name))
-		require.Equal(t, zfs.PropertyUnset, snaps[3].ExtraProps[deleteProp])
+		require.Equal(t, "", snaps[3].ExtraProps[deleteProp])
 	})
 }

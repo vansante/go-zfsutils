@@ -116,7 +116,7 @@ func ListWithProperty(ctx context.Context, tp DatasetType, parentDataset, prop s
 		case 2:
 			result[line[0]] = line[1]
 		case 1:
-			result[line[0]] = PropertyUnset
+			result[line[0]] = ""
 		}
 	}
 	return result, nil
@@ -613,7 +613,7 @@ func (d *Dataset) Rename(ctx context.Context, name string, options RenameOptions
 	return GetDataset(ctx, name)
 }
 
-// ListSnapshots returns a slice of all ZFS snapshots of a given dataset.
+// Snapshots returns a slice of all ZFS snapshots of a given dataset.
 func (d *Dataset) Snapshots(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	options.ParentDataset = d.Name
 	options.DatasetType = DatasetSnapshot

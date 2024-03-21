@@ -13,6 +13,11 @@ import (
 	zfs "github.com/vansante/go-zfsutils"
 )
 
+// PropertyIsSet returns whether a property is set
+func PropertyIsSet(val string) bool {
+	return val != "" && val != zfs.PropertyUnset
+}
+
 func isContextError(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
 }
@@ -53,7 +58,7 @@ func snapshotName(name string) string {
 func filterSnapshotsWithProp(list []zfs.Dataset, prop string) []zfs.Dataset {
 	nwList := make([]zfs.Dataset, 0, len(list))
 	for _, snap := range list {
-		if snap.ExtraProps[prop] == zfs.PropertyUnset {
+		if !PropertyIsSet(snap.ExtraProps[prop]) {
 			continue
 		}
 		nwList = append(nwList, snap)
