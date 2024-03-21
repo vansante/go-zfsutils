@@ -80,6 +80,7 @@ func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 // A filter argument may be passed to select a volume with the matching name, or empty string ("") may be used to select all volumes.
 func ListVolumes(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	options.DatasetType = DatasetVolume
+	options.Recursive = true
 	return ListDatasets(ctx, options)
 }
 
@@ -87,6 +88,7 @@ func ListVolumes(ctx context.Context, options ListOptions) ([]Dataset, error) {
 // A filter argument may be passed to select a filesystem with the matching name, or empty string ("") may be used to select all filesystems.
 func ListFilesystems(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	options.DatasetType = DatasetFilesystem
+	options.Recursive = true
 	return ListDatasets(ctx, options)
 }
 
@@ -94,6 +96,7 @@ func ListFilesystems(ctx context.Context, options ListOptions) ([]Dataset, error
 // A filter argument may be passed to select a snapshot with the matching name, or empty string ("") may be used to select all snapshots.
 func ListSnapshots(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	options.DatasetType = DatasetSnapshot
+	options.Recursive = true
 	return ListDatasets(ctx, options)
 }
 
