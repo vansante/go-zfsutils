@@ -57,6 +57,7 @@ func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 		args = append(args, options.ParentDataset)
 	}
 
+	fmt.Println(strings.Join(args, " "))
 	out, err := zfsOutput(ctx, args...)
 	if err != nil {
 		return nil, err
@@ -74,6 +75,27 @@ func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 		})
 	}
 	return ds, nil
+}
+
+// ListVolumes returns a slice of ZFS volumes.
+// A filter argument may be passed to select a volume with the matching name, or empty string ("") may be used to select all volumes.
+func ListVolumes(ctx context.Context, options ListOptions) ([]Dataset, error) {
+	options.DatasetType = DatasetVolume
+	return ListDatasets(ctx, options)
+}
+
+// ListFilesystems returns a slice of ZFS filesystems.
+// A filter argument may be passed to select a filesystem with the matching name, or empty string ("") may be used to select all filesystems.
+func ListFilesystems(ctx context.Context, options ListOptions) ([]Dataset, error) {
+	options.DatasetType = DatasetFilesystem
+	return ListDatasets(ctx, options)
+}
+
+// ListSnapshots returns a slice of ZFS snapshots.
+// A filter argument may be passed to select a snapshot with the matching name, or empty string ("") may be used to select all snapshots.
+func ListSnapshots(ctx context.Context, options ListOptions) ([]Dataset, error) {
+	options.DatasetType = DatasetSnapshot
+	return ListDatasets(ctx, options)
 }
 
 // ListWithProperty returns a map of dataset names mapped to the properties value for datasets which have the given ZFS property.
@@ -98,33 +120,13 @@ func ListWithProperty(ctx context.Context, tp DatasetType, parentDataset, prop s
 	return result, nil
 }
 
-// Volumes returns a slice of ZFS volumes.
-// A filter argument may be passed to select a volume with the matching name, or empty string ("") may be used to select all volumes.
-func Volumes(ctx context.Context, options ListOptions) ([]Dataset, error) {
-	options.DatasetType = DatasetVolume
-	return ListDatasets(ctx, options)
-}
-
-// Filesystems returns a slice of ZFS filesystems.
-// A filter argument may be passed to select a filesystem with the matching name, or empty string ("") may be used to select all filesystems.
-func Filesystems(ctx context.Context, options ListOptions) ([]Dataset, error) {
-	options.DatasetType = DatasetFilesystem
-	return ListDatasets(ctx, options)
-}
-
-// Snapshots returns a slice of ZFS snapshots.
-// A filter argument may be passed to select a snapshot with the matching name, or empty string ("") may be used to select all snapshots.
-func Snapshots(ctx context.Context, options ListOptions) ([]Dataset, error) {
-	options.DatasetType = DatasetSnapshot
-	return ListDatasets(ctx, options)
-}
-
 // GetDataset retrieves a single ZFS dataset by name.
 // This dataset could be any valid ZFS dataset type, such as a clone, filesystem, snapshot, or volume.
 func GetDataset(ctx context.Context, name string, extraProperties ...string) (*Dataset, error) {
 	ds, err := ListDatasets(ctx, ListOptions{
 		ParentDataset:   name,
 		Recursive:       false,
+		FilterSelf:      false,
 		ExtraProperties: extraProperties,
 	})
 	if err != nil {
@@ -568,7 +570,7 @@ type RenameOptions struct {
 	// according to the mountpoint property inherited from their parent.
 	CreateParent bool
 
-	// Recursively rename the snapshots of all descendent datasets. Snapshots are the only dataset that can
+	// Recursively rename the snapshots of all descendent datasets. ListSnapshots are the only dataset that can
 	// be renamed recursively.
 	Recursive bool
 
@@ -609,7 +611,7 @@ func (d *Dataset) Rename(ctx context.Context, name string, options RenameOptions
 	return GetDataset(ctx, name)
 }
 
-// Snapshots returns a slice of all ZFS snapshots of a given dataset.
+// ListSnapshots returns a slice of all ZFS snapshots of a given dataset.
 func (d *Dataset) Snapshots(ctx context.Context, options ListOptions) ([]Dataset, error) {
 	options.ParentDataset = d.Name
 	options.DatasetType = DatasetSnapshot

@@ -45,6 +45,7 @@ func (r *Runner) createSnapshots() error {
 func (r *Runner) snapshotName(tm time.Time) string {
 	name := r.config.SnapshotNameTemplate
 	name = strings.ReplaceAll(name, "%UNIXTIME%", strconv.FormatInt(tm.Unix(), 10))
+	name = strings.ReplaceAll(name, "%RFC3339%", tm.Format(time.RFC3339))
 	// TODO: FIXME: Some other constant replacement could be added here?
 	return name
 }
@@ -57,8 +58,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	}
 
 	createdProp := r.config.Properties.snapshotCreatedAt()
-	snapshots, err := zfs.ListDatasets(r.ctx, zfs.ListOptions{
-		DatasetType:     zfs.DatasetSnapshot,
+	snapshots, err := zfs.ListSnapshots(r.ctx, zfs.ListOptions{
 		ParentDataset:   ds.Name,
 		ExtraProperties: []string{createdProp},
 	})

@@ -79,7 +79,7 @@ func zfsExtraProperties(req *http.Request) []string {
 }
 
 func (h *HTTP) handleListFilesystems(w http.ResponseWriter, req *http.Request, _ httprouter.Params, logger *slog.Logger) {
-	list, err := zfs.Filesystems(req.Context(), zfs.ListOptions{
+	list, err := zfs.ListFilesystems(req.Context(), zfs.ListOptions{
 		ParentDataset:   h.config.ParentDataset,
 		ExtraProperties: zfsExtraProperties(req),
 		Recursive:       true,
@@ -182,7 +182,7 @@ func (h *HTTP) handleListSnapshots(w http.ResponseWriter, req *http.Request, ps 
 		return
 	}
 
-	list, err := zfs.Snapshots(req.Context(), zfs.ListOptions{
+	list, err := zfs.ListSnapshots(req.Context(), zfs.ListOptions{
 		ParentDataset:   fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem),
 		ExtraProperties: zfsExtraProperties(req),
 	})

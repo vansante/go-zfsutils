@@ -54,7 +54,7 @@ func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
 		)
 	}
 
-	count := len(output) / (len(dsPropList) + len(extraProps))
+	count := len(output) / multiple
 	curDataset := 0
 	datasets := make([]Dataset, count)
 	for i, fields := range output {
@@ -67,8 +67,11 @@ func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
 		}
 
 		ds := &datasets[curDataset]
-		ds.ExtraProps = make(map[string]string, len(extraProps))
 		ds.Name = fields[nameField]
+		// Init extra props if needed
+		if ds.ExtraProps == nil {
+			ds.ExtraProps = make(map[string]string, len(extraProps))
+		}
 
 		prop := fields[propertyField]
 		val := fields[valueField]
@@ -80,29 +83,29 @@ func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
 		case PropertyType:
 			ds.Type = DatasetType(val)
 		case PropertyOrigin:
-			setString(&ds.Origin, val)
+			ds.Origin = setString(val)
 		case PropertyUsed:
-			setError = setUint(&ds.Used, val)
+			ds.Used, setError = setUint(val)
 		case PropertyAvailable:
-			setError = setUint(&ds.Available, val)
+			ds.Available, setError = setUint(val)
 		case PropertyMountPoint:
-			setString(&ds.Mountpoint, val)
+			ds.Mountpoint = setString(val)
 		case PropertyCompression:
-			setString(&ds.Compression, val)
+			ds.Compression = setString(val)
 		case PropertyWritten:
-			setError = setUint(&ds.Written, val)
+			ds.Written, setError = setUint(val)
 		case PropertyVolSize:
-			setError = setUint(&ds.Volsize, val)
+			ds.Volsize, setError = setUint(val)
 		case PropertyLogicalUsed:
-			setError = setUint(&ds.Logicalused, val)
+			ds.Logicalused, setError = setUint(val)
 		case PropertyUsedByDataset:
-			setError = setUint(&ds.Usedbydataset, val)
+			ds.Usedbydataset, setError = setUint(val)
 		case PropertyQuota:
-			setError = setUint(&ds.Quota, val)
+			ds.Quota, setError = setUint(val)
 		case PropertyRefQuota:
-			setError = setUint(&ds.Refquota, val)
+			ds.Refquota, setError = setUint(val)
 		case PropertyReferenced:
-			setError = setUint(&ds.Referenced, val)
+			ds.Referenced, setError = setUint(val)
 		default:
 			if val == PropertyUnset {
 				ds.ExtraProps[prop] = ""
@@ -118,22 +121,21 @@ func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
 	return datasets, nil
 }
 
-func setString(field *string, val string) {
+func setString(val string) string {
 	if val == PropertyUnset {
-		return
+		return ""
 	}
-	*field = val
+	return val
 }
 
-func setUint(field *uint64, val string) error {
+func setUint(val string) (uint64, error) {
 	if val == PropertyUnset {
-		return nil
+		return 0, nil
 	}
 
 	v, err := strconv.ParseUint(val, 10, 64)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	*field = v
-	return nil
+	return v, nil
 }

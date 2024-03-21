@@ -8,8 +8,10 @@ import (
 func Test_readDatasets(t *testing.T) {
 	in := splitOutput(testInput)
 
-	const prop = "nl.test:hiephoi"
-	ds, err := readDatasets(in, []string{prop})
+	const prop1 = "nl.test:hiephoi"
+	const prop2 = "nl.test:eigenschap"
+
+	ds, err := readDatasets(in, []string{prop1, prop2})
 	require.NoError(t, err)
 	require.Len(t, ds, 3)
 	require.Equal(t, ds[0].Name, "testpool/ds0")
@@ -23,7 +25,8 @@ func Test_readDatasets(t *testing.T) {
 		require.NotZero(t, ds[i].Referenced)
 		require.NotZero(t, ds[i].Used)
 		require.NotZero(t, ds[i].Available)
-		require.Equal(t, "42", ds[i].ExtraProps[prop])
+		require.Equal(t, "42", ds[i].ExtraProps[prop1])
+		require.Equal(t, "ja", ds[i].ExtraProps[prop2])
 	}
 }
 
@@ -42,6 +45,7 @@ testpool/ds0	written	196416
 testpool/ds0	logicalused	43520
 testpool/ds0	usedbydataset	196416
 testpool/ds0	nl.test:hiephoi	42
+testpool/ds0	nl.test:eigenschap	ja
 testpool/ds1	name	testpool/ds1
 testpool/ds1	type	filesystem
 testpool/ds1	origin	-
@@ -57,6 +61,7 @@ testpool/ds1	written	196416
 testpool/ds1	logicalused	43520
 testpool/ds1	usedbydataset	196416
 testpool/ds1	nl.test:hiephoi	42
+testpool/ds1	nl.test:eigenschap	ja
 testpool/ds10	name	testpool/ds10
 testpool/ds10	type	filesystem
 testpool/ds10	origin	-
@@ -72,4 +77,5 @@ testpool/ds10	written	196416
 testpool/ds10	logicalused	43520
 testpool/ds10	usedbydataset	196416
 testpool/ds10	nl.test:hiephoi	42
+testpool/ds10	nl.test:eigenschap	ja
 `

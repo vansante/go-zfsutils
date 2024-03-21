@@ -106,7 +106,7 @@ func TestHTTP_handleMakeSnapshot(t *testing.T) {
 		name := fmt.Sprintf("%s/%s@%s", testZPool, testFilesystemName, snapName)
 		require.Equal(t, name, ds.Name)
 
-		snaps, err := zfs.Snapshots(context.Background(), zfs.ListOptions{
+		snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{
 			ParentDataset: fmt.Sprintf("%s/%s", testZPool, testFilesystemName),
 		})
 		require.NoError(t, err)
@@ -144,7 +144,7 @@ func TestHTTP_handleGetSnapshot(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, testName, ds.Name)
 
-		snaps, err := zfs.Snapshots(context.Background(), zfs.ListOptions{ParentDataset: testName})
+		snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{ParentDataset: testName})
 		require.NoError(t, err)
 		require.Len(t, snaps, 1)
 		require.Equal(t, fmt.Sprintf("%s/%s@%s", testZPool, "receive", snapName), snaps[0].Name)
@@ -201,7 +201,7 @@ func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, newFilesys, ds.Name)
 
-		snaps, err := zfs.Snapshots(context.Background(), zfs.ListOptions{ParentDataset: newFilesys})
+		snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{ParentDataset: newFilesys})
 		require.NoError(t, err)
 		require.Len(t, snaps, 2)
 		require.Equal(t, fmt.Sprintf("%s@%s", newFilesys, snapName1), snaps[0].Name)
@@ -239,7 +239,7 @@ func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
 		var recvErr *zfs.ResumableStreamError
 		require.True(t, errors.As(err, &recvErr))
 
-		fs, err := zfs.Filesystems(context.Background(), zfs.ListOptions{
+		fs, err := zfs.ListFilesystems(context.Background(), zfs.ListOptions{
 			ParentDataset:   testName,
 			ExtraProperties: []string{zfs.PropertyReceiveResumeToken},
 		})
@@ -267,7 +267,7 @@ func TestHTTP_handleResumeGetSnapshot(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		snaps, err := zfs.Snapshots(context.Background(), zfs.ListOptions{ParentDataset: testName})
+		snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{ParentDataset: testName})
 		require.NoError(t, err)
 		require.Len(t, snaps, 1)
 		require.Equal(t, fmt.Sprintf("%s/%s@%s", testZPool, "receive", snapName), snaps[0].Name)
@@ -361,7 +361,7 @@ func TestHTTP_handleReceiveSnapshotNoExplicitName(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, fmt.Sprintf("%s/%s", testZPool, newFilesystem), ds.Name)
 
-			snaps, err := zfs.Snapshots(context.Background(), zfs.ListOptions{
+			snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{
 				ParentDataset: fmt.Sprintf("%s/%s", testZPool, newFilesystem),
 			})
 			require.NoError(t, err)
@@ -471,7 +471,7 @@ func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
 			name := fmt.Sprintf("%s/%s@%s", testZPool, newFilesystem, newSnap)
 			require.Equal(t, name, ds.Name)
 
-			snaps, err := zfs.Snapshots(context.Background(), zfs.ListOptions{
+			snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{
 				ParentDataset: fmt.Sprintf("%s/%s", testZPool, newFilesystem),
 			})
 			require.NoError(t, err)

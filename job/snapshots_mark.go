@@ -66,7 +66,7 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
 	}
 
-	// Snapshots are always retrieved with the newest last, so reverse the list:
+	// ListSnapshots are always retrieved with the newest last, so reverse the list:
 	reverseDatasets(snaps)
 	currentFound := int64(0)
 	now := time.Now()
