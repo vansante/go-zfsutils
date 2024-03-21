@@ -34,6 +34,10 @@ func (r *Runner) sendSnapshots(routineID int) error {
 
 		server := ds.ExtraProps[sendToProp]
 		if !propertyIsSet(server) {
+			r.logger.Debug("zfs.job.Runner.sendSnapshots: No server specified",
+				"routineID", routineID,
+				"dataset", dataset,
+			)
 			continue // Dont know where to send this one ¯\_(ツ)_/¯
 		}
 
