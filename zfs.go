@@ -395,19 +395,18 @@ type SendOptions struct {
 }
 
 func streamWriter(writer io.Writer, bytesPerSecond int64, compression bool) (io.Writer, error) {
-	output := writer
 	if bytesPerSecond > 0 {
-		output = ratelimit.Writer(writer, ratelimit.NewBucket(time.Second, bytesPerSecond))
+		writer = ratelimit.Writer(writer, ratelimit.NewBucket(time.Second, bytesPerSecond))
 	}
 
 	if compression {
 		var err error
-		output, err = zstd.NewWriter(output, zstd.WithEncoderLevel(zstd.SpeedDefault))
+		writer, err = zstd.NewWriter(writer, zstd.WithEncoderLevel(zstd.SpeedDefault))
 		if err != nil {
 			return nil, fmt.Errorf("error creating zstd writer: %w", err)
 		}
 	}
-	return output, nil
+	return writer, nil
 }
 
 // SendSnapshot sends a ZFS stream of a snapshot to the input io.Writer.
