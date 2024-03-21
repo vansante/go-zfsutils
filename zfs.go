@@ -392,8 +392,8 @@ type SendOptions struct {
 	//           If the destination is a clone, the source may be the origin snapshot, which must be
 	//           fully specified (for example, pool/fs@origin, not just @origin).
 	IncrementalBase *Dataset
-	// EnableCompression enables zstd compression
-	EnableCompression bool
+	// CompressionLevel is the level of zstd compression, 0 for off
+	CompressionLevel zstd.EncoderLevel
 }
 
 func rateLimitWriter(writer io.Writer, bytesPerSecond int64) io.Writer {
@@ -403,12 +403,12 @@ func rateLimitWriter(writer io.Writer, bytesPerSecond int64) io.Writer {
 	return ratelimit.Writer(writer, ratelimit.NewBucket(time.Second, bytesPerSecond))
 }
 
-func zstdWriter(writer io.Writer, enableCompression bool) (io.Writer, func(), error) {
-	if !enableCompression {
+func zstdWriter(writer io.Writer, level zstd.EncoderLevel) (io.Writer, func(), error) {
+	if level == 0 {
 		return writer, func() {}, nil
 	}
 
-	encoder, err := zstd.NewWriter(writer, zstd.WithEncoderLevel(zstd.SpeedDefault))
+	encoder, err := zstd.NewWriter(writer, zstd.WithEncoderLevel(level))
 	if err != nil {
 		return writer, func() {}, fmt.Errorf("error creating zstd encoder: %w", err)
 	}
@@ -444,7 +444,7 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, options Se
 	}
 
 	output = rateLimitWriter(output, options.BytesPerSecond)
-	output, closer, err := zstdWriter(output, options.EnableCompression)
+	output, closer, err := zstdWriter(output, options.CompressionLevel)
 	if err != nil {
 		return err
 	}
@@ -464,15 +464,15 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, options Se
 type ResumeSendOptions struct {
 	// When set, uses a rate-limiter to limit the flow to this amount of bytes per second
 	BytesPerSecond int64
-	// EnableCompression enables zstd compression
-	EnableCompression bool
+	// CompressionLevel is the level of zstd compression, zero for off
+	CompressionLevel zstd.EncoderLevel
 }
 
 // ResumeSend resumes an interrupted ZFS stream of a snapshot to the input io.Writer using the receive_resume_token.
 // An error will be returned if the input dataset is not of snapshot type.
 func ResumeSend(ctx context.Context, output io.Writer, resumeToken string, options ResumeSendOptions) error {
 	output = rateLimitWriter(output, options.BytesPerSecond)
-	output, closer, err := zstdWriter(output, options.EnableCompression)
+	output, closer, err := zstdWriter(output, options.CompressionLevel)
 	if err != nil {
 		return err
 	}

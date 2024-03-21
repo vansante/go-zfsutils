@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/klauspost/compress/zstd"
 	"io"
 	"testing"
 	"time"
@@ -396,7 +397,7 @@ func TestSendSnapshotCompressed(t *testing.T) {
 
 		pipeRdr, pipeWrtr := io.Pipe()
 		go func() {
-			err := s.SendSnapshot(context.Background(), pipeWrtr, SendOptions{EnableCompression: true})
+			err := s.SendSnapshot(context.Background(), pipeWrtr, SendOptions{CompressionLevel: zstd.SpeedDefault})
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()
