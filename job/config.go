@@ -15,10 +15,10 @@ const (
 
 // Config configures the runner
 type Config struct {
-	ParentDataset        string          `json:"ParentDataset" yaml:"ParentDataset"`
-	DatasetType          zfs.DatasetType `json:"DatasetTypes" yaml:"DatasetTypes"`
-	AuthorisationToken   string          `json:"AuthorisationToken" yaml:"AuthorisationToken"`
-	SnapshotNameTemplate string          `json:"SnapshotNameTemplate" yaml:"SnapshotNameTemplate"`
+	ParentDataset        string            `json:"ParentDataset" yaml:"ParentDataset"`
+	DatasetType          zfs.DatasetType   `json:"DatasetTypes" yaml:"DatasetTypes"`
+	HTTPHeaders          map[string]string `json:"HTTPHeaders" yaml:"HTTPHeaders"`
+	SnapshotNameTemplate string            `json:"SnapshotNameTemplate" yaml:"SnapshotNameTemplate"`
 
 	EnableSnapshotCreate  bool `json:"EnableSnapshotCreate" yaml:"EnableSnapshotCreate"`
 	EnableSnapshotSend    bool `json:"EnableSnapshotSend" yaml:"EnableSnapshotSend"`

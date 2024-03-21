@@ -3,7 +3,6 @@ package job
 import (
 	"context"
 	"fmt"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 )
 
 func TestRunner_pruneSnapshots(t *testing.T) {
-	runnerTest(t, func(server *httptest.Server, runner *Runner) {
+	runnerTest(t, func(url string, runner *Runner) {
 		createdProp := runner.config.Properties.snapshotCreatedAt()
 		deleteProp := runner.config.Properties.deleteAt()
 

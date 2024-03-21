@@ -6,31 +6,22 @@ import (
 	"net/http/httptest"
 
 	zfs "github.com/vansante/go-zfsutils"
-
-	"github.com/julienschmidt/httprouter"
 )
 
-func TestHTTPZPool(testZPool, testAuthToken, testFs string, fn func(server *httptest.Server)) {
+func TestHTTPZPool(testZPool, prefix, testFs string, fn func(server *httptest.Server)) {
 	zfs.TestZPool(testZPool, func() {
-		rtr := httprouter.New()
-		h := HTTP{
-			router: rtr,
-			config: Config{
-				ParentDataset:        testZPool,
-				AuthenticationTokens: []string{testAuthToken},
+		h := NewHTTP(context.Background(), Config{
+			ParentDataset: testZPool,
 
-				Permissions: Permissions{
-					AllowSpeedOverride:      true,
-					AllowNonRaw:             true,
-					AllowIncludeProperties:  true,
-					AllowDestroyFilesystems: true,
-					AllowDestroySnapshots:   true,
-				},
+			Permissions: Permissions{
+				AllowSpeedOverride:      true,
+				AllowNonRaw:             true,
+				AllowIncludeProperties:  true,
+				AllowDestroyFilesystems: true,
+				AllowDestroySnapshots:   true,
 			},
-			logger: slog.Default(),
-			ctx:    context.Background(),
-		}
-		h.registerRoutes()
+		}, slog.Default())
+		h.registerRoutes(prefix)
 
 		if testFs != "" {
 			_, err := zfs.CreateFilesystem(context.Background(), testFs, zfs.CreateFilesystemOptions{
@@ -41,7 +32,7 @@ func TestHTTPZPool(testZPool, testAuthToken, testFs string, fn func(server *http
 			}
 		}
 
-		server := httptest.NewServer(rtr)
+		server := httptest.NewServer(h.HTTPHandler())
 		fn(server)
 	})
 }

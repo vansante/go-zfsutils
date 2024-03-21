@@ -2,7 +2,6 @@ package job
 
 import (
 	"context"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 )
 
 func TestRunner_createSnapshots(t *testing.T) {
-	runnerTest(t, func(server *httptest.Server, runner *Runner) {
+	runnerTest(t, func(url string, runner *Runner) {
 		const fsName = "test"
 		intervalProp := runner.config.Properties.snapshotIntervalMinutes()
 		createProp := runner.config.Properties.snapshotCreatedAt()

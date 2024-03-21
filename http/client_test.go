@@ -14,9 +14,8 @@ import (
 
 func clientTest(t *testing.T, fn func(client *Client)) {
 	t.Helper()
-	TestHTTPZPool(testZPool, testAuthToken, testFilesystem, func(server *httptest.Server) {
-		c := NewClient(server.URL, testAuthToken, slog.Default())
-
+	TestHTTPZPool(testZPool, testPrefix, testFilesystem, func(server *httptest.Server) {
+		c := NewClient(server.URL+testPrefix, slog.Default())
 		fn(c)
 	})
 }

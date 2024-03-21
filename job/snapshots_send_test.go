@@ -3,7 +3,6 @@ package job
 import (
 	"context"
 	"io"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -20,15 +19,15 @@ var sendSnaps = []string{
 	"snap5",
 }
 
-func sendTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) {
-	runnerTest(t, func(server *httptest.Server, runner *Runner) {
+func sendTest(t *testing.T, fn func(url string, runner *Runner)) {
+	runnerTest(t, func(url string, runner *Runner) {
 		createdProp := runner.config.Properties.snapshotCreatedAt()
 		sendToProp := runner.config.Properties.snapshotSendTo()
 
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
 		require.NoError(t, err)
 
-		err = ds.SetProperty(context.Background(), sendToProp, server.URL)
+		err = ds.SetProperty(context.Background(), sendToProp, url)
 		require.NoError(t, err)
 
 		snapshotTm := time.Now().Add(-time.Minute)
@@ -39,16 +38,16 @@ func sendTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) {
 			require.NoError(t, err)
 		}
 
-		fn(server, runner)
+		fn(url, runner)
 	})
 }
 
 func TestRunner_sendSnapshots(t *testing.T) {
-	sendTest(t, func(server *httptest.Server, runner *Runner) {
+	sendTest(t, func(url string, runner *Runner) {
 		verifyArgs := func(i int, args []interface{}) {
 			require.Len(t, args, 4)
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i], args[0])
-			require.Equal(t, server.URL, args[1])
+			require.Equal(t, url, args[1])
 			require.Equal(t, datasetName(testFilesystem, true), args[2])
 			require.Equal(t, sendSnaps[i], args[3])
 		}
@@ -84,7 +83,7 @@ func TestRunner_sendSnapshots(t *testing.T) {
 }
 
 func TestRunner_sendPartialSnapshots(t *testing.T) {
-	sendTest(t, func(server *httptest.Server, runner *Runner) {
+	sendTest(t, func(url string, runner *Runner) {
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem+"@"+sendSnaps[0])
 		require.NoError(t, err)
 
@@ -103,7 +102,7 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 		verifyArgs := func(i int, args []interface{}) {
 			require.Len(t, args, 4)
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i+1], args[0])
-			require.Equal(t, server.URL, args[1])
+			require.Equal(t, url, args[1])
 			require.Equal(t, datasetName(testFilesystem, true), args[2])
 			require.Equal(t, sendSnaps[i+1], args[3])
 		}
@@ -139,7 +138,7 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 }
 
 func TestRunner_sendWithMissingSnapshots(t *testing.T) {
-	sendTest(t, func(server *httptest.Server, runner *Runner) {
+	sendTest(t, func(url string, runner *Runner) {
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem+"@"+sendSnaps[2])
 		require.NoError(t, err)
 
@@ -158,7 +157,7 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 		verifyArgs := func(i int, args []interface{}) {
 			require.Len(t, args, 4)
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i+3], args[0])
-			require.Equal(t, server.URL, args[1])
+			require.Equal(t, url, args[1])
 			require.Equal(t, datasetName(testFilesystem, true), args[2])
 			require.Equal(t, sendSnaps[i+3], args[3])
 		}
@@ -194,7 +193,7 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 }
 
 func TestRunner_sendNoCommonSnapshots(t *testing.T) {
-	sendTest(t, func(server *httptest.Server, runner *Runner) {
+	sendTest(t, func(url string, runner *Runner) {
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem+"@"+sendSnaps[2])
 		require.NoError(t, err)
 
