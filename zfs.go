@@ -57,7 +57,6 @@ func ListDatasets(ctx context.Context, options ListOptions) ([]Dataset, error) {
 		args = append(args, options.ParentDataset)
 	}
 
-	fmt.Println(strings.Join(args, " "))
 	out, err := zfsOutput(ctx, args...)
 	if err != nil {
 		return nil, err

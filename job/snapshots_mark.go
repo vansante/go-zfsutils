@@ -2,6 +2,7 @@ package job
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	zfs "github.com/vansante/go-zfsutils"
@@ -66,8 +67,15 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
 	}
 
-	// ListSnapshots are always retrieved with the newest last, so reverse the list:
-	reverseDatasets(snaps)
+	// Sort the list by created, newest first:
+	snaps, err = orderSnapshotsByCreated(snaps, createdProp)
+	if err != nil {
+		return fmt.Errorf("error sorting snapshots for %s: %w", ds.Name, err)
+	}
+
+	// Snapshots are always retrieved with the newest last, so reverse the list:
+	slices.Reverse(snaps)
+
 	currentFound := int64(0)
 	now := time.Now()
 	for i := range snaps {

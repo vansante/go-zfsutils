@@ -42,7 +42,7 @@ func TestDatasetsWithProps(t *testing.T) {
 
 		require.Len(t, ds.ExtraProps, 2, fmt.Sprintf("%#v", ds.ExtraProps))
 		require.Equal(t, "world", ds.ExtraProps["nl.test:hello"])
-		require.Equal(t, "off", ds.ExtraProps["canmount"])
+		require.Equal(t, "on", ds.ExtraProps["canmount"])
 	})
 }
 
@@ -226,7 +226,7 @@ func TestListWithProperty(t *testing.T) {
 	TestZPool(testZPool, func() {
 		const prop = "nl.test:bla"
 
-		f1, err := CreateFilesystem(context.Background(), testZPool+"/list-test1", CreateFilesystemOptions{
+		f1, err := CreateFilesystem(context.Background(), testZPool+"/list-test", CreateFilesystemOptions{
 			Properties: noMountProps,
 		})
 		require.NoError(t, err)

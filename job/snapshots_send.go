@@ -22,7 +22,7 @@ func (r *Runner) sendSnapshots(routineID int) error {
 		return fmt.Errorf("error finding snapshottable datasets: %w", err)
 	}
 
-	for _, dataset := range datasets {
+	for dataset := range datasets {
 		if r.ctx.Err() != nil {
 			return nil // context expired, no problem
 		}
