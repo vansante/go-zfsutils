@@ -359,6 +359,31 @@ func TestSendSnapshotResume(t *testing.T) {
 	})
 }
 
+func TestSendSnapshotCompressed(t *testing.T) {
+	TestZPool(testZPool, func() {
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
+		require.NoError(t, err)
+
+		s, err := f.Snapshot(context.Background(), "test", SnapshotOptions{})
+		require.NoError(t, err)
+
+		pipeRdr, pipeWrtr := io.Pipe()
+		go func() {
+			err := s.SendSnapshot(context.Background(), pipeWrtr, SendOptions{EnableCompression: true})
+			require.NoError(t, err)
+			require.NoError(t, pipeWrtr.Close())
+		}()
+
+		_, err = ReceiveSnapshot(context.Background(), pipeRdr, testZPool+"/recv-test", ReceiveOptions{
+			EnableDecompression: true,
+			Properties:          noMountProps,
+		})
+		require.NoError(t, err)
+	})
+}
+
 func TestChildren(t *testing.T) {
 	TestZPool(testZPool, func() {
 		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
