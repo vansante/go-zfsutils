@@ -2,7 +2,6 @@ package job
 
 import (
 	"context"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -12,7 +11,7 @@ import (
 )
 
 func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
-	runnerTest(t, func(server *httptest.Server, runner *Runner) {
+	runnerTest(t, func(url string, runner *Runner) {
 		retCountProp := runner.config.Properties.snapshotRetentionCount()
 		createdProp := runner.config.Properties.snapshotCreatedAt()
 		deleteProp := runner.config.Properties.deleteAt()
@@ -69,7 +68,7 @@ func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
 }
 
 func TestRunner_markPrunableSnapshotsByAge(t *testing.T) {
-	runnerTest(t, func(server *httptest.Server, runner *Runner) {
+	runnerTest(t, func(url string, runner *Runner) {
 		retentionProp := runner.config.Properties.snapshotRetentionMinutes()
 		createdProp := runner.config.Properties.snapshotCreatedAt()
 		deleteProp := runner.config.Properties.deleteAt()

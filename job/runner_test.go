@@ -15,23 +15,22 @@ import (
 const (
 	testZPool      = "go-test-zpool-runner"
 	testHTTPZPool  = "go-test-zpool-runner-http"
-	testToken      = "blaat"
+	testPrefix     = "/test-world"
 	testFilesystem = testZPool + "/testfs1"
 )
 
-func runnerTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) {
+func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 	t.Helper()
 
-	zfshttp.TestHTTPZPool(testHTTPZPool, testToken, "", func(server *httptest.Server) {
+	zfshttp.TestHTTPZPool(testHTTPZPool, testPrefix, "", func(server *httptest.Server) {
 		// Create another zpool as 'source':
 		zfs.TestZPool(testZPool, func() {
 			r := &Runner{
 				Emitter:         *eventemitter.NewEmitter(false),
 				datasetSendLock: make(map[string]struct{}),
 				config: Config{
-					ParentDataset:      testZPool,
-					DatasetType:        zfs.DatasetFilesystem,
-					AuthorisationToken: testToken,
+					ParentDataset: testZPool,
+					DatasetType:   zfs.DatasetFilesystem,
 				},
 				logger: slog.Default(),
 				ctx:    context.Background(),
@@ -57,7 +56,7 @@ func runnerTest(t *testing.T, fn func(server *httptest.Server, runner *Runner)) 
 				t.Logf("EVENT: %s %#v", event, arguments)
 			})
 
-			fn(server, r)
+			fn(server.URL+testPrefix, r)
 		})
 	})
 }

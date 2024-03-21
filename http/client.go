@@ -21,20 +21,30 @@ var (
 
 // Client is the struct used to send requests to a zfs http server
 type Client struct {
-	server    string
-	authToken string
-	logger    *slog.Logger
-	client    *http.Client
+	server  string
+	headers map[string]string
+	logger  *slog.Logger
+	client  *http.Client
 }
 
 // NewClient creates a new client for a zfs http server
-func NewClient(server, authToken string, logger *slog.Logger) *Client {
+func NewClient(server string, logger *slog.Logger) *Client {
 	return &Client{
-		server:    server,
-		authToken: authToken,
-		logger:    logger,
-		client:    http.DefaultClient,
+		server:  server,
+		headers: make(map[string]string, 8),
+		logger:  logger,
+		client:  http.DefaultClient,
 	}
+}
+
+// SetClient configures a custom http client for doing requests
+func (c *Client) SetClient(client *http.Client) {
+	c.client = client
+}
+
+// SetHeader configures a header to be sent with all requests
+func (c *Client) SetHeader(name, value string) {
+	c.headers[name] = value
 }
 
 func (c *Client) request(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {
@@ -42,7 +52,9 @@ func (c *Client) request(ctx context.Context, method, url string, body io.Reader
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set(HeaderAuthenticationToken, c.authToken)
+	for hdr := range c.headers {
+		req.Header.Set(hdr, c.headers[hdr])
+	}
 	return req, nil
 }
 

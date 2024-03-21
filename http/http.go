@@ -2,34 +2,25 @@ package http
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"strconv"
 
 	"github.com/julienschmidt/httprouter"
 )
 
-const (
-	HeaderAuthenticationToken = "X-ZFS-Auth-Token"
-)
-
 // HTTP is the main object for serving the ZFS HTTP server
 type HTTP struct {
-	router     *httprouter.Router
-	config     Config
-	httpSocket net.Listener
-	httpServer *http.Server
-	logger     *slog.Logger
-	ctx        context.Context
+	router *httprouter.Router
+	config Config
+	logger *slog.Logger
+	ctx    context.Context
 }
 
 type handle func(http.ResponseWriter, *http.Request, httprouter.Params, *slog.Logger)
 
 // NewHTTP creates a new HTTP server for ZFS interactions
-func NewHTTP(ctx context.Context, conf Config, logger *slog.Logger) (*HTTP, error) {
+func NewHTTP(ctx context.Context, conf Config, logger *slog.Logger) *HTTP {
 	h := &HTTP{
 		router: httprouter.New(),
 		config: conf,
@@ -37,84 +28,43 @@ func NewHTTP(ctx context.Context, conf Config, logger *slog.Logger) (*HTTP, erro
 		ctx:    ctx,
 	}
 
-	return h, h.init()
+	h.registerRoutes(conf.HTTPPathPrefix)
+	return h
 }
 
-func (h *HTTP) init() error {
-	h.registerRoutes()
-
-	h.logger.Info("zfs.http.init: Opening socket", "port", h.config.Port)
-	var err error
-	h.httpSocket, err = net.Listen("tcp", fmt.Sprintf("%s:%d", h.config.Host, h.config.Port))
-	if err != nil {
-		h.logger.Error("zfs.http.init: Failed to open socket", "port", h.config.Port)
-		return err
-	}
-	h.logger.Info("zfs.http.init: Serving", "host", h.config.Host, "port", h.config.Port)
-	h.httpServer = &http.Server{
-		Handler: h.router,
-		BaseContext: func(_ net.Listener) context.Context {
-			return h.ctx
-		},
-	}
-	return nil
+// HTTPHandler returns the handler to handle ZFS HTTP requests
+func (h *HTTP) HTTPHandler() http.Handler {
+	return h.router
 }
 
-func (h *HTTP) registerRoutes() {
-	h.router.GET("/filesystems", h.authenticated(h.handleListFilesystems))
-	h.router.PATCH("/filesystems/:filesystem", h.authenticated(h.handleSetFilesystemProps))
-	h.router.DELETE("/filesystems/:filesystem", h.authenticated(h.handleDestroyFilesystem))
+// nolint: goconst
+func (h *HTTP) registerRoutes(prefix string) {
+	h.router.GET(prefix+"/filesystems", h.middleware(h.handleListFilesystems))
+	h.router.PATCH(prefix+"/filesystems/:filesystem", h.middleware(h.handleSetFilesystemProps))
+	h.router.DELETE(prefix+"/filesystems/:filesystem", h.middleware(h.handleDestroyFilesystem))
 
-	h.router.GET("/filesystems/:filesystem/snapshots", h.authenticated(h.handleListSnapshots))
-	h.router.GET("/filesystems/:filesystem/resume-token", h.authenticated(h.handleGetResumeToken))
+	h.router.GET(prefix+"/filesystems/:filesystem/snapshots", h.middleware(h.handleListSnapshots))
+	h.router.GET(prefix+"/filesystems/:filesystem/resume-token", h.middleware(h.handleGetResumeToken))
 
-	h.router.GET("/filesystems/:filesystem/snapshots/:snapshot", h.authenticated(h.handleGetSnapshot))
-	h.router.GET("/filesystems/:filesystem/snapshots/:snapshot/incremental/:basesnapshot", h.authenticated(h.handleGetSnapshotIncremental))
-	h.router.GET("/snapshot/resume/:token", h.authenticated(h.handleResumeGetSnapshot))
+	h.router.GET(prefix+"/filesystems/:filesystem/snapshots/:snapshot", h.middleware(h.handleGetSnapshot))
+	h.router.GET(prefix+"/filesystems/:filesystem/snapshots/:snapshot/incremental/:basesnapshot", h.middleware(h.handleGetSnapshotIncremental))
+	h.router.GET(prefix+"/snapshot/resume/:token", h.middleware(h.handleResumeGetSnapshot))
 
-	h.router.POST("/filesystems/:filesystem/snapshots/:snapshot", h.authenticated(h.handleMakeSnapshot))
-	h.router.PUT("/filesystems/:filesystem/snapshots", h.authenticated(h.handleReceiveSnapshot))
-	h.router.PUT("/filesystems/:filesystem/snapshots/:snapshot", h.authenticated(h.handleReceiveSnapshot))
-	h.router.PATCH("/filesystems/:filesystem/snapshots/:snapshot", h.authenticated(h.handleSetSnapshotProps))
-	h.router.DELETE("/filesystems/:filesystem/snapshots/:snapshot", h.authenticated(h.handleDestroySnapshot))
+	h.router.POST(prefix+"/filesystems/:filesystem/snapshots/:snapshot", h.middleware(h.handleMakeSnapshot))
+	h.router.PUT(prefix+"/filesystems/:filesystem/snapshots", h.middleware(h.handleReceiveSnapshot))
+	h.router.PUT(prefix+"/filesystems/:filesystem/snapshots/:snapshot", h.middleware(h.handleReceiveSnapshot))
+	h.router.PATCH(prefix+"/filesystems/:filesystem/snapshots/:snapshot", h.middleware(h.handleSetSnapshotProps))
+	h.router.DELETE(prefix+"/filesystems/:filesystem/snapshots/:snapshot", h.middleware(h.handleDestroySnapshot))
 }
 
-// Serve starts the main HTTP server
-func (h *HTTP) Serve() {
-	err := h.httpServer.Serve(h.httpSocket)
-	if !errors.Is(err, http.ErrServerClosed) && h.ctx.Err() == nil {
-		h.logger.Error("zfs.http.Serve: HTTP server error", "error", err)
-	} else {
-		h.logger.Info("zfs.http.Serve: HTTP server closed")
-	}
-}
-
-// authenticated is an HTTP handler wrapper that ensures a valid authentication is used for the request
-func (h *HTTP) authenticated(handle handle) httprouter.Handle {
+// middleware is an HTTP handler wrapper that ensures a valid authentication is used for the request
+func (h *HTTP) middleware(handle handle) httprouter.Handle {
 	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
-		authToken := req.Header.Get(HeaderAuthenticationToken)
-
-		found := false
-		for _, tkn := range h.config.AuthenticationTokens {
-			found = tkn == authToken
-			if found {
-				break
-			}
-		}
-		if !found {
-			h.logger.Info("zfs.http.authenticated: Invalid authentication",
-				"URL", req.URL.String(),
-				"method", req.Method,
-			)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
 		logger := h.logger.With(slog.Group("req",
 			"URL", req.URL.String(),
 			"method", req.Method),
 		)
-		logger.Info("zfs.http.authenticated: Handling")
+		logger.Info("zfs.http.middleware: Handling")
 
 		handle(w, req, ps, logger)
 	}

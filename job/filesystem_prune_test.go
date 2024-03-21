@@ -3,7 +3,6 @@ package job
 import (
 	"context"
 	"fmt"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 )
 
 func TestRunner_pruneFilesystems(t *testing.T) {
-	runnerTest(t, func(server *httptest.Server, runner *Runner) {
+	runnerTest(t, func(url string, runner *Runner) {
 		delProp := runner.config.Properties.deleteAt()
 		fs, err := zfs.GetDataset(context.Background(), testFilesystem)
 		require.NoError(t, err)

@@ -98,7 +98,10 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 	}
 
 	server := ds.ExtraProps[sendToProp]
-	client := zfshttp.NewClient(server, r.config.AuthorisationToken, r.logger)
+	client := zfshttp.NewClient(server, r.logger)
+	for hdr := range r.config.HTTPHeaders {
+		client.SetHeader(hdr, r.config.HTTPHeaders[hdr])
+	}
 	remoteDataset := datasetName(ds.Name, true)
 
 	ctx, cancel := context.WithTimeout(r.ctx, requestTimeout)
