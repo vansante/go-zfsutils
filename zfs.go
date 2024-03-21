@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
@@ -335,11 +336,12 @@ func rateLimitReader(reader io.Reader, bytesPerSecond int64) io.Reader {
 func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, options ReceiveOptions) (*Dataset, error) {
 	input = rateLimitReader(input, options.BytesPerSecond)
 	if options.EnableDecompression {
-		var err error
-		input, err = zstd.NewReader(input)
+		decoder, err := zstd.NewReader(input)
 		if err != nil {
 			return nil, fmt.Errorf("error creating zstd reader: %w", err)
 		}
+		defer decoder.Close()
+		input = decoder
 	}
 	c := command{
 		cmd:   Binary,
@@ -394,19 +396,28 @@ type SendOptions struct {
 	EnableCompression bool
 }
 
-func streamWriter(writer io.Writer, bytesPerSecond int64, compression bool) (io.Writer, error) {
-	if bytesPerSecond > 0 {
-		writer = ratelimit.Writer(writer, ratelimit.NewBucket(time.Second, bytesPerSecond))
+func rateLimitWriter(writer io.Writer, bytesPerSecond int64) io.Writer {
+	if bytesPerSecond <= 0 {
+		return writer
+	}
+	return ratelimit.Writer(writer, ratelimit.NewBucket(time.Second, bytesPerSecond))
+}
+
+func zstdWriter(writer io.Writer, enableCompression bool) (io.Writer, func(), error) {
+	if !enableCompression {
+		return writer, func() {}, nil
 	}
 
-	if compression {
-		var err error
-		writer, err = zstd.NewWriter(writer, zstd.WithEncoderLevel(zstd.SpeedDefault))
-		if err != nil {
-			return nil, fmt.Errorf("error creating zstd writer: %w", err)
-		}
+	encoder, err := zstd.NewWriter(writer, zstd.WithEncoderLevel(zstd.SpeedDefault))
+	if err != nil {
+		return writer, func() {}, fmt.Errorf("error creating zstd encoder: %w", err)
 	}
-	return writer, nil
+	return encoder, func() {
+		err := encoder.Close()
+		if err != nil {
+			slog.Error("zstdWriter: Error closing encoder", "error", err)
+		}
+	}, nil
 }
 
 // SendSnapshot sends a ZFS stream of a snapshot to the input io.Writer.
@@ -432,11 +443,12 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, options Se
 		args = append(args, "-i", options.IncrementalBase.Name)
 	}
 
-	var err error
-	output, err = streamWriter(output, options.BytesPerSecond, options.EnableCompression)
+	output = rateLimitWriter(output, options.BytesPerSecond)
+	output, closer, err := zstdWriter(output, options.EnableCompression)
 	if err != nil {
 		return err
 	}
+	defer closer()
 
 	c := command{
 		cmd:    Binary,
@@ -459,11 +471,12 @@ type ResumeSendOptions struct {
 // ResumeSend resumes an interrupted ZFS stream of a snapshot to the input io.Writer using the receive_resume_token.
 // An error will be returned if the input dataset is not of snapshot type.
 func ResumeSend(ctx context.Context, output io.Writer, resumeToken string, options ResumeSendOptions) error {
-	var err error
-	output, err = streamWriter(output, options.BytesPerSecond, options.EnableCompression)
+	output = rateLimitWriter(output, options.BytesPerSecond)
+	output, closer, err := zstdWriter(output, options.EnableCompression)
 	if err != nil {
 		return err
 	}
+	defer closer()
 
 	c := command{
 		cmd:    Binary,
