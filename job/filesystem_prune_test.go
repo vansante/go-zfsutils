@@ -71,7 +71,7 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 		ds, err := zfs.GetDataset(context.Background(), testZPool)
 		require.NoError(t, err)
 
-		datasets, err := ds.Children(context.Background(), 0)
+		datasets, err := ds.Children(context.Background(), zfs.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, datasets, 5)
 		require.Equal(t, fmt.Sprintf("%s/%s", testZPool, fsWithoutDel), datasets[0].Name)

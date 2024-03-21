@@ -33,7 +33,7 @@ func (r *Runner) sendSnapshots(routineID int) error {
 		}
 
 		server := ds.ExtraProps[sendToProp]
-		if server == "" || server == zfs.PropertyUnset {
+		if !PropertyIsSet(server) {
 			continue // Dont know where to send this one ¯\_(ツ)_/¯
 		}
 
@@ -72,17 +72,20 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 	sentProp := r.config.Properties.snapshotSentAt()
 	sendToProp := r.config.Properties.snapshotSendTo()
 
-	localSnaps, err := zfs.ListByType(r.ctx, zfs.DatasetSnapshot, ds.Name, createdProp, sentProp)
+	localSnaps, err := zfs.ListSnapshots(r.ctx, zfs.ListOptions{
+		ParentDataset:   ds.Name,
+		ExtraProperties: []string{createdProp, sentProp},
+	})
 	if err != nil {
 		return fmt.Errorf("error listing existing snapshots: %w", err)
 	}
 
 	snapsUnsent := false
 	for _, snap := range localSnaps {
-		if r.config.IgnoreSnapshotsWithoutCreatedProperty && snap.ExtraProps[createdProp] == zfs.PropertyUnset {
+		if r.config.IgnoreSnapshotsWithoutCreatedProperty && !PropertyIsSet(snap.ExtraProps[createdProp]) {
 			continue
 		}
-		if snap.ExtraProps[sentProp] == zfs.PropertyUnset {
+		if !PropertyIsSet(snap.ExtraProps[sentProp]) {
 			snapsUnsent = true
 		}
 	}
@@ -170,7 +173,7 @@ func (r *Runner) reconcileSnapshots(routineID int, local, remote []zfs.Dataset) 
 	for i := range local {
 		snap := &local[i]
 		remoteExists := snapshotsContain(remote, datasetName(snap.Name, true), snapshotName(snap.Name))
-		localSent := snap.ExtraProps[sentProp] != zfs.PropertyUnset
+		localSent := PropertyIsSet(snap.ExtraProps[sentProp])
 
 		logger := r.logger.With(
 			"routineID", routineID,
@@ -215,7 +218,7 @@ func (r *Runner) reconcileSnapshots(routineID int, local, remote []zfs.Dataset) 
 			if err != nil {
 				return nil, fmt.Errorf("error getting prop %s copy value for %s: %w", prop, snap.Name, err)
 			}
-			if val == zfs.PropertyUnset {
+			if PropertyIsSet(val) {
 				continue
 			}
 			props[prop] = val

@@ -53,7 +53,7 @@ func (h *HTTP) init() error {
 	h.logger.Info("zfs.http.init: Serving", "host", h.config.Host, "port", h.config.Port)
 	h.httpServer = &http.Server{
 		Handler: h.router,
-		BaseContext: func(listener net.Listener) context.Context {
+		BaseContext: func(_ net.Listener) context.Context {
 			return h.ctx
 		},
 	}

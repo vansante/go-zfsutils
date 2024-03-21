@@ -13,6 +13,11 @@ import (
 	zfs "github.com/vansante/go-zfsutils"
 )
 
+// PropertyIsSet returns whether a property is set
+func PropertyIsSet(val string) bool {
+	return val != "" && val != zfs.PropertyUnset
+}
+
 func isContextError(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
 }
@@ -53,7 +58,7 @@ func snapshotName(name string) string {
 func filterSnapshotsWithProp(list []zfs.Dataset, prop string) []zfs.Dataset {
 	nwList := make([]zfs.Dataset, 0, len(list))
 	for _, snap := range list {
-		if snap.ExtraProps[prop] == zfs.PropertyUnset {
+		if !PropertyIsSet(snap.ExtraProps[prop]) {
 			continue
 		}
 		nwList = append(nwList, snap)
@@ -86,12 +91,6 @@ func snapshotsContain(list []zfs.Dataset, dataset, snapshot string) bool {
 		}
 	}
 	return false
-}
-
-func reverseDatasets(s []zfs.Dataset) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
 }
 
 // randomizeDuration adds or removes up to 5% of the duration to randomize background routine wake up times

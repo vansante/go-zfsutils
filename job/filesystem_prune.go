@@ -55,7 +55,7 @@ func (r *Runner) pruneAgedFilesystem(filesystem string) error {
 		return nil // Not due for removal yet
 	}
 
-	children, err := fs.Children(r.ctx, 0)
+	children, err := fs.Children(r.ctx, zfs.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing %s children: %w", filesystem, err)
 	}

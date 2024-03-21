@@ -2,6 +2,7 @@ package job
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	zfs "github.com/vansante/go-zfsutils"
@@ -59,13 +60,22 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	deleteProp := r.config.Properties.deleteAt()
 
-	snaps, err := ds.Snapshots(r.ctx, createdProp, deleteProp)
+	snaps, err := ds.Snapshots(r.ctx, zfs.ListOptions{
+		ExtraProperties: []string{createdProp, deleteProp},
+	})
 	if err != nil {
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
 	}
 
+	// Sort the list by created, newest first:
+	snaps, err = orderSnapshotsByCreated(snaps, createdProp)
+	if err != nil {
+		return fmt.Errorf("error sorting snapshots for %s: %w", ds.Name, err)
+	}
+
 	// Snapshots are always retrieved with the newest last, so reverse the list:
-	reverseDatasets(snaps)
+	slices.Reverse(snaps)
+
 	currentFound := int64(0)
 	now := time.Now()
 	for i := range snaps {
@@ -74,11 +84,15 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 		}
 		snap := &snaps[i]
 
-		if snap.ExtraProps[createdProp] == zfs.PropertyUnset || snap.ExtraProps[deleteProp] != zfs.PropertyUnset {
+		if !PropertyIsSet(snap.ExtraProps[createdProp]) {
 			continue // Ignore
 		}
-
 		currentFound++
+
+		if PropertyIsSet(snap.ExtraProps[deleteProp]) {
+			continue // Already being deleted
+		}
+
 		if currentFound <= maxCount {
 			continue // Not at the max yet
 		}
@@ -133,7 +147,9 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	deleteProp := r.config.Properties.deleteAt()
 
-	snaps, err := ds.Snapshots(r.ctx, createdProp, deleteProp)
+	snaps, err := ds.Snapshots(r.ctx, zfs.ListOptions{
+		ExtraProperties: []string{createdProp, deleteProp},
+	})
 	if err != nil {
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
 	}
@@ -145,7 +161,7 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 		}
 		snap := &snaps[i]
 
-		if snap.ExtraProps[createdProp] == zfs.PropertyUnset || snap.ExtraProps[deleteProp] != zfs.PropertyUnset {
+		if !PropertyIsSet(snap.ExtraProps[createdProp]) || PropertyIsSet(snap.ExtraProps[deleteProp]) {
 			continue // Ignore
 		}
 

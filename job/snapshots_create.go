@@ -45,6 +45,7 @@ func (r *Runner) createSnapshots() error {
 func (r *Runner) snapshotName(tm time.Time) string {
 	name := r.config.SnapshotNameTemplate
 	name = strings.ReplaceAll(name, "%UNIXTIME%", strconv.FormatInt(tm.Unix(), 10))
+	name = strings.ReplaceAll(name, "%RFC3339%", tm.Format(time.RFC3339))
 	// TODO: FIXME: Some other constant replacement could be added here?
 	return name
 }
@@ -57,7 +58,10 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	}
 
 	createdProp := r.config.Properties.snapshotCreatedAt()
-	snapshots, err := zfs.ListByType(r.ctx, zfs.DatasetSnapshot, ds.Name, createdProp)
+	snapshots, err := zfs.ListSnapshots(r.ctx, zfs.ListOptions{
+		ParentDataset:   ds.Name,
+		ExtraProperties: []string{createdProp},
+	})
 	if err != nil {
 		return fmt.Errorf("error listing existing snapshots: %w", err)
 	}
@@ -65,7 +69,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 
 	for i := range snapshots {
 		snap := &snapshots[i]
-		if r.config.IgnoreSnapshotsWithoutCreatedProperty && snap.ExtraProps[createdProp] == zfs.PropertyUnset {
+		if r.config.IgnoreSnapshotsWithoutCreatedProperty && PropertyIsSet(snap.ExtraProps[createdProp]) {
 			continue
 		}
 
