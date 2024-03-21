@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/klauspost/compress/zstd"
+
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -84,6 +86,25 @@ func (h *HTTP) getSpeed(req *http.Request) int64 {
 		return customSpeed
 	}
 	return speed
+}
+
+func (h *HTTP) getEnableDecompression(req *http.Request) bool {
+	enableStr := req.URL.Query().Get(GETParamEnableDecompression)
+	if enableStr == "" {
+		return false
+	}
+	enable, _ := strconv.ParseBool(enableStr)
+	return enable
+}
+
+func (h *HTTP) getCompressionLevel(req *http.Request) zstd.EncoderLevel {
+	level := zstd.EncoderLevel(0)
+	levelStr := req.URL.Query().Get(GETParamCompressionLevel)
+	if levelStr == "" {
+		return level
+	}
+	_, level = zstd.EncoderLevelFromString(levelStr)
+	return level
 }
 
 func (h *HTTP) getRaw(req *http.Request) bool {

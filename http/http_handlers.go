@@ -17,12 +17,14 @@ import (
 )
 
 const (
-	GETParamExtraProperties   = "extraProps"
-	GETParamResumable         = "resumable"
-	GETParamIncludeProperties = "includeProps"
-	GETParamRaw               = "raw"
-	GETParamReceiveProperties = "receiveProps"
-	GETParamBytesPerSecond    = "bytesPerSecond"
+	GETParamExtraProperties     = "extraProps"
+	GETParamResumable           = "resumable"
+	GETParamIncludeProperties   = "includeProps"
+	GETParamRaw                 = "raw"
+	GETParamReceiveProperties   = "receiveProps"
+	GETParamBytesPerSecond      = "bytesPerSecond"
+	GETParamEnableDecompression = "enableDecompression"
+	GETParamCompressionLevel    = "compressionLevel"
 )
 
 const HeaderResumeReceiveToken = "X-Receive-Resume-Token"
@@ -288,9 +290,10 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, p
 	}
 
 	ds, err := zfs.ReceiveSnapshot(req.Context(), req.Body, receiveDataset, zfs.ReceiveOptions{
-		BytesPerSecond: h.getSpeed(req),
-		Resumable:      resumable,
-		Properties:     props,
+		BytesPerSecond:      h.getSpeed(req),
+		EnableDecompression: h.getEnableDecompression(req),
+		Resumable:           resumable,
+		Properties:          props,
 	})
 	if err != nil {
 		logger.Error("zfs.http.handleReceiveSnapshot: Error storing", "error", err)
@@ -373,6 +376,7 @@ func (h *HTTP) handleGetSnapshot(w http.ResponseWriter, req *http.Request, ps ht
 		BytesPerSecond:    h.getSpeed(req),
 		IncludeProperties: h.getIncludeProperties(req),
 		Raw:               h.getRaw(req),
+		CompressionLevel:  h.getCompressionLevel(req),
 	})
 	if err != nil {
 		logger.Error("zfs.http.handleGetSnapshot: Error sending snapshot", "error", err)
@@ -433,6 +437,7 @@ func (h *HTTP) handleGetSnapshotIncremental(w http.ResponseWriter, req *http.Req
 		IncludeProperties: h.getIncludeProperties(req),
 		Raw:               h.getRaw(req),
 		IncrementalBase:   base,
+		CompressionLevel:  h.getCompressionLevel(req),
 	})
 	if err != nil {
 		logger.Error("zfs.http.handleGetSnapshotIncremental: Error sending incremental snapshot", "error", err)
@@ -449,7 +454,8 @@ func (h *HTTP) handleResumeGetSnapshot(w http.ResponseWriter, req *http.Request,
 	}
 
 	err := zfs.ResumeSend(req.Context(), w, token, zfs.ResumeSendOptions{
-		BytesPerSecond: h.getSpeed(req),
+		BytesPerSecond:   h.getSpeed(req),
+		CompressionLevel: h.getCompressionLevel(req),
 	})
 	if err != nil {
 		logger.Error("zfs.http.handleResumeGetSnapshot: Error sending snapshot", "error", err, "token", token)
