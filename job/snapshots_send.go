@@ -118,7 +118,10 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 	}
 	if resumeToken != "" {
 		ctx, cancel := context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
-		err = client.ResumeSend(ctx, datasetName(ds.Name, true), resumeToken)
+		err = client.ResumeSend(ctx, datasetName(ds.Name, true), resumeToken, zfs.ResumeSendOptions{
+			BytesPerSecond:   r.config.SendSpeedBytesPerSecond,
+			CompressionLevel: r.config.SendCompressionLevel,
+		})
 		if err != nil {
 			cancel()
 			return fmt.Errorf("error resuming send: %w", err)
@@ -236,6 +239,7 @@ func (r *Runner) reconcileSnapshots(routineID int, local, remote []zfs.Dataset) 
 			SnapshotName: snapshotName(snap.Name),
 			Snapshot:     snap,
 			SendOptions: zfs.SendOptions{
+				CompressionLevel:  r.config.SendCompressionLevel,
 				BytesPerSecond:    r.config.SendSpeedBytesPerSecond,
 				Raw:               r.config.SendRaw,
 				IncludeProperties: r.config.SendIncludeProperties,

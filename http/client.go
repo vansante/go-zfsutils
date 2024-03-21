@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 
 	zfs "github.com/vansante/go-zfsutils"
@@ -116,12 +117,12 @@ func (c *Client) ResumableSendToken(ctx context.Context, dataset string) (string
 }
 
 // ResumeSend resumes a send for a dataset given the resume token
-func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string) error {
+func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, options zfs.ResumeSendOptions) error {
 	pipeRdr, pipeWrtr := io.Pipe()
 
 	sendCtx, cancelSend := context.WithCancel(ctx)
 	go func() {
-		err := zfs.ResumeSend(sendCtx, pipeWrtr, resumeToken, zfs.ResumeSendOptions{})
+		err := zfs.ResumeSend(sendCtx, pipeWrtr, resumeToken, options)
 		if err != nil {
 			c.logger.Error("zfs.http.Client.ResumeSend: Error sending resume stream",
 				"error", err,
@@ -141,8 +142,10 @@ func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string) er
 		}
 	}()
 
-	req, err := c.request(ctx, http.MethodPut, fmt.Sprintf("filesystems/%s/snapshots?%s=%s",
-		dataset, GETParamResumable, "true",
+	req, err := c.request(ctx, http.MethodPut, fmt.Sprintf("filesystems/%s/snapshots?%s=%s&%s=%s",
+		dataset,
+		GETParamResumable, "true",
+		GETParamEnableDecompression, strconv.FormatBool(options.CompressionLevel > 0),
 	), pipeRdr)
 	if err != nil {
 		cancelSend()
@@ -204,6 +207,7 @@ func (c *Client) Send(ctx context.Context, send SnapshotSend) error {
 	}
 	q := req.URL.Query()
 	q.Set(GETParamResumable, "true")
+	q.Set(GETParamEnableDecompression, strconv.FormatBool(send.CompressionLevel > 0))
 	if send.Properties != nil {
 		q.Set(GETParamReceiveProperties, send.Properties.Encode())
 	}
