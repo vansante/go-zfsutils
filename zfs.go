@@ -572,7 +572,7 @@ type RenameOptions struct {
 	// according to the mountpoint property inherited from their parent.
 	CreateParent bool
 
-	// Recursively rename the snapshots of all descendent datasets. ListSnapshots are the only dataset that can
+	// Recursively rename the snapshots of all descendent datasets. Snapshots are the only dataset that can
 	// be renamed recursively.
 	Recursive bool
 
