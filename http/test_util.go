@@ -21,7 +21,6 @@ func TestHTTPZPool(testZPool, prefix, testFs string, fn func(server *httptest.Se
 				AllowDestroySnapshots:   true,
 			},
 		}, slog.Default())
-		h.registerRoutes(prefix)
 
 		if testFs != "" {
 			_, err := zfs.CreateFilesystem(context.Background(), testFs, zfs.CreateFilesystemOptions{
