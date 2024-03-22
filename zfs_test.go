@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -356,6 +358,56 @@ func TestSendSnapshotResume(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, snaps, 1)
 		require.Equal(t, snaps[0].Name, testZPool+"/recv-test@test")
+	})
+}
+
+func TestSendSnapshotSpeedLimit(t *testing.T) {
+	TestZPool(testZPool, func() {
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
+		require.NoError(t, err)
+
+		s, err := f.Snapshot(context.Background(), "test", SnapshotOptions{})
+		require.NoError(t, err)
+
+		pipeRdr, pipeWrtr := io.Pipe()
+		go func() {
+			err := s.SendSnapshot(context.Background(), pipeWrtr, SendOptions{BytesPerSecond: 10_000_000})
+			require.NoError(t, err)
+			require.NoError(t, pipeWrtr.Close())
+		}()
+
+		_, err = ReceiveSnapshot(context.Background(), pipeRdr, testZPool+"/recv-test", ReceiveOptions{
+			BytesPerSecond: 7_000_000,
+			Properties:     noMountProps,
+		})
+		require.NoError(t, err)
+	})
+}
+
+func TestSendSnapshotCompressed(t *testing.T) {
+	TestZPool(testZPool, func() {
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
+		require.NoError(t, err)
+
+		s, err := f.Snapshot(context.Background(), "test", SnapshotOptions{})
+		require.NoError(t, err)
+
+		pipeRdr, pipeWrtr := io.Pipe()
+		go func() {
+			err := s.SendSnapshot(context.Background(), pipeWrtr, SendOptions{CompressionLevel: zstd.SpeedDefault})
+			require.NoError(t, err)
+			require.NoError(t, pipeWrtr.Close())
+		}()
+
+		_, err = ReceiveSnapshot(context.Background(), pipeRdr, testZPool+"/recv-test", ReceiveOptions{
+			EnableDecompression: true,
+			Properties:          noMountProps,
+		})
+		require.NoError(t, err)
 	})
 }
 

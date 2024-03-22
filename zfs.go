@@ -5,9 +5,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/klauspost/compress/zstd"
 
 	"github.com/juju/ratelimit"
 )
@@ -315,22 +319,34 @@ type ReceiveOptions struct {
 
 	// Properties to be applied to the dataset
 	Properties map[string]string
+
+	// EnableCompression enables zstd decompression
+	EnableDecompression bool
 }
 
-func wrapReader(reader io.Reader, bytesPerSecond int64) io.Reader {
+func rateLimitReader(reader io.Reader, bytesPerSecond int64) io.Reader {
 	if bytesPerSecond <= 0 {
 		return reader
 	}
-	return ratelimit.Reader(reader, ratelimit.NewBucketWithRate(1, bytesPerSecond))
+	return ratelimit.Reader(reader, ratelimit.NewBucket(time.Second, bytesPerSecond))
 }
 
 // ReceiveSnapshot receives a ZFS stream from the input io.Reader.
 // A new snapshot is created with the specified name, and streams the input data into the newly-created snapshot.
 func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, options ReceiveOptions) (*Dataset, error) {
+	input = rateLimitReader(input, options.BytesPerSecond)
+	if options.EnableDecompression {
+		decoder, err := zstd.NewReader(input)
+		if err != nil {
+			return nil, fmt.Errorf("error creating zstd reader: %w", err)
+		}
+		defer decoder.Close()
+		input = decoder
+	}
 	c := command{
 		cmd:   Binary,
 		ctx:   ctx,
-		stdin: wrapReader(input, options.BytesPerSecond),
+		stdin: input,
 	}
 
 	args := make([]string, 1, 3)
@@ -376,13 +392,32 @@ type SendOptions struct {
 	//           If the destination is a clone, the source may be the origin snapshot, which must be
 	//           fully specified (for example, pool/fs@origin, not just @origin).
 	IncrementalBase *Dataset
+	// CompressionLevel is the level of zstd compression, 0 for off
+	CompressionLevel zstd.EncoderLevel
 }
 
-func wrapWriter(writer io.Writer, bytesPerSecond int64) io.Writer {
+func rateLimitWriter(writer io.Writer, bytesPerSecond int64) io.Writer {
 	if bytesPerSecond <= 0 {
 		return writer
 	}
-	return ratelimit.Writer(writer, ratelimit.NewBucketWithRate(1, bytesPerSecond))
+	return ratelimit.Writer(writer, ratelimit.NewBucket(time.Second, bytesPerSecond))
+}
+
+func zstdWriter(writer io.Writer, level zstd.EncoderLevel) (io.Writer, func(), error) {
+	if level == 0 {
+		return writer, func() {}, nil
+	}
+
+	encoder, err := zstd.NewWriter(writer, zstd.WithEncoderLevel(level))
+	if err != nil {
+		return writer, func() {}, fmt.Errorf("error creating zstd encoder: %w", err)
+	}
+	return encoder, func() {
+		err := encoder.Close()
+		if err != nil {
+			slog.Error("zstdWriter: Error closing encoder", "error", err)
+		}
+	}, nil
 }
 
 // SendSnapshot sends a ZFS stream of a snapshot to the input io.Writer.
@@ -408,13 +443,20 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, options Se
 		args = append(args, "-i", options.IncrementalBase.Name)
 	}
 
+	output = rateLimitWriter(output, options.BytesPerSecond)
+	output, closer, err := zstdWriter(output, options.CompressionLevel)
+	if err != nil {
+		return err
+	}
+	defer closer()
+
 	c := command{
 		cmd:    Binary,
 		ctx:    ctx,
-		stdout: wrapWriter(output, options.BytesPerSecond),
+		stdout: output,
 	}
 	args = append(args, d.Name)
-	_, err := c.Run(args...)
+	_, err = c.Run(args...)
 	return err
 }
 
@@ -422,18 +464,27 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, options Se
 type ResumeSendOptions struct {
 	// When set, uses a rate-limiter to limit the flow to this amount of bytes per second
 	BytesPerSecond int64
+	// CompressionLevel is the level of zstd compression, zero for off
+	CompressionLevel zstd.EncoderLevel
 }
 
 // ResumeSend resumes an interrupted ZFS stream of a snapshot to the input io.Writer using the receive_resume_token.
 // An error will be returned if the input dataset is not of snapshot type.
 func ResumeSend(ctx context.Context, output io.Writer, resumeToken string, options ResumeSendOptions) error {
+	output = rateLimitWriter(output, options.BytesPerSecond)
+	output, closer, err := zstdWriter(output, options.CompressionLevel)
+	if err != nil {
+		return err
+	}
+	defer closer()
+
 	c := command{
 		cmd:    Binary,
 		ctx:    ctx,
-		stdout: wrapWriter(output, options.BytesPerSecond),
+		stdout: output,
 	}
 	args := append([]string{"send"}, "-t", resumeToken)
-	_, err := c.Run(args...)
+	_, err = c.Run(args...)
 	return err
 }
 

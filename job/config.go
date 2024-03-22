@@ -3,6 +3,8 @@ package job
 import (
 	"fmt"
 
+	"github.com/klauspost/compress/zstd"
+
 	zfs "github.com/vansante/go-zfsutils"
 )
 
@@ -34,8 +36,9 @@ type Config struct {
 
 	IgnoreSnapshotsWithoutCreatedProperty bool `json:"IgnoreSnapshotsWithoutCreatedProperty" yaml:"IgnoreSnapshotsWithoutCreatedProperty"`
 
-	SendSpeedBytesPerSecond int64 `json:"SendSpeedBytesPerSecond" yaml:"SendSpeedBytesPerSecond"`
-	MaximumSendTimeMinutes  int64 `json:"MaximumSendTimeMinutes" yaml:"MaximumSendTimeMinutes"`
+	SendCompressionLevel    zstd.EncoderLevel `json:"SendCompressionLevel" yaml:"SendCompressionLevel"`
+	SendSpeedBytesPerSecond int64             `json:"SendSpeedBytesPerSecond" yaml:"SendSpeedBytesPerSecond"`
+	MaximumSendTimeMinutes  int64             `json:"MaximumSendTimeMinutes" yaml:"MaximumSendTimeMinutes"`
 
 	Properties Properties `json:"Properties" yaml:"Properties"`
 }
