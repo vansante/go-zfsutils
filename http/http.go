@@ -41,21 +41,21 @@ func (h *HTTP) HTTPHandler() http.Handler {
 // nolint: goconst
 func (h *HTTP) registerRoutes() {
 	h.registerRoute(http.MethodGet, "/filesystems", h.handleListFilesystems)
-	h.registerRoute(http.MethodPatch, "/filesystems/:filesystem", h.handleSetFilesystemProps)
-	h.registerRoute(http.MethodDelete, "/filesystems/:filesystem", h.handleDestroyFilesystem)
+	h.registerRoute(http.MethodPatch, "/filesystems/{filesystem}", h.handleSetFilesystemProps)
+	h.registerRoute(http.MethodDelete, "/filesystems/{filesystem}", h.handleDestroyFilesystem)
 
-	h.registerRoute(http.MethodGet, "/filesystems/:filesystem/snapshots", h.handleListSnapshots)
-	h.registerRoute(http.MethodGet, "/filesystems/:filesystem/resume-token", h.handleGetResumeToken)
+	h.registerRoute(http.MethodGet, "/filesystems/{filesystem}/snapshots", h.handleListSnapshots)
+	h.registerRoute(http.MethodGet, "/filesystems/{filesystem}/resume-token", h.handleGetResumeToken)
 
-	h.registerRoute(http.MethodGet, "/filesystems/:filesystem/snapshots/:snapshot", h.handleGetSnapshot)
-	h.registerRoute(http.MethodGet, "/filesystems/:filesystem/snapshots/:snapshot/incremental/:basesnapshot", h.handleGetSnapshotIncremental)
-	h.registerRoute(http.MethodGet, "/snapshot/resume/:token", h.handleResumeGetSnapshot)
+	h.registerRoute(http.MethodGet, "/filesystems/{filesystem}/snapshots/{snapshot}", h.handleGetSnapshot)
+	h.registerRoute(http.MethodGet, "/filesystems/{filesystem}/snapshots/{snapshot}/incremental/{basesnapshot}", h.handleGetSnapshotIncremental)
+	h.registerRoute(http.MethodGet, "/snapshot/resume/{token}", h.handleResumeGetSnapshot)
 
-	h.registerRoute(http.MethodPost, "/filesystems/:filesystem/snapshots/:snapshot", h.handleMakeSnapshot)
-	h.registerRoute(http.MethodPut, "/filesystems/:filesystem/snapshots", h.handleReceiveSnapshot)
-	h.registerRoute(http.MethodPut, "/filesystems/:filesystem/snapshots/:snapshot", h.handleReceiveSnapshot)
-	h.registerRoute(http.MethodPatch, "/filesystems/:filesystem/snapshots/:snapshot", h.handleSetSnapshotProps)
-	h.registerRoute(http.MethodDelete, "/filesystems/:filesystem/snapshots/:snapshot", h.handleDestroySnapshot)
+	h.registerRoute(http.MethodPost, "/filesystems/{filesystem}/snapshots/{snapshot}", h.handleMakeSnapshot)
+	h.registerRoute(http.MethodPut, "/filesystems/{filesystem}/snapshots", h.handleReceiveSnapshot)
+	h.registerRoute(http.MethodPut, "/filesystems/{filesystem}/snapshots/{snapshot}", h.handleReceiveSnapshot)
+	h.registerRoute(http.MethodPatch, "/filesystems/{filesystem}/snapshots/{snapshot}", h.handleSetSnapshotProps)
+	h.registerRoute(http.MethodDelete, "/filesystems/{filesystem}/snapshots/{snapshot}", h.handleDestroySnapshot)
 }
 
 func (h *HTTP) registerRoute(method, url string, handler handle) {
