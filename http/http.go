@@ -59,7 +59,7 @@ func (h *HTTP) registerRoutes() {
 }
 
 func (h *HTTP) registerRoute(method, url string, handler handle) {
-	h.router.HandleFunc(fmt.Sprintf("%s %s/%s", method, h.config.HTTPPathPrefix, url), h.middleware(handler))
+	h.router.HandleFunc(fmt.Sprintf("%s %s%s", method, h.config.HTTPPathPrefix, url), h.middleware(handler))
 }
 
 // middleware is an HTTP handler wrapper that ensures a valid authentication is used for the request

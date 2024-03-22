@@ -11,7 +11,8 @@ import (
 func TestHTTPZPool(testZPool, prefix, testFs string, fn func(server *httptest.Server)) {
 	zfs.TestZPool(testZPool, func() {
 		h := NewHTTP(context.Background(), Config{
-			ParentDataset: testZPool,
+			ParentDataset:  testZPool,
+			HTTPPathPrefix: prefix,
 
 			Permissions: Permissions{
 				AllowSpeedOverride:      true,
