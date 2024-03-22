@@ -12,8 +12,6 @@ import (
 	"strings"
 
 	zfs "github.com/vansante/go-zfsutils"
-
-	"github.com/julienschmidt/httprouter"
 )
 
 const (
@@ -80,7 +78,7 @@ func zfsExtraProperties(req *http.Request) []string {
 	return filtered
 }
 
-func (h *HTTP) handleListFilesystems(w http.ResponseWriter, req *http.Request, _ httprouter.Params, logger *slog.Logger) {
+func (h *HTTP) handleListFilesystems(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
 	list, err := zfs.ListFilesystems(req.Context(), zfs.ListOptions{
 		ParentDataset:   h.config.ParentDataset,
 		ExtraProperties: zfsExtraProperties(req),
@@ -105,8 +103,8 @@ func (h *HTTP) handleListFilesystems(w http.ResponseWriter, req *http.Request, _
 	}
 }
 
-func (h *HTTP) handleSetFilesystemProps(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *slog.Logger) {
-	filesystem := ps.ByName("filesystem")
+func (h *HTTP) handleSetFilesystemProps(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
+	filesystem := req.PathValue("filesystem")
 	if !validIdentifier(filesystem) {
 		logger.Info("zfs.http.handleSetFilesystemProps: Invalid identifier", "filesystem", filesystem)
 		w.WriteHeader(http.StatusBadRequest)
@@ -176,8 +174,8 @@ func (h *HTTP) setProperties(w http.ResponseWriter, req *http.Request, ds *zfs.D
 	}
 }
 
-func (h *HTTP) handleListSnapshots(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *slog.Logger) {
-	filesystem := ps.ByName("filesystem")
+func (h *HTTP) handleListSnapshots(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
+	filesystem := req.PathValue("filesystem")
 	if !validIdentifier(filesystem) {
 		logger.Info("zfs.http.handleListSnapshots: Invalid identifier", "filesystem", filesystem)
 		w.WriteHeader(http.StatusBadRequest)
@@ -207,8 +205,8 @@ func (h *HTTP) handleListSnapshots(w http.ResponseWriter, req *http.Request, ps 
 	}
 }
 
-func (h *HTTP) handleGetResumeToken(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *slog.Logger) {
-	filesystem := ps.ByName("filesystem")
+func (h *HTTP) handleGetResumeToken(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
+	filesystem := req.PathValue("filesystem")
 	if !validIdentifier(filesystem) {
 		logger.Info("zfs.http.handleGetResumeToken: Invalid identifier")
 		w.WriteHeader(http.StatusBadRequest)
@@ -240,9 +238,9 @@ func (h *HTTP) handleGetResumeToken(w http.ResponseWriter, req *http.Request, ps
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *slog.Logger) {
-	filesystem := ps.ByName("filesystem")
-	snapshot := ps.ByName("snapshot")
+func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
+	filesystem := req.PathValue("filesystem")
+	snapshot := req.PathValue("snapshot")
 	logger = logger.With(
 		"filesystem", filesystem,
 		"snapshot", snapshot,
@@ -309,9 +307,9 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, p
 	}
 }
 
-func (h *HTTP) handleSetSnapshotProps(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *slog.Logger) {
-	filesystem := ps.ByName("filesystem")
-	snapshot := ps.ByName("snapshot")
+func (h *HTTP) handleSetSnapshotProps(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
+	filesystem := req.PathValue("filesystem")
+	snapshot := req.PathValue("snapshot")
 	logger = logger.With(
 		"filesystem", filesystem,
 		"snapshot", snapshot,
@@ -342,9 +340,9 @@ func (h *HTTP) handleSetSnapshotProps(w http.ResponseWriter, req *http.Request, 
 	h.setProperties(w, req, ds, logger)
 }
 
-func (h *HTTP) handleGetSnapshot(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *slog.Logger) {
-	filesystem := ps.ByName("filesystem")
-	snapshot := ps.ByName("snapshot")
+func (h *HTTP) handleGetSnapshot(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
+	filesystem := req.PathValue("filesystem")
+	snapshot := req.PathValue("snapshot")
 	logger = logger.With(
 		"filesystem", filesystem,
 		"snapshot", snapshot,
@@ -384,10 +382,10 @@ func (h *HTTP) handleGetSnapshot(w http.ResponseWriter, req *http.Request, ps ht
 	}
 }
 
-func (h *HTTP) handleGetSnapshotIncremental(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *slog.Logger) {
-	filesystem := ps.ByName("filesystem")
-	snapshot := ps.ByName("snapshot")
-	basesnapshot := ps.ByName("basesnapshot")
+func (h *HTTP) handleGetSnapshotIncremental(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
+	filesystem := req.PathValue("filesystem")
+	snapshot := req.PathValue("snapshot")
+	basesnapshot := req.PathValue("basesnapshot")
 	logger = logger.With(
 		"filesystem", filesystem,
 		"snapshot", snapshot,
@@ -445,8 +443,8 @@ func (h *HTTP) handleGetSnapshotIncremental(w http.ResponseWriter, req *http.Req
 	}
 }
 
-func (h *HTTP) handleResumeGetSnapshot(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *slog.Logger) {
-	token := ps.ByName("token")
+func (h *HTTP) handleResumeGetSnapshot(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
+	token := req.PathValue("token")
 	if !validResumeTokenRegexp.MatchString(token) {
 		logger.Info("zfs.http.handleResumeGetSnapshot: Invalid identifier")
 		w.WriteHeader(http.StatusBadRequest)
@@ -463,9 +461,9 @@ func (h *HTTP) handleResumeGetSnapshot(w http.ResponseWriter, req *http.Request,
 	}
 }
 
-func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *slog.Logger) {
-	filesystem := ps.ByName("filesystem")
-	snapshot := ps.ByName("snapshot")
+func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
+	filesystem := req.PathValue("filesystem")
+	snapshot := req.PathValue("snapshot")
 	logger = logger.With(
 		"filesystem", filesystem,
 		"snapshot", snapshot,
@@ -508,14 +506,14 @@ func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, req *http.Request, ps h
 	}
 }
 
-func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *slog.Logger) {
+func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
 	if !h.config.Permissions.AllowDestroyFilesystems {
 		logger.Info("zfs.http.handleDestroyFilesystem: Destroy forbidden")
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
-	filesystem := ps.ByName("filesystem")
+	filesystem := req.PathValue("filesystem")
 	if !validIdentifier(filesystem) {
 		logger.Info("zfs.http.handleDestroyFilesystem: Invalid identifier", "filesystem", filesystem)
 		w.WriteHeader(http.StatusBadRequest)
@@ -548,15 +546,15 @@ func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, req *http.Request,
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *HTTP) handleDestroySnapshot(w http.ResponseWriter, req *http.Request, ps httprouter.Params, logger *slog.Logger) {
+func (h *HTTP) handleDestroySnapshot(w http.ResponseWriter, req *http.Request, logger *slog.Logger) {
 	if !h.config.Permissions.AllowDestroySnapshots {
 		logger.Info("zfs.http.handleDestroySnapshot: Destroy forbidden")
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
-	filesystem := ps.ByName("filesystem")
-	snapshot := ps.ByName("snapshot")
+	filesystem := req.PathValue("filesystem")
+	snapshot := req.PathValue("snapshot")
 	logger = logger.With(
 		"filesystem", filesystem,
 		"snapshot", snapshot,

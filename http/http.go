@@ -2,35 +2,34 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/klauspost/compress/zstd"
-
-	"github.com/julienschmidt/httprouter"
 )
 
 // HTTP is the main object for serving the ZFS HTTP server
 type HTTP struct {
-	router *httprouter.Router
+	router *http.ServeMux
 	config Config
 	logger *slog.Logger
 	ctx    context.Context
 }
 
-type handle func(http.ResponseWriter, *http.Request, httprouter.Params, *slog.Logger)
+type handle func(http.ResponseWriter, *http.Request, *slog.Logger)
 
 // NewHTTP creates a new HTTP server for ZFS interactions
 func NewHTTP(ctx context.Context, conf Config, logger *slog.Logger) *HTTP {
 	h := &HTTP{
-		router: httprouter.New(),
+		router: http.NewServeMux(),
 		config: conf,
 		logger: logger,
 		ctx:    ctx,
 	}
 
-	h.registerRoutes(conf.HTTPPathPrefix)
+	h.registerRoutes()
 	return h
 }
 
@@ -40,35 +39,39 @@ func (h *HTTP) HTTPHandler() http.Handler {
 }
 
 // nolint: goconst
-func (h *HTTP) registerRoutes(prefix string) {
-	h.router.GET(prefix+"/filesystems", h.middleware(h.handleListFilesystems))
-	h.router.PATCH(prefix+"/filesystems/:filesystem", h.middleware(h.handleSetFilesystemProps))
-	h.router.DELETE(prefix+"/filesystems/:filesystem", h.middleware(h.handleDestroyFilesystem))
+func (h *HTTP) registerRoutes() {
+	h.registerRoute(http.MethodGet, "/filesystems", h.handleListFilesystems)
+	h.registerRoute(http.MethodPatch, "/filesystems/{filesystem}", h.handleSetFilesystemProps)
+	h.registerRoute(http.MethodDelete, "/filesystems/{filesystem}", h.handleDestroyFilesystem)
 
-	h.router.GET(prefix+"/filesystems/:filesystem/snapshots", h.middleware(h.handleListSnapshots))
-	h.router.GET(prefix+"/filesystems/:filesystem/resume-token", h.middleware(h.handleGetResumeToken))
+	h.registerRoute(http.MethodGet, "/filesystems/{filesystem}/snapshots", h.handleListSnapshots)
+	h.registerRoute(http.MethodGet, "/filesystems/{filesystem}/resume-token", h.handleGetResumeToken)
 
-	h.router.GET(prefix+"/filesystems/:filesystem/snapshots/:snapshot", h.middleware(h.handleGetSnapshot))
-	h.router.GET(prefix+"/filesystems/:filesystem/snapshots/:snapshot/incremental/:basesnapshot", h.middleware(h.handleGetSnapshotIncremental))
-	h.router.GET(prefix+"/snapshot/resume/:token", h.middleware(h.handleResumeGetSnapshot))
+	h.registerRoute(http.MethodGet, "/filesystems/{filesystem}/snapshots/{snapshot}", h.handleGetSnapshot)
+	h.registerRoute(http.MethodGet, "/filesystems/{filesystem}/snapshots/{snapshot}/incremental/{basesnapshot}", h.handleGetSnapshotIncremental)
+	h.registerRoute(http.MethodGet, "/snapshot/resume/{token}", h.handleResumeGetSnapshot)
 
-	h.router.POST(prefix+"/filesystems/:filesystem/snapshots/:snapshot", h.middleware(h.handleMakeSnapshot))
-	h.router.PUT(prefix+"/filesystems/:filesystem/snapshots", h.middleware(h.handleReceiveSnapshot))
-	h.router.PUT(prefix+"/filesystems/:filesystem/snapshots/:snapshot", h.middleware(h.handleReceiveSnapshot))
-	h.router.PATCH(prefix+"/filesystems/:filesystem/snapshots/:snapshot", h.middleware(h.handleSetSnapshotProps))
-	h.router.DELETE(prefix+"/filesystems/:filesystem/snapshots/:snapshot", h.middleware(h.handleDestroySnapshot))
+	h.registerRoute(http.MethodPost, "/filesystems/{filesystem}/snapshots/{snapshot}", h.handleMakeSnapshot)
+	h.registerRoute(http.MethodPut, "/filesystems/{filesystem}/snapshots", h.handleReceiveSnapshot)
+	h.registerRoute(http.MethodPut, "/filesystems/{filesystem}/snapshots/{snapshot}", h.handleReceiveSnapshot)
+	h.registerRoute(http.MethodPatch, "/filesystems/{filesystem}/snapshots/{snapshot}", h.handleSetSnapshotProps)
+	h.registerRoute(http.MethodDelete, "/filesystems/{filesystem}/snapshots/{snapshot}", h.handleDestroySnapshot)
+}
+
+func (h *HTTP) registerRoute(method, url string, handler handle) {
+	h.router.HandleFunc(fmt.Sprintf("%s %s%s", method, h.config.HTTPPathPrefix, url), h.middleware(handler))
 }
 
 // middleware is an HTTP handler wrapper that ensures a valid authentication is used for the request
-func (h *HTTP) middleware(handle handle) httprouter.Handle {
-	return func(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func (h *HTTP) middleware(handle handle) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
 		logger := h.logger.With(slog.Group("req",
 			"URL", req.URL.String(),
 			"method", req.Method),
 		)
 		logger.Info("zfs.http.middleware: Handling")
 
-		handle(w, req, ps, logger)
+		handle(w, req, logger)
 	}
 }
 
