@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"github.com/klauspost/compress/zstd"
 	"io"
 	"testing"
 	"time"
@@ -42,43 +43,55 @@ func sendTest(t *testing.T, fn func(url string, runner *Runner)) {
 	})
 }
 
+func testSendSnapshots(t *testing.T, url string, runner *Runner) {
+	verifyArgs := func(i int, args []interface{}) {
+		require.Len(t, args, 4)
+		require.Equal(t, testFilesystem+"@"+sendSnaps[i], args[0])
+		require.Equal(t, url, args[1])
+		require.Equal(t, datasetName(testFilesystem, true), args[2])
+		require.Equal(t, sendSnaps[i], args[3])
+	}
+
+	sendingCount := 0
+	runner.AddListener(SendingSnapshotEvent, func(arguments ...interface{}) {
+		verifyArgs(sendingCount, arguments)
+		sendingCount++
+	})
+
+	sentCount := 0
+	runner.AddListener(SentSnapshotEvent, func(arguments ...interface{}) {
+		verifyArgs(sentCount, arguments)
+		sentCount++
+	})
+
+	err := runner.sendSnapshots(1)
+	require.NoError(t, err)
+
+	require.Equal(t, 5, sendingCount)
+	require.Equal(t, 5, sentCount)
+
+	snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{
+		ParentDataset: testHTTPZPool + "/" + datasetName(testFilesystem, true),
+	})
+	require.NoError(t, err)
+	require.Len(t, snaps, 5)
+
+	for i, snap := range sendSnaps {
+		require.Equal(t, testHTTPZPool+"/"+datasetName(testFilesystem, true)+"@"+snap, snaps[i].Name)
+	}
+}
+
 func TestRunner_sendSnapshots(t *testing.T) {
 	sendTest(t, func(url string, runner *Runner) {
-		verifyArgs := func(i int, args []interface{}) {
-			require.Len(t, args, 4)
-			require.Equal(t, testFilesystem+"@"+sendSnaps[i], args[0])
-			require.Equal(t, url, args[1])
-			require.Equal(t, datasetName(testFilesystem, true), args[2])
-			require.Equal(t, sendSnaps[i], args[3])
-		}
+		testSendSnapshots(t, url, runner)
+	})
+}
 
-		sendingCount := 0
-		runner.AddListener(SendingSnapshotEvent, func(arguments ...interface{}) {
-			verifyArgs(sendingCount, arguments)
-			sendingCount++
-		})
-
-		sentCount := 0
-		runner.AddListener(SentSnapshotEvent, func(arguments ...interface{}) {
-			verifyArgs(sentCount, arguments)
-			sentCount++
-		})
-
-		err := runner.sendSnapshots(1)
-		require.NoError(t, err)
-
-		require.Equal(t, 5, sendingCount)
-		require.Equal(t, 5, sentCount)
-
-		snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{
-			ParentDataset: testHTTPZPool + "/" + datasetName(testFilesystem, true),
-		})
-		require.NoError(t, err)
-		require.Len(t, snaps, 5)
-
-		for i, snap := range sendSnaps {
-			require.Equal(t, testHTTPZPool+"/"+datasetName(testFilesystem, true)+"@"+snap, snaps[i].Name)
-		}
+func TestRunner_sendSnapshotsWithSpeedAndCompression(t *testing.T) {
+	sendTest(t, func(url string, runner *Runner) {
+		runner.config.SendSpeedBytesPerSecond = 100_000
+		runner.config.SendCompressionLevel = zstd.SpeedBetterCompression
+		testSendSnapshots(t, url, runner)
 	})
 }
 
