@@ -71,6 +71,11 @@ func (r *Runner) pruneAgedSnapshot(snapshot string) error {
 		return fmt.Errorf("error destroying %s: %w", snap.Name, err)
 	}
 
+	r.logger.Debug("zfs.job.Runner.pruneAgedSnapshot: Snapshot pruned",
+		"snapshot", snap.Name,
+		"deleteAt", deleteAt.Format(dateTimeFormat),
+	)
+
 	r.EmitEvent(DeletedSnapshotEvent, snap.Name, datasetName(snap.Name, true), snapshotName(snap.Name))
 
 	return nil

@@ -70,6 +70,11 @@ func (r *Runner) pruneAgedFilesystem(filesystem string) error {
 		return fmt.Errorf("error destroying %s: %w", filesystem, err)
 	}
 
+	r.logger.Debug("zfs.job.Runner.pruneAgedFilesystem: Filesystem pruned",
+		"filesystem", fs.Name,
+		"deleteAt", deleteAt.Format(dateTimeFormat),
+	)
+
 	r.EmitEvent(DeletedFilesystemEvent, filesystem, datasetName(filesystem, true))
 
 	return nil

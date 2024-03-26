@@ -108,6 +108,11 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 		return fmt.Errorf("error setting %s on snapshot %s: %w", createdProp, snap.Name, err)
 	}
 
+	r.logger.Debug("zfs.job.Runner.createDatasetSnapshot: Snapshot created",
+		"snapshot", snap.Name,
+		"previousSnapshot", latestSnap,
+		"interval", interval,
+	)
 	r.Emitter.EmitEvent(CreatedSnapshotEvent, ds.Name, name, tm)
 	return nil
 }
