@@ -89,7 +89,7 @@ func TestRunner_sendSnapshots(t *testing.T) {
 
 func TestRunner_sendSnapshotsWithSpeedAndCompression(t *testing.T) {
 	sendTest(t, func(url string, runner *Runner) {
-		runner.config.SendSpeedBytesPerSecond = 100_000
+		runner.config.SendSpeedBytesPerSecond = 10_000
 		runner.config.SendCompressionLevel = zstd.SpeedBetterCompression
 		testSendSnapshots(t, url, runner)
 	})

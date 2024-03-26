@@ -373,7 +373,7 @@ func TestSendSnapshotSpeedLimit(t *testing.T) {
 
 		pipeRdr, pipeWrtr := io.Pipe()
 		go func() {
-			err := s.SendSnapshot(context.Background(), pipeWrtr, SendOptions{BytesPerSecond: 10_000_000})
+			err := s.SendSnapshot(context.Background(), pipeWrtr, SendOptions{BytesPerSecond: 10_000})
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()

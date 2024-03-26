@@ -9,11 +9,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/klauspost/compress/zstd"
 
 	"github.com/juju/ratelimit"
+	"github.com/klauspost/compress/zstd"
 )
 
 const (
@@ -328,7 +326,7 @@ func rateLimitReader(reader io.Reader, bytesPerSecond int64) io.Reader {
 	if bytesPerSecond <= 0 {
 		return reader
 	}
-	return ratelimit.Reader(reader, ratelimit.NewBucket(time.Second, bytesPerSecond))
+	return ratelimit.Reader(reader, ratelimit.NewBucketWithRate(float64(bytesPerSecond), bytesPerSecond))
 }
 
 // ReceiveSnapshot receives a ZFS stream from the input io.Reader.
@@ -400,7 +398,7 @@ func rateLimitWriter(writer io.Writer, bytesPerSecond int64) io.Writer {
 	if bytesPerSecond <= 0 {
 		return writer
 	}
-	return ratelimit.Writer(writer, ratelimit.NewBucket(time.Second, bytesPerSecond))
+	return ratelimit.Writer(writer, ratelimit.NewBucketWithRate(float64(bytesPerSecond), bytesPerSecond))
 }
 
 func zstdWriter(writer io.Writer, level zstd.EncoderLevel) (io.Writer, func(), error) {
