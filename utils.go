@@ -55,6 +55,7 @@ type command struct {
 
 func (c *command) Run(arg ...string) ([][]string, error) {
 	cmd := exec.CommandContext(c.ctx, c.cmd, arg...)
+	cmd.SysProcAttr = procAttributes()
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = c.stdout
