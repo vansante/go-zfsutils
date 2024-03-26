@@ -112,7 +112,7 @@ func (c *Client) ResumableSendToken(ctx context.Context, dataset string) (string
 	case http.StatusPreconditionFailed:
 		return "", nil // Nothing to resume
 	default:
-		return "", fmt.Errorf("unexpected status %d requesting resume token: %w", resp.StatusCode, err)
+		return "", fmt.Errorf("unexpected status %d requesting resume token", resp.StatusCode)
 	}
 }
 
