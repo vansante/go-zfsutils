@@ -46,6 +46,10 @@ func (r *Runner) pruneAgedFilesystem(filesystem string) error {
 		return fmt.Errorf("unexpected dataset type %s for %s: %w", fs.Type, filesystem, err)
 	}
 
+	if !propertyIsSet(fs.ExtraProps[deleteProp]) {
+		return nil
+	}
+
 	deleteAt, err := parseDatasetTimeProperty(fs, deleteProp)
 	if err != nil {
 		return fmt.Errorf("error parsing %s for %s: %w", deleteProp, filesystem, err)

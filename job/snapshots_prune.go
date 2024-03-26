@@ -56,6 +56,10 @@ func (r *Runner) pruneAgedSnapshot(snapshot string) error {
 		return fmt.Errorf("unexpected dataset type %s for %s", snap.Type, snap.Name)
 	}
 
+	if !propertyIsSet(snap.ExtraProps[deleteProp]) {
+		return nil
+	}
+
 	deleteAt, err := parseDatasetTimeProperty(snap, deleteProp)
 	if err != nil {
 		return fmt.Errorf("error parsing %s for %s: %w", deleteProp, snap.Name, err)
