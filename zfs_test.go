@@ -379,8 +379,7 @@ func TestSendSnapshotSpeedLimit(t *testing.T) {
 		}()
 
 		_, err = ReceiveSnapshot(context.Background(), pipeRdr, testZPool+"/recv-test", ReceiveOptions{
-			BytesPerSecond: 7_000_000,
-			Properties:     noMountProps,
+			Properties: noMountProps,
 		})
 		require.NoError(t, err)
 	})

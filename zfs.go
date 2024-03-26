@@ -309,9 +309,6 @@ func (d *Dataset) Mount(ctx context.Context, options MountOptions) (*Dataset, er
 
 // ReceiveOptions are options you can specify to customize the receive command
 type ReceiveOptions struct {
-	// When set, uses a rate-limiter to limit the flow to this amount of bytes per second
-	BytesPerSecond int64
-
 	// Whether the received snapshot should be resumable on interrupions, or be thrown away
 	Resumable bool
 
@@ -322,17 +319,9 @@ type ReceiveOptions struct {
 	EnableDecompression bool
 }
 
-func rateLimitReader(reader io.Reader, bytesPerSecond int64) io.Reader {
-	if bytesPerSecond <= 0 {
-		return reader
-	}
-	return ratelimit.Reader(reader, ratelimit.NewBucketWithRate(float64(bytesPerSecond), bytesPerSecond))
-}
-
 // ReceiveSnapshot receives a ZFS stream from the input io.Reader.
 // A new snapshot is created with the specified name, and streams the input data into the newly-created snapshot.
 func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, options ReceiveOptions) (*Dataset, error) {
-	input = rateLimitReader(input, options.BytesPerSecond)
 	if options.EnableDecompression {
 		decoder, err := zstd.NewReader(input)
 		if err != nil {
