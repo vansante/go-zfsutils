@@ -58,8 +58,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	}
 
 	createdProp := r.config.Properties.snapshotCreatedAt()
-	snapshots, err := zfs.ListSnapshots(r.ctx, zfs.ListOptions{
-		ParentDataset:   ds.Name,
+	snapshots, err := ds.Snapshots(r.ctx, zfs.ListOptions{
 		ExtraProperties: []string{createdProp},
 	})
 	if err != nil {
@@ -69,7 +68,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 
 	for i := range snapshots {
 		snap := &snapshots[i]
-		if r.config.IgnoreSnapshotsWithoutCreatedProperty && propertyIsSet(snap.ExtraProps[createdProp]) {
+		if r.config.IgnoreSnapshotsWithoutCreatedProperty && !propertyIsSet(snap.ExtraProps[createdProp]) {
 			continue
 		}
 
