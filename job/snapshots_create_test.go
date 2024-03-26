@@ -48,5 +48,12 @@ func TestRunner_createSnapshots(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, 1, emitCount)
+
+		// Run again to check we don't make another snapshot
+		err = runner.createSnapshots()
+		require.NoError(t, err)
+
+		// We expect not another snapshot to be made
+		require.Equal(t, 1, emitCount)
 	})
 }

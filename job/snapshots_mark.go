@@ -102,6 +102,13 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 			return fmt.Errorf("error setting %s property for %s: %w", deleteProp, snap.Name, err)
 		}
 
+		r.logger.Debug("zfs.job.Runner.markExcessDatasetSnapshots: Snapshot marked",
+			"snapshot", snap.Name,
+			"snapshotIndex", currentFound,
+			"deleteAt", now.Format(dateTimeFormat),
+			"maxCount", maxCount,
+		)
+
 		r.EmitEvent(MarkSnapshotDeletionEvent, snap.Name, datasetName(snap.Name, true), snapshotName(snap.Name))
 	}
 
@@ -178,6 +185,13 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 		if err != nil {
 			return fmt.Errorf("error setting %s property for %s: %w", deleteProp, snap.Name, err)
 		}
+
+		r.logger.Debug("zfs.job.Runner.markAgingDatasetSnapshots: Snapshot marked",
+			"snapshot", snap.Name,
+			"createdAt", createdAt,
+			"deleteAt", now.Format(dateTimeFormat),
+			"deleteAfter", duration,
+		)
 
 		r.EmitEvent(MarkSnapshotDeletionEvent, snap.Name, datasetName(snap.Name, true), snapshotName(snap.Name))
 	}

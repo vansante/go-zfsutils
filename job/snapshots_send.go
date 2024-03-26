@@ -150,6 +150,13 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 		if r.ctx.Err() != nil {
 			return nil // context expired, no problem
 		}
+
+		r.logger.Debug("zfs.job.Runner.sendDatasetSnapshots: Sending snapshot",
+			"snapshot", send.Snapshot.Name,
+			"server", server,
+			"sendSnapshotName", send.SnapshotName,
+		)
+
 		r.EmitEvent(SendingSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
 
 		ctx, cancel := context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
@@ -159,6 +166,12 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 			return fmt.Errorf("error sending %s/%s: %w", send.DatasetName, send.SnapshotName, err)
 		}
 		cancel()
+
+		r.logger.Debug("zfs.job.Runner.sendDatasetSnapshots: Snapshot sent",
+			"snapshot", send.Snapshot.Name,
+			"server", server,
+			"sendSnapshotName", send.SnapshotName,
+		)
 
 		r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
 	}
