@@ -475,3 +475,15 @@ func TestRollback(t *testing.T) {
 		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
 	})
 }
+
+func TestDataset_Mount(t *testing.T) {
+	TestZPool(testZPool, func() {
+		f, err := CreateFilesystem(context.Background(), testZPool+"/mount-test", CreateFilesystemOptions{
+			CreateParents: false,
+		})
+		require.NoError(t, err)
+
+		_, err = f.Mount(context.Background(), MountOptions{})
+		require.NoError(t, err)
+	})
+}
