@@ -478,7 +478,12 @@ func TestRollback(t *testing.T) {
 
 func TestDataset_Mount(t *testing.T) {
 	TestZPool(testZPool, func() {
+		const mountPoint = "/tmp/mount-test"
 		f, err := CreateFilesystem(context.Background(), testZPool+"/mount-test", CreateFilesystemOptions{
+			Properties: map[string]string{
+				PropertyCanMount:   PropertyOff,
+				PropertyMountPoint: mountPoint,
+			},
 			CreateParents: false,
 		})
 		require.NoError(t, err)
