@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	zfs "github.com/vansante/go-zfsutils"
 )
@@ -46,6 +47,11 @@ func (c *Client) SetClient(client *http.Client) {
 // SetHeader configures a header to be sent with all requests
 func (c *Client) SetHeader(name, value string) {
 	c.headers[name] = value
+}
+
+// Server returns the server
+func (c *Client) Server() string {
+	return c.server
 }
 
 func (c *Client) request(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {
@@ -117,7 +123,7 @@ func (c *Client) ResumableSendToken(ctx context.Context, dataset string) (string
 }
 
 // ResumeSend resumes a send for a dataset given the resume token
-func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, options zfs.ResumeSendOptions) error {
+func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, options zfs.ResumeSendOptions) (SendResult, error) {
 	pipeRdr, pipeWrtr := io.Pipe()
 
 	sendCtx, cancelSend := context.WithCancel(ctx)
@@ -142,17 +148,23 @@ func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, op
 		}
 	}()
 
+	startTime := time.Now()
+	countReader := zfs.NewCountReader(pipeRdr)
 	req, err := c.request(ctx, http.MethodPut, fmt.Sprintf("filesystems/%s/snapshots?%s=%s&%s=%s",
 		dataset,
 		GETParamResumable, "true",
 		GETParamEnableDecompression, strconv.FormatBool(options.CompressionLevel > 0),
-	), pipeRdr)
+	), countReader)
+	result := SendResult{
+		BytesSent: countReader.Count(),
+		TimeTaken: time.Since(startTime),
+	}
 	if err != nil {
 		cancelSend()
-		return fmt.Errorf("error creating resume request: %w", err)
+		return result, fmt.Errorf("error creating resume request: %w", err)
 	}
 
-	return c.doSendStream(req, pipeWrtr, cancelSend)
+	return result, c.doSendStream(req, pipeWrtr, cancelSend)
 }
 
 // SnapshotSend is a struct for a send job to a remote server using a Client
@@ -169,8 +181,14 @@ type SnapshotSend struct {
 	Properties ReceiveProperties
 }
 
+// SendResult contains some statistics from the sending of a snapshot
+type SendResult struct {
+	BytesSent int64
+	TimeTaken time.Duration
+}
+
 // Send sends the snapshot job to the remote server
-func (c *Client) Send(ctx context.Context, send SnapshotSend) error {
+func (c *Client) Send(ctx context.Context, send SnapshotSend) (SendResult, error) {
 	pipeRdr, pipeWrtr := io.Pipe()
 
 	sendCtx, cancelSend := context.WithCancel(ctx)
@@ -200,10 +218,12 @@ func (c *Client) Send(ctx context.Context, send SnapshotSend) error {
 		url = fmt.Sprintf("filesystems/%s/snapshots/%s", send.DatasetName, send.SnapshotName)
 	}
 
-	req, err := c.request(ctx, http.MethodPut, url, pipeRdr)
+	startTime := time.Now()
+	countReader := zfs.NewCountReader(pipeRdr)
+	req, err := c.request(ctx, http.MethodPut, url, countReader)
 	if err != nil {
 		cancelSend()
-		return fmt.Errorf("error creating incremental send request: %w", err)
+		return SendResult{}, fmt.Errorf("error creating incremental send request: %w", err)
 	}
 	q := req.URL.Query()
 	q.Set(GETParamResumable, "true")
@@ -212,7 +232,12 @@ func (c *Client) Send(ctx context.Context, send SnapshotSend) error {
 		q.Set(GETParamReceiveProperties, send.Properties.Encode())
 	}
 	req.URL.RawQuery = q.Encode() // Add new GET params
-	return c.doSendStream(req, pipeWrtr, cancelSend)
+	err = c.doSendStream(req, pipeWrtr, cancelSend)
+	result := SendResult{
+		BytesSent: countReader.Count(),
+		TimeTaken: time.Since(startTime),
+	}
+	return result, err
 }
 
 func (c *Client) doSendStream(req *http.Request, pipeWrtr *io.PipeWriter, cancelSend context.CancelFunc) error {
