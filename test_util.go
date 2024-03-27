@@ -39,9 +39,10 @@ var zfsPermissions = []string{
 
 // TestZPool uses some temp files to create a zpool with the given name to run tests with
 func TestZPool(zpool string, fn func()) {
-	noErr := func(err error, out string) {
+	noErr := func(err error, context, out string) {
 		if err != nil {
-			fmt.Println(out)
+			fmt.Println("context: " + context)
+			fmt.Println("output: " + out)
 			panic(err)
 		}
 	}
@@ -50,11 +51,11 @@ func TestZPool(zpool string, fn func()) {
 	}
 
 	for i := 0; i < 3; i++ {
-		f, err := os.CreateTemp(os.TempDir(), "zfs-zpool-")
-		noErr(err, "")
+		f, err := os.CreateTemp(os.TempDir(), "test-zpool-")
+		noErr(err, fmt.Sprintf("create zpool file %d", i), "")
 		err = f.Truncate(pow2(29))
-		noErr(err, "")
-		noErr(f.Close(), "")
+		noErr(err, fmt.Sprintf("truncate zpool file %d", i), "")
+		noErr(f.Close(), fmt.Sprintf("close zpool file %d", i), "")
 
 		args = append(args, f.Name())
 
@@ -66,7 +67,7 @@ func TestZPool(zpool string, fn func()) {
 
 	cmd := exec.CommandContext(ctx, "sudo", args...)
 	out, err := cmd.CombinedOutput()
-	noErr(err, string(out))
+	noErr(err, "sudo "+strings.Join(args, " "), string(out))
 
 	cmd = exec.CommandContext(ctx, "sudo",
 		"zfs", "allow", "everyone",
@@ -74,7 +75,7 @@ func TestZPool(zpool string, fn func()) {
 		zpool,
 	)
 	out, err = cmd.CombinedOutput()
-	noErr(err, string(out))
+	noErr(err, "sudo zfs allow everyone "+strings.Join(zfsPermissions, ",")+" "+zpool, string(out))
 
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -82,7 +83,7 @@ func TestZPool(zpool string, fn func()) {
 
 		cmd := exec.CommandContext(ctx, "sudo", "zpool", "destroy", zpool)
 		out, err := cmd.CombinedOutput()
-		noErr(err, string(out))
+		noErr(err, "sudo zpool destroy "+zpool, string(out))
 	}()
 
 	fn()
