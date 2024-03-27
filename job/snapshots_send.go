@@ -113,8 +113,8 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 	}
 
 	ctx, cancel := context.WithTimeout(r.ctx, requestTimeout)
-	defer cancel()
 	remoteSnaps, err := client.DatasetSnapshots(ctx, remoteDataset, []string{createdProp})
+	cancel()
 	switch {
 	case errors.Is(err, zfshttp.ErrDatasetNotFound):
 		// Nothing to do.
@@ -144,11 +144,10 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 
 		ctx, cancel := context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
 		err = client.Send(ctx, send)
+		cancel()
 		if err != nil {
-			cancel()
 			return fmt.Errorf("error sending %s/%s: %w", send.DatasetName, send.SnapshotName, err)
 		}
-		cancel()
 
 		r.logger.Debug("zfs.job.Runner.sendDatasetSnapshots: Snapshot sent",
 			"snapshot", send.Snapshot.Name,
@@ -164,21 +163,18 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, remoteDataset string) (bool, error) {
 	ctx, cancel := context.WithTimeout(r.ctx, requestTimeout)
 	resumeToken, err := client.ResumableSendToken(ctx, remoteDataset)
+	cancel()
 	switch {
 	case isContextError(err):
-		cancel()
 		return false, nil // context expired, no problem
 	case errors.Is(err, zfshttp.ErrDatasetNotFound):
 		// Nothing to do.
 	case err != nil:
-		cancel()
 		return false, fmt.Errorf("error checking resumable sends: %w", err)
 	}
 	if resumeToken == "" {
-		cancel()
 		return false, nil
 	}
-	cancel()
 
 	// TODO: FIXME: Arguments should match SendingSnapshotEvent
 	r.EmitEvent(ResumeSendingSnapshotEvent, ds.Name, remoteDataset)
@@ -188,11 +184,10 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		BytesPerSecond:   r.config.SendSpeedBytesPerSecond,
 		CompressionLevel: r.config.SendCompressionLevel,
 	})
+	cancel()
 	if err != nil {
-		cancel()
 		return false, fmt.Errorf("error resuming send: %w", err)
 	}
-	cancel()
 
 	// TODO: FIXME: Should emit a proper SentSnapshotEvent here, but arguments are not available atm
 	//r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
