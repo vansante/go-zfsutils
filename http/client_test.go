@@ -36,14 +36,16 @@ func TestClient_Send(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
 
-		err = client.Send(ctx, SnapshotSend{
+		results, err := client.Send(ctx, SnapshotSend{
 			DatasetName: newFs,
 			Snapshot:    snap1,
 			Properties:  ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff},
 		})
 		require.NoError(t, err)
+		require.NotZero(t, results.BytesSent)
+		require.NotZero(t, results.TimeTaken)
 
-		err = client.Send(ctx, SnapshotSend{
+		results, err = client.Send(ctx, SnapshotSend{
 			DatasetName: newFs,
 			Snapshot:    snap2,
 			Properties:  ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff},
@@ -54,6 +56,8 @@ func TestClient_Send(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
+		require.NotZero(t, results.BytesSent)
+		require.NotZero(t, results.TimeTaken)
 
 		const fullNewFs = testZPool + "/" + newFs
 		ds, err = zfs.GetDataset(context.Background(), fullNewFs)
