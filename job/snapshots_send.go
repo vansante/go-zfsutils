@@ -134,28 +134,10 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 			return nil // context expired, no problem
 		}
 
-		r.logger.Debug("zfs.job.Runner.sendDatasetSnapshots: Sending snapshot",
-			"snapshot", send.Snapshot.Name,
-			"server", server,
-			"sendSnapshotName", send.SnapshotName,
-		)
-
-		r.EmitEvent(SendingSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
-
-		ctx, cancel := context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
-		err = client.Send(ctx, send)
-		cancel()
+		err := r.sendSnapshot(client, send)
 		if err != nil {
-			return fmt.Errorf("error sending %s/%s: %w", send.DatasetName, send.SnapshotName, err)
+			return err
 		}
-
-		r.logger.Debug("zfs.job.Runner.sendDatasetSnapshots: Snapshot sent",
-			"snapshot", send.Snapshot.Name,
-			"server", server,
-			"sendSnapshotName", send.SnapshotName,
-		)
-
-		r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
 	}
 	return nil
 }
@@ -176,23 +158,73 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		return false, nil
 	}
 
+	r.logger.Debug("zfs.job.Runner.resumeSendSnapshot: Resuming sending snapshot",
+		"snapshot", ds.Name,
+		"server", client.Server(),
+		"sendSnapshotName", remoteDataset,
+	)
+
 	// TODO: FIXME: Arguments should match SendingSnapshotEvent
-	r.EmitEvent(ResumeSendingSnapshotEvent, ds.Name, remoteDataset)
+	r.EmitEvent(ResumeSendingSnapshotEvent, ds.Name, client.Server(), remoteDataset)
 
 	ctx, cancel = context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
-	err = client.ResumeSend(ctx, datasetName(ds.Name, true), resumeToken, zfs.ResumeSendOptions{
+	result, err := client.ResumeSend(ctx, datasetName(ds.Name, true), resumeToken, zfs.ResumeSendOptions{
 		BytesPerSecond:   r.config.SendSpeedBytesPerSecond,
 		CompressionLevel: r.config.SendCompressionLevel,
 	})
 	cancel()
 	if err != nil {
-		return false, fmt.Errorf("error resuming send: %w", err)
+		return false, fmt.Errorf("error resuming send of %s (sent %d bytes in %s): %w",
+			ds.Name, result.BytesSent, result.TimeTaken, err,
+		)
 	}
 
+	r.logger.Debug("zfs.job.Runner.resumeSendSnapshot: Sent snapshot",
+		"snapshot", ds.Name,
+		"server", client.Server(),
+		"sendSnapshotName", remoteDataset,
+		"bytesSent", result.BytesSent,
+		"timeTaken", result.TimeTaken.String(),
+	)
+
 	// TODO: FIXME: Should emit a proper SentSnapshotEvent here, but arguments are not available atm
-	// r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
+	// r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, client.Server(), send.DatasetName, send.SnapshotName,
+	// 		result.BytesSent, result.TimeTaken,
+	// )
 
 	return true, nil
+}
+
+func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSend) error {
+	r.logger.Debug("zfs.job.Runner.sendDatasetSnapshots: Sending snapshot",
+		"snapshot", send.Snapshot.Name,
+		"server", client.Server(),
+		"sendSnapshotName", send.SnapshotName,
+	)
+
+	r.EmitEvent(SendingSnapshotEvent, send.Snapshot.Name, client.Server(), send.DatasetName, send.SnapshotName)
+
+	ctx, cancel := context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
+	result, err := client.Send(ctx, send)
+	cancel()
+	if err != nil {
+		return fmt.Errorf("error sending %s@%s (sent %d bytes in %s): %w",
+			send.DatasetName, send.SnapshotName, result.BytesSent, result.TimeTaken, err,
+		)
+	}
+
+	r.logger.Debug("zfs.job.Runner.sendDatasetSnapshots: Snapshot sent",
+		"snapshot", send.Snapshot.Name,
+		"server", client.Server(),
+		"sendSnapshotName", send.SnapshotName,
+		"bytesSent", result.BytesSent,
+		"timeTaken", result.TimeTaken.String(),
+	)
+
+	r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, client.Server(), send.DatasetName, send.SnapshotName,
+		result.BytesSent, result.TimeTaken,
+	)
+	return nil
 }
 
 func (r *Runner) reconcileSnapshots(routineID int, local, remote []zfs.Dataset) ([]zfshttp.SnapshotSend, error) {

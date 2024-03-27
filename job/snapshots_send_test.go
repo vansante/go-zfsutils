@@ -32,10 +32,12 @@ func sendTest(t *testing.T, fn func(url string, runner *Runner)) {
 		require.NoError(t, err)
 
 		snapshotTm := time.Now().Add(-time.Minute)
-		for _, snap := range sendSnaps {
+		for i, snap := range sendSnaps {
 			snapshot, err := ds.Snapshot(context.Background(), snap, zfs.SnapshotOptions{})
 			require.NoError(t, err)
-			err = snapshot.SetProperty(context.Background(), createdProp, snapshotTm.Format(dateTimeFormat))
+
+			createdTm := snapshotTm.Add(time.Second * time.Duration(i))
+			err = snapshot.SetProperty(context.Background(), createdProp, createdTm.Format(dateTimeFormat))
 			require.NoError(t, err)
 		}
 
@@ -44,23 +46,30 @@ func sendTest(t *testing.T, fn func(url string, runner *Runner)) {
 }
 
 func testSendSnapshots(t *testing.T, url string, runner *Runner) {
-	verifyArgs := func(i int, args []interface{}) {
-		require.Len(t, args, 4)
+	verifyArgs := func(sent bool, i int, args []interface{}) {
 		require.Equal(t, testFilesystem+"@"+sendSnaps[i], args[0])
 		require.Equal(t, url, args[1])
 		require.Equal(t, datasetName(testFilesystem, true), args[2])
 		require.Equal(t, sendSnaps[i], args[3])
+		if sent {
+			require.NotZero(t, args[4])
+			require.NotZero(t, args[5])
+			require.Len(t, args, 6)
+			t.Logf("send %d bytes in %s", args[4], args[5].(time.Duration).String())
+		} else {
+			require.Len(t, args, 4)
+		}
 	}
 
 	sendingCount := 0
 	runner.AddListener(SendingSnapshotEvent, func(arguments ...interface{}) {
-		verifyArgs(sendingCount, arguments)
+		verifyArgs(false, sendingCount, arguments)
 		sendingCount++
 	})
 
 	sentCount := 0
 	runner.AddListener(SentSnapshotEvent, func(arguments ...interface{}) {
-		verifyArgs(sentCount, arguments)
+		verifyArgs(true, sentCount, arguments)
 		sentCount++
 	})
 
@@ -112,24 +121,33 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		verifyArgs := func(i int, args []interface{}) {
-			require.Len(t, args, 4)
+		verifyArgs := func(sent bool, i int, args []interface{}) {
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i+1], args[0])
 			require.Equal(t, url, args[1])
 			require.Equal(t, datasetName(testFilesystem, true), args[2])
 			require.Equal(t, sendSnaps[i+1], args[3])
+			if sent {
+				require.NotZero(t, args[4])
+				require.NotZero(t, args[5])
+				require.Len(t, args, 6)
+				t.Logf("send %d bytes in %s", args[4], args[5].(time.Duration).String())
+			} else {
+				require.Len(t, args, 4)
+			}
 		}
 
 		sendingCount := 0
 		runner.AddListener(SendingSnapshotEvent, func(arguments ...interface{}) {
-			verifyArgs(sendingCount, arguments)
+			verifyArgs(false, sendingCount, arguments)
 			sendingCount++
+			t.Logf("Sending snapshot %s", arguments[0])
 		})
 
 		sentCount := 0
 		runner.AddListener(SentSnapshotEvent, func(arguments ...interface{}) {
-			verifyArgs(sentCount, arguments)
+			verifyArgs(true, sentCount, arguments)
 			sentCount++
+			t.Logf("Sent snapshot %s", arguments[0])
 		})
 
 		err = runner.sendSnapshots(1)
@@ -167,23 +185,30 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		verifyArgs := func(i int, args []interface{}) {
-			require.Len(t, args, 4)
+		verifyArgs := func(sent bool, i int, args []interface{}) {
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i+3], args[0])
 			require.Equal(t, url, args[1])
 			require.Equal(t, datasetName(testFilesystem, true), args[2])
 			require.Equal(t, sendSnaps[i+3], args[3])
+			if sent {
+				require.NotZero(t, args[4])
+				require.NotZero(t, args[5])
+				require.Len(t, args, 6)
+				t.Logf("send %d bytes in %s", args[4], args[5].(time.Duration).String())
+			} else {
+				require.Len(t, args, 4)
+			}
 		}
 
 		sendingCount := 0
 		runner.AddListener(SendingSnapshotEvent, func(arguments ...interface{}) {
-			verifyArgs(sendingCount, arguments)
+			verifyArgs(false, sendingCount, arguments)
 			sendingCount++
 		})
 
 		sentCount := 0
 		runner.AddListener(SentSnapshotEvent, func(arguments ...interface{}) {
-			verifyArgs(sentCount, arguments)
+			verifyArgs(true, sentCount, arguments)
 			sentCount++
 		})
 

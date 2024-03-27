@@ -5,12 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"slices"
 	"strconv"
 	"strings"
 
-	"github.com/juju/ratelimit"
 	"github.com/klauspost/compress/zstd"
 )
 
@@ -381,30 +379,6 @@ type SendOptions struct {
 	IncrementalBase *Dataset
 	// CompressionLevel is the level of zstd compression, 0 for off
 	CompressionLevel zstd.EncoderLevel
-}
-
-func rateLimitWriter(writer io.Writer, bytesPerSecond int64) io.Writer {
-	if bytesPerSecond <= 0 {
-		return writer
-	}
-	return ratelimit.Writer(writer, ratelimit.NewBucketWithRate(float64(bytesPerSecond), bytesPerSecond))
-}
-
-func zstdWriter(writer io.Writer, level zstd.EncoderLevel) (io.Writer, func(), error) {
-	if level == 0 {
-		return writer, func() {}, nil
-	}
-
-	encoder, err := zstd.NewWriter(writer, zstd.WithEncoderLevel(level))
-	if err != nil {
-		return writer, func() {}, fmt.Errorf("error creating zstd encoder: %w", err)
-	}
-	return encoder, func() {
-		err := encoder.Close()
-		if err != nil {
-			slog.Error("zstdWriter: Error closing encoder", "error", err)
-		}
-	}, nil
 }
 
 // SendSnapshot sends a ZFS stream of a snapshot to the input io.Writer.
