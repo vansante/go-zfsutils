@@ -190,7 +190,7 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 	}
 
 	// TODO: FIXME: Should emit a proper SentSnapshotEvent here, but arguments are not available atm
-	//r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
+	// r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
 
 	return true, nil
 }
