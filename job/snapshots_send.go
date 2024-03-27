@@ -163,21 +163,25 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 
 func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, remoteDataset string) (bool, error) {
 	ctx, cancel := context.WithTimeout(r.ctx, requestTimeout)
-	defer cancel()
-
 	resumeToken, err := client.ResumableSendToken(ctx, remoteDataset)
 	switch {
 	case isContextError(err):
+		cancel()
 		return false, nil // context expired, no problem
 	case errors.Is(err, zfshttp.ErrDatasetNotFound):
 		// Nothing to do.
 	case err != nil:
+		cancel()
 		return false, fmt.Errorf("error checking resumable sends: %w", err)
 	}
 	if resumeToken == "" {
+		cancel()
 		return false, nil
 	}
 	cancel()
+
+	// TODO: FIXME: Arguments should match SendingSnapshotEvent
+	r.EmitEvent(ResumeSendingSnapshotEvent, ds.Name, remoteDataset)
 
 	ctx, cancel = context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
 	err = client.ResumeSend(ctx, datasetName(ds.Name, true), resumeToken, zfs.ResumeSendOptions{
@@ -189,6 +193,10 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		return false, fmt.Errorf("error resuming send: %w", err)
 	}
 	cancel()
+
+	// TODO: FIXME: Should emit a proper SentSnapshotEvent here, but arguments are not available atm
+	//r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, server, send.DatasetName, send.SnapshotName)
+
 	return true, nil
 }
 
