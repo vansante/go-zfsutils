@@ -165,6 +165,8 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 	})
 }
 
+// TODO: FIXME: Add a test for a resumed send with associated events
+
 func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 	sendTest(t, func(url string, runner *Runner) {
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem+"@"+sendSnaps[2])

@@ -106,6 +106,7 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 
 	hasSent, err := r.resumeSendSnapshot(client, ds, remoteDataset)
 	if err != nil {
+		// TODO:FIXME We should probably force a full re-send after throwing away the partial data on the remote server here
 		return err
 	}
 	if hasSent {
@@ -164,6 +165,8 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		"sendSnapshotName", remoteDataset,
 	)
 
+	// TODO: FIXME: When resuming a send, we only get the dataset name, not including the @<snapshot> part, due to the
+	// way resumption works
 	r.EmitEvent(ResumeSendingSnapshotEvent, ds.Name, client.Server())
 
 	ctx, cancel = context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
@@ -174,6 +177,8 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		},
 		ProgressEvery: r.config.SendProgressEventInterval,
 		ProgressFn: func(bytes int64) {
+			// TODO: FIXME: When resuming a send, we only get the dataset name, not including the @<snapshot> part, due to the
+			// way resumption works
 			r.EmitEvent(SnapshotSendingProgressEvent, ds.Name, bytes)
 		},
 	})
@@ -192,6 +197,8 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		"timeTaken", result.TimeTaken.String(),
 	)
 
+	// TODO: FIXME: When resuming a send, we only get the dataset name, not including the @<snapshot> part, due to the
+	// way resumption works
 	r.EmitEvent(SentSnapshotEvent, ds.Name, client.Server(), result.BytesSent, result.TimeTaken)
 	return true, nil
 }
