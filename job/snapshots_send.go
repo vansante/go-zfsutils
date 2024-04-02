@@ -179,7 +179,7 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		ProgressFn: func(bytes int64) {
 			// TODO: FIXME: When resuming a send, we only get the dataset name, not including the @<snapshot> part, due to the
 			// way resumption works
-			r.EmitEvent(SnapshotSendingProgressEvent, ds.Name, bytes)
+			r.EmitEvent(SnapshotSendingProgressEvent, ds.Name, client.Server(), bytes)
 		},
 	})
 	cancel()
