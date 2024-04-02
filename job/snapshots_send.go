@@ -106,6 +106,7 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 
 	hasSent, err := r.resumeSendSnapshot(client, ds, remoteDataset)
 	if err != nil {
+		// TODO:FIXME We should probably force a full re-send after throwing away the partial data on the remote server here
 		return err
 	}
 	if hasSent {
@@ -124,7 +125,7 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 
 	localSnaps = filterSnapshotsWithProp(localSnaps, createdProp)
 
-	toSend, err := r.reconcileSnapshots(routineID, localSnaps, remoteSnaps)
+	toSend, err := r.reconcileSnapshots(routineID, localSnaps, remoteSnaps, server)
 	if err != nil {
 		return fmt.Errorf("error reconciling snapshots: %w", err)
 	}
@@ -164,8 +165,9 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		"sendSnapshotName", remoteDataset,
 	)
 
-	// TODO: FIXME: Arguments should match StartSendingSnapshotEvent
-	r.EmitEvent(ResumeSendingSnapshotEvent, ds.Name, client.Server(), remoteDataset)
+	// TODO: FIXME: When resuming a send, we only get the dataset name, not including the @<snapshot> part, due to the
+	// way resumption works
+	r.EmitEvent(ResumeSendingSnapshotEvent, ds.Name, client.Server())
 
 	ctx, cancel = context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
 	result, err := client.ResumeSend(ctx, datasetName(ds.Name, true), resumeToken, zfshttp.ResumeSendOptions{
@@ -175,6 +177,8 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		},
 		ProgressEvery: r.config.SendProgressEventInterval,
 		ProgressFn: func(bytes int64) {
+			// TODO: FIXME: When resuming a send, we only get the dataset name, not including the @<snapshot> part, due to the
+			// way resumption works
 			r.EmitEvent(SnapshotSendingProgressEvent, ds.Name, bytes)
 		},
 	})
@@ -193,11 +197,9 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		"timeTaken", result.TimeTaken.String(),
 	)
 
-	// TODO: FIXME: Should emit a proper SentSnapshotEvent here, but arguments are not available atm
-	// r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, client.Server(), send.DatasetName, send.SnapshotName,
-	// 		result.BytesSent, result.TimeTaken,
-	// )
-
+	// TODO: FIXME: When resuming a send, we only get the dataset name, not including the @<snapshot> part, due to the
+	// way resumption works
+	r.EmitEvent(SentSnapshotEvent, ds.Name, client.Server(), result.BytesSent, result.TimeTaken)
 	return true, nil
 }
 
@@ -208,7 +210,7 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 		"sendSnapshotName", send.SnapshotName,
 	)
 
-	r.EmitEvent(StartSendingSnapshotEvent, send.Snapshot.Name, client.Server(), send.DatasetName, send.SnapshotName)
+	r.EmitEvent(StartSendingSnapshotEvent, send.Snapshot.Name, client.Server())
 
 	ctx, cancel := context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
 	result, err := client.Send(ctx, send)
@@ -227,13 +229,11 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 		"timeTaken", result.TimeTaken.String(),
 	)
 
-	r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, client.Server(), send.DatasetName, send.SnapshotName,
-		result.BytesSent, result.TimeTaken,
-	)
+	r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, client.Server(), result.BytesSent, result.TimeTaken)
 	return nil
 }
 
-func (r *Runner) reconcileSnapshots(routineID int, local, remote []zfs.Dataset) ([]zfshttp.SnapshotSendOptions, error) {
+func (r *Runner) reconcileSnapshots(routineID int, local, remote []zfs.Dataset, server string) ([]zfshttp.SnapshotSendOptions, error) {
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	sentProp := r.config.Properties.snapshotSentAt()
 
@@ -316,7 +316,7 @@ func (r *Runner) reconcileSnapshots(routineID int, local, remote []zfs.Dataset) 
 			Properties:    props,
 			ProgressEvery: r.config.SendProgressEventInterval,
 			ProgressFn: func(bytes int64) {
-				r.EmitEvent(SnapshotSendingProgressEvent, datasetName(snap.Name, true), snapshotName(snap.Name), bytes)
+				r.EmitEvent(SnapshotSendingProgressEvent, snap.Name, server, bytes)
 			},
 		})
 
