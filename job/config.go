@@ -2,6 +2,7 @@ package job
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/klauspost/compress/zstd"
 
@@ -9,10 +10,11 @@ import (
 )
 
 const (
-	defaultDatasetType            = zfs.DatasetFilesystem
-	defaultSnapshotNameTemplate   = "backup_%UNIXTIME%"
-	defaultMaximumSendTimeMinutes = 12 * 60
-	defaultSendRoutines           = 3
+	defaultDatasetType               = zfs.DatasetFilesystem
+	defaultSnapshotNameTemplate      = "backup_%UNIXTIME%"
+	defaultMaximumSendTimeMinutes    = 12 * 60
+	defaultSendRoutines              = 3
+	defaultSendProgressEventInterval = 5 * time.Minute
 )
 
 // Config configures the runner
@@ -36,9 +38,10 @@ type Config struct {
 
 	IgnoreSnapshotsWithoutCreatedProperty bool `json:"IgnoreSnapshotsWithoutCreatedProperty" yaml:"IgnoreSnapshotsWithoutCreatedProperty"`
 
-	SendCompressionLevel    zstd.EncoderLevel `json:"SendCompressionLevel" yaml:"SendCompressionLevel"`
-	SendSpeedBytesPerSecond int64             `json:"SendSpeedBytesPerSecond" yaml:"SendSpeedBytesPerSecond"`
-	MaximumSendTimeMinutes  int64             `json:"MaximumSendTimeMinutes" yaml:"MaximumSendTimeMinutes"`
+	SendCompressionLevel      zstd.EncoderLevel `json:"SendCompressionLevel" yaml:"SendCompressionLevel"`
+	SendSpeedBytesPerSecond   int64             `json:"SendSpeedBytesPerSecond" yaml:"SendSpeedBytesPerSecond"`
+	SendProgressEventInterval time.Duration     `json:"SendProgressEventInterval" yaml:"SendProgressEventInterval"`
+	MaximumSendTimeMinutes    int64             `json:"MaximumSendTimeMinutes" yaml:"MaximumSendTimeMinutes"`
 
 	Properties Properties `json:"Properties" yaml:"Properties"`
 }
@@ -48,6 +51,7 @@ func (c *Config) ApplyDefaults() {
 	c.DatasetType = defaultDatasetType
 	c.SnapshotNameTemplate = defaultSnapshotNameTemplate
 	c.MaximumSendTimeMinutes = defaultMaximumSendTimeMinutes
+	c.SendProgressEventInterval = defaultSendProgressEventInterval
 
 	c.EnableSnapshotCreate = true
 	c.EnableSnapshotSend = true
