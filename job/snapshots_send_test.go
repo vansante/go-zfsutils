@@ -50,15 +50,13 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 	verifyArgs := func(sent bool, i int, args []interface{}) {
 		require.Equal(t, testFilesystem+"@"+sendSnaps[i], args[0])
 		require.Equal(t, url, args[1])
-		require.Equal(t, datasetName(testFilesystem, true), args[2])
-		require.Equal(t, sendSnaps[i], args[3])
 		if sent {
-			require.NotZero(t, args[4])
-			require.NotZero(t, args[5])
-			require.Len(t, args, 6)
-			t.Logf("send %d bytes in %s", args[4], args[5].(time.Duration).String())
-		} else {
+			require.NotZero(t, args[2])
+			require.NotZero(t, args[3])
 			require.Len(t, args, 4)
+			t.Logf("sent %d bytes in %s", args[2], args[3].(time.Duration).String())
+		} else {
+			require.Len(t, args, 2)
 		}
 	}
 
@@ -125,15 +123,13 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 		verifyArgs := func(sent bool, i int, args []interface{}) {
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i+1], args[0])
 			require.Equal(t, url, args[1])
-			require.Equal(t, datasetName(testFilesystem, true), args[2])
-			require.Equal(t, sendSnaps[i+1], args[3])
 			if sent {
-				require.NotZero(t, args[4])
-				require.NotZero(t, args[5])
-				require.Len(t, args, 6)
-				t.Logf("send %d bytes in %s", args[4], args[5].(time.Duration).String())
-			} else {
+				require.NotZero(t, args[2])
+				require.NotZero(t, args[3])
 				require.Len(t, args, 4)
+				t.Logf("sent %d bytes in %s", args[2], args[3].(time.Duration).String())
+			} else {
+				require.Len(t, args, 2)
 			}
 		}
 
@@ -189,15 +185,13 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 		verifyArgs := func(sent bool, i int, args []interface{}) {
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i+3], args[0])
 			require.Equal(t, url, args[1])
-			require.Equal(t, datasetName(testFilesystem, true), args[2])
-			require.Equal(t, sendSnaps[i+3], args[3])
 			if sent {
-				require.NotZero(t, args[4])
-				require.NotZero(t, args[5])
-				require.Len(t, args, 6)
-				t.Logf("send %d bytes in %s", args[4], args[5].(time.Duration).String())
-			} else {
+				require.NotZero(t, args[2])
+				require.NotZero(t, args[3])
 				require.Len(t, args, 4)
+				t.Logf("sent %d bytes in %s", args[2], args[3].(time.Duration).String())
+			} else {
+				require.Len(t, args, 2)
 			}
 		}
 
