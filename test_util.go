@@ -10,6 +10,9 @@ import (
 	"time"
 )
 
+// sudo zfs allow <user> canmount,clone,compression,create,destroy,encryption,keyformat,keylocation,load-key,mount,
+// mountpoint,promote,readonly,receive,refquota,refreservation,rename,rollback,send,snapshot,userprop,volblocksize,
+// volmode,volsize <dataset>
 var zfsPermissions = []string{
 	"canmount",
 	"clone",

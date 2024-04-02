@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"time"
 
 	"github.com/juju/ratelimit"
 	"github.com/klauspost/compress/zstd"
@@ -33,6 +34,9 @@ func zstdWriter(writer io.Writer, level zstd.EncoderLevel) (io.Writer, func(), e
 	}, nil
 }
 
+// ProgressCallback is a callback function that lets you monitor progress
+type ProgressCallback func(bytes int64)
+
 // NewCountReader creates a new CountReader
 func NewCountReader(reader io.Reader) *CountReader {
 	return &CountReader{
@@ -44,37 +48,37 @@ func NewCountReader(reader io.Reader) *CountReader {
 type CountReader struct {
 	io.Reader
 	n int64
+
+	every      time.Duration
+	progressFn ProgressCallback
+	last       time.Time
+}
+
+// SetProgressCallback sets a new progress handler every duration
+func (r *CountReader) SetProgressCallback(every time.Duration, progressFn ProgressCallback) {
+	r.progressFn = progressFn
+	r.every = every
 }
 
 func (r *CountReader) Read(p []byte) (int, error) {
 	n, err := r.Reader.Read(p)
 	r.n += int64(n)
+	r.progress()
 	return n, err
+}
+
+func (r *CountReader) progress() {
+	if r.progressFn == nil || r.every <= 0 {
+		return
+	}
+	if time.Since(r.last) < r.every {
+		return
+	}
+
+	r.progressFn(r.n)
+	r.last = time.Now()
 }
 
 func (r *CountReader) Count() int64 {
 	return r.n
-}
-
-// NewCountWriter creates a new CountWriter
-func NewCountWriter(writer io.Writer) *CountWriter {
-	return &CountWriter{
-		Writer: writer,
-	}
-}
-
-// CountWriter counts the bytes it has written
-type CountWriter struct {
-	io.Writer
-	n int64
-}
-
-func (w *CountWriter) Write(p []byte) (int, error) {
-	n, err := w.Writer.Write(p)
-	w.n += int64(n)
-	return n, err
-}
-
-func (w *CountWriter) Count() int64 {
-	return w.n
 }

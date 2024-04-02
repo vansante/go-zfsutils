@@ -32,7 +32,7 @@ func TestHTTPZPool(testZPool, prefix, testFs string, fn func(server *httptest.Se
 			}
 		}
 
-		server := httptest.NewServer(h.HTTPHandler())
+		server := httptest.NewServer(h)
 		fn(server)
 	})
 }

@@ -122,13 +122,23 @@ func (c *Client) ResumableSendToken(ctx context.Context, dataset string) (string
 	}
 }
 
+// ResumeSendOptions is a struct for a resume of a send job to a remote server using a Client
+type ResumeSendOptions struct {
+	zfs.ResumeSendOptions
+
+	// ProgressFn: Set a callback function to receive updates about progress
+	ProgressFn zfs.ProgressCallback
+	// ProgressEvery determines progress update interval
+	ProgressEvery time.Duration
+}
+
 // ResumeSend resumes a send for a dataset given the resume token
-func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, options zfs.ResumeSendOptions) (SendResult, error) {
+func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, options ResumeSendOptions) (SendResult, error) {
 	pipeRdr, pipeWrtr := io.Pipe()
 
 	sendCtx, cancelSend := context.WithCancel(ctx)
 	go func() {
-		err := zfs.ResumeSend(sendCtx, pipeWrtr, resumeToken, options)
+		err := zfs.ResumeSend(sendCtx, pipeWrtr, resumeToken, options.ResumeSendOptions)
 		if err != nil {
 			c.logger.Error("zfs.http.Client.ResumeSend: Error sending resume stream",
 				"error", err,
@@ -150,6 +160,7 @@ func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, op
 
 	startTime := time.Now()
 	countReader := zfs.NewCountReader(pipeRdr)
+	countReader.SetProgressCallback(options.ProgressEvery, options.ProgressFn)
 	req, err := c.request(ctx, http.MethodPut, fmt.Sprintf("filesystems/%s/snapshots?%s=%s&%s=%s",
 		dataset,
 		GETParamResumable, "true",
@@ -167,8 +178,8 @@ func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, op
 	return result, c.doSendStream(req, pipeWrtr, cancelSend)
 }
 
-// SnapshotSend is a struct for a send job to a remote server using a Client
-type SnapshotSend struct {
+// SnapshotSendOptions is a struct for a send job to a remote server using a Client
+type SnapshotSendOptions struct {
 	zfs.SendOptions
 
 	// Which dataset to send to
@@ -179,6 +190,11 @@ type SnapshotSend struct {
 	Snapshot *zfs.Dataset
 
 	Properties ReceiveProperties
+
+	// ProgressFn: Set a callback function to receive updates about progress
+	ProgressFn zfs.ProgressCallback
+	// ProgressEvery determines progress update interval
+	ProgressEvery time.Duration
 }
 
 // SendResult contains some statistics from the sending of a snapshot
@@ -188,7 +204,7 @@ type SendResult struct {
 }
 
 // Send sends the snapshot job to the remote server
-func (c *Client) Send(ctx context.Context, send SnapshotSend) (SendResult, error) {
+func (c *Client) Send(ctx context.Context, send SnapshotSendOptions) (SendResult, error) {
 	pipeRdr, pipeWrtr := io.Pipe()
 
 	sendCtx, cancelSend := context.WithCancel(ctx)
@@ -220,6 +236,7 @@ func (c *Client) Send(ctx context.Context, send SnapshotSend) (SendResult, error
 
 	startTime := time.Now()
 	countReader := zfs.NewCountReader(pipeRdr)
+	countReader.SetProgressCallback(send.ProgressEvery, send.ProgressFn)
 	req, err := c.request(ctx, http.MethodPut, url, countReader)
 	if err != nil {
 		cancelSend()

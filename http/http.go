@@ -33,9 +33,10 @@ func NewHTTP(ctx context.Context, conf Config, logger *slog.Logger) *HTTP {
 	return h
 }
 
-// HTTPHandler returns the handler to handle ZFS HTTP requests
-func (h *HTTP) HTTPHandler() http.Handler {
-	return h.router
+func (h *HTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Server", "go-zfsutils")
+
+	h.router.ServeHTTP(w, req)
 }
 
 // nolint: goconst
@@ -62,7 +63,7 @@ func (h *HTTP) registerRoute(method, url string, handler handle) {
 	h.router.HandleFunc(fmt.Sprintf("%s %s%s", method, h.config.HTTPPathPrefix, url), h.middleware(handler))
 }
 
-// middleware is an HTTP handler wrapper that ensures a valid authentication is used for the request
+// middleware is an HTTP handler wrapper
 func (h *HTTP) middleware(handle handle) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		logger := h.logger.With(slog.Group("req",

@@ -2,10 +2,11 @@ package job
 
 import (
 	"context"
-	"github.com/klauspost/compress/zstd"
 	"io"
 	"testing"
 	"time"
+
+	"github.com/klauspost/compress/zstd"
 
 	zfs "github.com/vansante/go-zfsutils"
 
@@ -62,7 +63,7 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 	}
 
 	sendingCount := 0
-	runner.AddListener(SendingSnapshotEvent, func(arguments ...interface{}) {
+	runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
 		verifyArgs(false, sendingCount, arguments)
 		sendingCount++
 	})
@@ -137,7 +138,7 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 		}
 
 		sendingCount := 0
-		runner.AddListener(SendingSnapshotEvent, func(arguments ...interface{}) {
+		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
 			verifyArgs(false, sendingCount, arguments)
 			sendingCount++
 			t.Logf("Sending snapshot %s", arguments[0])
@@ -201,7 +202,7 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 		}
 
 		sendingCount := 0
-		runner.AddListener(SendingSnapshotEvent, func(arguments ...interface{}) {
+		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
 			verifyArgs(false, sendingCount, arguments)
 			sendingCount++
 		})

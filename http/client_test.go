@@ -36,7 +36,7 @@ func TestClient_Send(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
 
-		results, err := client.Send(ctx, SnapshotSend{
+		results, err := client.Send(ctx, SnapshotSendOptions{
 			DatasetName: newFs,
 			Snapshot:    snap1,
 			Properties:  ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff},
@@ -45,7 +45,7 @@ func TestClient_Send(t *testing.T) {
 		require.NotZero(t, results.BytesSent)
 		require.NotZero(t, results.TimeTaken)
 
-		results, err = client.Send(ctx, SnapshotSend{
+		results, err = client.Send(ctx, SnapshotSendOptions{
 			DatasetName: newFs,
 			Snapshot:    snap2,
 			Properties:  ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff},
