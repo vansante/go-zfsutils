@@ -26,8 +26,8 @@ func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 		// Create another zpool as 'source':
 		zfs.TestZPool(testZPool, func() {
 			r := &Runner{
-				Emitter:         *eventemitter.NewEmitter(false),
-				datasetSendLock: make(map[string]struct{}),
+				Emitter:     *eventemitter.NewEmitter(false),
+				datasetLock: make(map[string]struct{}),
 				config: Config{
 					ParentDataset: testZPool,
 					DatasetType:   zfs.DatasetFilesystem,

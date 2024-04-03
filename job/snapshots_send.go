@@ -63,12 +63,12 @@ func (r *Runner) sendSnapshots(routineID int) error {
 }
 
 func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
-	locked, unlock := r.sendLock(datasetName(ds.Name, true))
+	locked, unlock := r.lockDataset(datasetName(ds.Name, true))
 	if !locked {
-		return nil // Some other goroutine is sending this dataset already, continue to next.
+		return nil // Some other goroutine is doing something with this dataset already, continue to next.
 	}
 	defer func() {
-		// Unlock the send for this dataset again
+		// Unlock this dataset again
 		unlock()
 	}()
 
