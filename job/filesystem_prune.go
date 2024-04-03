@@ -58,6 +58,15 @@ func (r *Runner) pruneFilesystems() error {
 }
 
 func (r *Runner) pruneAgedFilesystem(filesystem string) error {
+	locked, unlock := r.lockDataset(filesystem)
+	if !locked {
+		return nil // Some other goroutine is doing something with this dataset already, continue to next.
+	}
+	defer func() {
+		// Unlock this dataset again
+		unlock()
+	}()
+
 	deleteProp := r.config.Properties.deleteAt()
 
 	fs, err := zfs.GetDataset(r.ctx, filesystem, deleteProp)
@@ -108,6 +117,15 @@ func (r *Runner) pruneAgedFilesystem(filesystem string) error {
 }
 
 func (r *Runner) pruneFilesystemWithoutSnapshots(filesystem string) error {
+	locked, unlock := r.lockDataset(filesystem)
+	if !locked {
+		return nil // Some other goroutine is doing something with this dataset already, continue to next.
+	}
+	defer func() {
+		// Unlock this dataset again
+		unlock()
+	}()
+
 	deleteWithoutSnaps := r.config.Properties.deleteWithoutSnapshots()
 
 	fs, err := zfs.GetDataset(r.ctx, filesystem, deleteWithoutSnaps)

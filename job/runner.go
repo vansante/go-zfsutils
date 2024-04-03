@@ -24,10 +24,10 @@ const (
 // NewRunner creates a new job runner
 func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
 	return &Runner{
-		config:          conf,
-		datasetSendLock: make(map[string]struct{}),
-		logger:          logger,
-		ctx:             ctx,
+		config:      conf,
+		datasetLock: make(map[string]struct{}),
+		logger:      logger,
+		ctx:         ctx,
 	}
 }
 
@@ -35,30 +35,30 @@ func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
 type Runner struct {
 	eventemitter.Emitter
 
-	config          Config
-	mapLock         sync.Mutex
-	datasetSendLock map[string]struct{}
+	config      Config
+	mapLock     sync.Mutex
+	datasetLock map[string]struct{}
 
 	logger *slog.Logger
 	ctx    context.Context
 }
 
-func (r *Runner) sendLock(dataset string) (succeeded bool, unlock func()) {
+func (r *Runner) lockDataset(dataset string) (succeeded bool, unlock func()) {
 	r.mapLock.Lock()
-	_, ok := r.datasetSendLock[dataset]
+	_, ok := r.datasetLock[dataset]
 	if ok {
 		// Entry found, already locked.
 		r.mapLock.Unlock()
 		return false, func() {} // Noop unlock
 	}
 	// Set the lock!
-	r.datasetSendLock[dataset] = struct{}{}
+	r.datasetLock[dataset] = struct{}{}
 	r.mapLock.Unlock()
 
 	return true, func() {
 		// Simple unlock function removes entry from map:
 		r.mapLock.Lock()
-		delete(r.datasetSendLock, dataset)
+		delete(r.datasetLock, dataset)
 		r.mapLock.Unlock()
 	}
 }

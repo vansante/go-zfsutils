@@ -45,6 +45,15 @@ func (r *Runner) pruneSnapshots() error {
 }
 
 func (r *Runner) pruneAgedSnapshot(snapshot string) error {
+	locked, unlock := r.lockDataset(datasetName(snapshot, true))
+	if !locked {
+		return nil // Some other goroutine is doing something with this dataset already, continue to next.
+	}
+	defer func() {
+		// Unlock this dataset again
+		unlock()
+	}()
+
 	deleteProp := r.config.Properties.deleteAt()
 
 	snap, err := zfs.GetDataset(r.ctx, snapshot, deleteProp)

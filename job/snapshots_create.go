@@ -53,6 +53,15 @@ func (r *Runner) snapshotName(tm time.Time) string {
 }
 
 func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
+	locked, unlock := r.lockDataset(ds.Name)
+	if !locked {
+		return nil // Some other goroutine is doing something with this dataset already, continue to next.
+	}
+	defer func() {
+		// Unlock this dataset again
+		unlock()
+	}()
+
 	intervalMinsProp := r.config.Properties.snapshotIntervalMinutes()
 	intervalMins, err := strconv.ParseInt(ds.ExtraProps[intervalMinsProp], 10, 64)
 	if err != nil {
