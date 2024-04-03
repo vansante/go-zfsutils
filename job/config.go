@@ -85,6 +85,7 @@ type Properties struct {
 	SnapshotRetentionCount   string `json:"SnapshotRetentionCount" yaml:"SnapshotRetentionCount"`
 	SnapshotRetentionMinutes string `json:"SnapshotRetentionMinutes" yaml:"SnapshotRetentionMinutes"`
 	DeleteAt                 string `json:"DeleteAt" yaml:"DeleteAt"`
+	DeleteWithoutSnapshots   string `json:"DeleteWithoutSnapshots" yaml:"DeleteWithoutSnapshots"`
 }
 
 const (
@@ -96,6 +97,7 @@ const (
 	defaultSnapshotRetentionCountProperty   = "snapshot-retention-count"
 	defaultSnapshotRetentionMinutesProperty = "snapshot-retention-minutes"
 	defaultDeleteAtProperty                 = "delete-at"
+	defaultDeleteWithoutSnapshotsProperty   = "delete-without-snapshots"
 )
 
 // ApplyDefaults applies all the default values to the Properties
@@ -109,6 +111,7 @@ func (p *Properties) ApplyDefaults() {
 	p.SnapshotRetentionCount = defaultSnapshotRetentionCountProperty
 	p.SnapshotRetentionMinutes = defaultSnapshotRetentionMinutesProperty
 	p.DeleteAt = defaultDeleteAtProperty
+	p.DeleteWithoutSnapshots = defaultDeleteWithoutSnapshotsProperty
 }
 
 func (p *Properties) snapshotIntervalMinutes() string {
@@ -137,4 +140,8 @@ func (p *Properties) snapshotRetentionMinutes() string {
 
 func (p *Properties) deleteAt() string {
 	return fmt.Sprintf("%s:%s", p.Namespace, p.DeleteAt)
+}
+
+func (p *Properties) deleteWithoutSnapshots() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.DeleteWithoutSnapshots)
 }

@@ -2,6 +2,7 @@ package job
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	zfs "github.com/vansante/go-zfsutils"
@@ -12,7 +13,7 @@ func (r *Runner) pruneFilesystems() error {
 
 	filesystems, err := zfs.ListWithProperty(r.ctx, zfs.DatasetFilesystem, r.config.ParentDataset, deleteProp)
 	if err != nil {
-		return fmt.Errorf("error finding prunable filesystems: %w", err)
+		return fmt.Errorf("error finding prunable old filesystems: %w", err)
 	}
 
 	for filesystem := range filesystems {
@@ -26,7 +27,29 @@ func (r *Runner) pruneFilesystems() error {
 			r.logger.Info("zfs.job.Runner.pruneFilesystems: Prune filesystem job interrupted", "error", err, "dataset", filesystem)
 			return nil // Return no error
 		case err != nil:
-			r.logger.Error("zfs.job.Runner.pruneFilesystems: Error pruning filesystem", "error", err, "dataset", filesystem)
+			r.logger.Error("zfs.job.Runner.pruneFilesystems: Error pruning aged filesystems", "error", err, "dataset", filesystem)
+			continue // on to the next dataset :-/
+		}
+	}
+
+	deleteWithoutSnaps := r.config.Properties.deleteWithoutSnapshots()
+	filesystems, err = zfs.ListWithProperty(r.ctx, zfs.DatasetFilesystem, r.config.ParentDataset, deleteWithoutSnaps)
+	if err != nil {
+		return fmt.Errorf("error finding prunable filesystems without snapshots: %w", err)
+	}
+
+	for filesystem := range filesystems {
+		if r.ctx.Err() != nil {
+			return nil // context expired, no problem
+		}
+
+		err = r.pruneFilesystemWithoutSnapshots(filesystem)
+		switch {
+		case isContextError(err):
+			r.logger.Info("zfs.job.Runner.pruneFilesystems: Prune filesystem job interrupted", "error", err, "dataset", filesystem)
+			return nil // Return no error
+		case err != nil:
+			r.logger.Error("zfs.job.Runner.pruneFilesystems: Error pruning filesystems without snapshots", "error", err, "dataset", filesystem)
 			continue // on to the next dataset :-/
 		}
 	}
@@ -77,6 +100,49 @@ func (r *Runner) pruneAgedFilesystem(filesystem string) error {
 	r.logger.Debug("zfs.job.Runner.pruneAgedFilesystem: Filesystem pruned",
 		"filesystem", fs.Name,
 		"deleteAt", deleteAt.Format(dateTimeFormat),
+	)
+
+	r.EmitEvent(DeletedFilesystemEvent, filesystem, datasetName(filesystem, true))
+
+	return nil
+}
+
+func (r *Runner) pruneFilesystemWithoutSnapshots(filesystem string) error {
+	deleteWithoutSnaps := r.config.Properties.deleteWithoutSnapshots()
+
+	fs, err := zfs.GetDataset(r.ctx, filesystem, deleteWithoutSnaps)
+	if err != nil {
+		return fmt.Errorf("error getting filesystem %s: %w", filesystem, err)
+	}
+
+	if fs.Type != zfs.DatasetFilesystem {
+		return fmt.Errorf("unexpected dataset type %s for %s: %w", fs.Type, filesystem, err)
+	}
+
+	if !propertyIsSet(fs.ExtraProps[deleteWithoutSnaps]) {
+		return nil
+	}
+
+	shouldDelete, _ := strconv.ParseBool(fs.ExtraProps[deleteWithoutSnaps])
+	if !shouldDelete {
+		return nil
+	}
+
+	children, err := fs.Children(r.ctx, zfs.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("error listing %s children: %w", filesystem, err)
+	}
+	if len(children) > 0 {
+		return nil
+	}
+
+	err = fs.Destroy(r.ctx, zfs.DestroyOptions{})
+	if err != nil {
+		return fmt.Errorf("error destroying %s: %w", filesystem, err)
+	}
+
+	r.logger.Debug("zfs.job.Runner.pruneFilesystemWithoutSnapshots: Filesystem pruned",
+		"filesystem", fs.Name,
 	)
 
 	r.EmitEvent(DeletedFilesystemEvent, filesystem, datasetName(filesystem, true))
