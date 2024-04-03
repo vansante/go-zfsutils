@@ -296,7 +296,7 @@ func (r *Runner) reconcileSnapshots(routineID int, local, remote []zfs.Dataset, 
 			if err != nil {
 				return nil, fmt.Errorf("error getting prop %s copy value for %s: %w", prop, snap.Name, err)
 			}
-			if propertyIsSet(val) {
+			if !propertyIsSet(val) {
 				continue
 			}
 			props[prop] = val
