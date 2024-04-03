@@ -31,6 +31,7 @@ type Config struct {
 	EnableFilesystemPrune bool `json:"EnableFilesystemPrune" yaml:"EnableFilesystemPrune"`
 
 	SendRoutines          int               `json:"SendRoutines" yaml:"SendRoutines"`
+	SendResumable         bool              `json:"SendResumable" yaml:"SendResumable"`
 	SendRaw               bool              `json:"SendRaw" yaml:"SendRaw"`
 	SendIncludeProperties bool              `json:"SendIncludeProperties" yaml:"SendIncludeProperties"`
 	SendCopyProperties    []string          `json:"SendCopyProperties" yaml:"SendCopyProperties"`

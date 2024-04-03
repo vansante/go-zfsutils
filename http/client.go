@@ -188,6 +188,8 @@ type SnapshotSendOptions struct {
 	SnapshotName string
 	// The snapshot to send
 	Snapshot *zfs.Dataset
+	// Resumable determines whether the stream can be resumed
+	Resumable bool
 
 	Properties ReceiveProperties
 
@@ -243,7 +245,7 @@ func (c *Client) Send(ctx context.Context, send SnapshotSendOptions) (SendResult
 		return SendResult{}, fmt.Errorf("error creating incremental send request: %w", err)
 	}
 	q := req.URL.Query()
-	q.Set(GETParamResumable, "true")
+	q.Set(GETParamResumable, strconv.FormatBool(send.Resumable))
 	q.Set(GETParamEnableDecompression, strconv.FormatBool(send.CompressionLevel > 0))
 	if send.Properties != nil {
 		q.Set(GETParamReceiveProperties, send.Properties.Encode())

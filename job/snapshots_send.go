@@ -313,6 +313,7 @@ func (r *Runner) reconcileSnapshots(routineID int, local, remote []zfs.Dataset, 
 				IncludeProperties: r.config.SendIncludeProperties,
 				IncrementalBase:   prevRemoteSnap,
 			},
+			Resumable:     r.config.SendResumable,
 			Properties:    props,
 			ProgressEvery: r.config.SendProgressEventInterval,
 			ProgressFn: func(bytes int64) {
