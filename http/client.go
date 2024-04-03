@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -285,4 +286,52 @@ func (c *Client) doSendStream(req *http.Request, pipeWrtr *io.PipeWriter, cancel
 	default:
 		return fmt.Errorf("unexpected status %d sending stream: %w", resp.StatusCode, err)
 	}
+}
+
+// SetFilesystemProperties sets and/or unsets properties on the remote zfs filesystem
+func (c *Client) SetFilesystemProperties(ctx context.Context, filesystem string, props SetProperties) error {
+	payload, err := json.Marshal(&props)
+	if err != nil {
+		return fmt.Errorf("error encoding payload json: %w", err)
+	}
+
+	req, err := c.request(ctx, http.MethodPatch, fmt.Sprintf("filesystems/%s",
+		filesystem,
+	), bytes.NewBuffer(payload))
+	if err != nil {
+		return fmt.Errorf("error creating property request: %w", err)
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending request: %w", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// SetSnapshotProperties sets and/or unsets properties on the remote zfs snapshot
+func (c *Client) SetSnapshotProperties(ctx context.Context, filesystem, snapshot string, props SetProperties) error {
+	payload, err := json.Marshal(&props)
+	if err != nil {
+		return fmt.Errorf("error encoding payload json: %w", err)
+	}
+
+	req, err := c.request(ctx, http.MethodPatch, fmt.Sprintf("filesystems/%s/snapshots/%s",
+		filesystem, snapshot,
+	), bytes.NewBuffer(payload))
+	if err != nil {
+		return fmt.Errorf("error creating property request: %w", err)
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending request: %w", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code %d", resp.StatusCode)
+	}
+	return nil
 }
