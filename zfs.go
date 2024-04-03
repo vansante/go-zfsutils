@@ -351,9 +351,6 @@ func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, options 
 
 // SendOptions are options you can specify to customize the send command
 type SendOptions struct {
-	// When set, uses a rate-limiter to limit the flow to this amount of bytes per second
-	BytesPerSecond int64
-
 	// For encrypted datasets, send data exactly as it exists on disk. This allows backups to
 	//           be taken even if encryption keys are not currently loaded. The backup may then be
 	//           received on an untrusted machine since that machine will not have the encryption keys
@@ -377,6 +374,8 @@ type SendOptions struct {
 	//           If the destination is a clone, the source may be the origin snapshot, which must be
 	//           fully specified (for example, pool/fs@origin, not just @origin).
 	IncrementalBase *Dataset
+	// When set, uses a rate-limiter to limit the flow to this amount of bytes per second
+	BytesPerSecond int64
 	// CompressionLevel is the level of zstd compression, 0 for off
 	CompressionLevel zstd.EncoderLevel
 }
