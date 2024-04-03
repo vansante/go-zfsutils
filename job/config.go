@@ -24,11 +24,12 @@ type Config struct {
 	HTTPHeaders          map[string]string `json:"HTTPHeaders" yaml:"HTTPHeaders"`
 	SnapshotNameTemplate string            `json:"SnapshotNameTemplate" yaml:"SnapshotNameTemplate"`
 
-	EnableSnapshotCreate  bool `json:"EnableSnapshotCreate" yaml:"EnableSnapshotCreate"`
-	EnableSnapshotSend    bool `json:"EnableSnapshotSend" yaml:"EnableSnapshotSend"`
-	EnableSnapshotMark    bool `json:"EnableSnapshotMark" yaml:"EnableSnapshotMark"`
-	EnableSnapshotPrune   bool `json:"EnableSnapshotPrune" yaml:"EnableSnapshotPrune"`
-	EnableFilesystemPrune bool `json:"EnableFilesystemPrune" yaml:"EnableFilesystemPrune"`
+	EnableSnapshotCreate     bool `json:"EnableSnapshotCreate" yaml:"EnableSnapshotCreate"`
+	EnableSnapshotSend       bool `json:"EnableSnapshotSend" yaml:"EnableSnapshotSend"`
+	EnableSnapshotMark       bool `json:"EnableSnapshotMark" yaml:"EnableSnapshotMark"`
+	EnableSnapshotMarkRemote bool `json:"EnableSnapshotMarkRemote" yaml:"EnableSnapshotMarkRemote"`
+	EnableSnapshotPrune      bool `json:"EnableSnapshotPrune" yaml:"EnableSnapshotPrune"`
+	EnableFilesystemPrune    bool `json:"EnableFilesystemPrune" yaml:"EnableFilesystemPrune"`
 
 	SendRoutines          int               `json:"SendRoutines" yaml:"SendRoutines"`
 	SendResumable         bool              `json:"SendResumable" yaml:"SendResumable"`
