@@ -14,6 +14,8 @@ var earliestSnapshot = time.Unix(1, 0)
 
 func (r *Runner) createSnapshots() error {
 	intervalProp := r.config.Properties.snapshotIntervalMinutes()
+	deleteProp := r.config.Properties.deleteAt()
+
 	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, intervalProp)
 	if err != nil {
 		return fmt.Errorf("error finding snapshottable datasets: %w", err)
@@ -24,7 +26,7 @@ func (r *Runner) createSnapshots() error {
 			return nil // context expired, no problem
 		}
 
-		ds, err := zfs.GetDataset(r.ctx, dataset, intervalProp)
+		ds, err := zfs.GetDataset(r.ctx, dataset, intervalProp, deleteProp)
 		if err != nil {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
@@ -55,6 +57,10 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	intervalMins, err := strconv.ParseInt(ds.ExtraProps[intervalMinsProp], 10, 64)
 	if err != nil {
 		return fmt.Errorf("error parsing %s property: %w", intervalMinsProp, err)
+	}
+	// Do not create snapshots for datasets marked for deletion
+	if propertyIsSet(ds.ExtraProps[r.config.Properties.deleteAt()]) {
+		return nil
 	}
 
 	createdProp := r.config.Properties.snapshotCreatedAt()
