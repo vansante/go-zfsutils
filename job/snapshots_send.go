@@ -139,6 +139,11 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 		if err != nil {
 			return err
 		}
+
+		err = send.Snapshot.SetProperty(r.ctx, sentProp, time.Now().Format(dateTimeFormat))
+		if err != nil {
+			return fmt.Errorf("error setting %s property on %s after send: %w", sentProp, send.Snapshot.Name, err)
+		}
 	}
 	return nil
 }
