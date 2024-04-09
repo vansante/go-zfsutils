@@ -180,7 +180,8 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
 	}
 
-	deleteAt := time.Now().Add(deleteAfter)
+	now := time.Now()
+	deleteAt := now.Add(deleteAfter)
 	for i := range snaps {
 		if r.ctx.Err() != nil {
 			return nil // context expired, no problem
@@ -196,7 +197,7 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 			return fmt.Errorf("error parsing %s property for %s: %w", createdProp, snap.Name, err)
 		}
 
-		if createdAt.Add(duration).After(deleteAt) {
+		if createdAt.Add(duration).After(now) {
 			continue // Retention period has not passed yet.
 		}
 
