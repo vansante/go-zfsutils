@@ -58,7 +58,7 @@ func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
 		require.Equal(t, snap1, snapshotName(snaps[0].Name))
 		tm, err := parseDatasetTimeProperty(&snaps[0], deleteProp)
 		require.NoError(t, err)
-		require.WithinDuration(t, now, tm, time.Second)
+		require.WithinDuration(t, now.Add(deleteAfter), tm, time.Second)
 
 		require.Equal(t, snap2, snapshotName(snaps[1].Name))
 		require.Equal(t, "", snaps[1].ExtraProps[deleteProp])
@@ -119,7 +119,7 @@ func TestRunner_markPrunableSnapshotsByAge(t *testing.T) {
 		require.Equal(t, snap1, snapshotName(snaps[0].Name))
 		tm, err := parseDatasetTimeProperty(&snaps[0], deleteProp)
 		require.NoError(t, err)
-		require.WithinDuration(t, now, tm, time.Second)
+		require.WithinDuration(t, now.Add(deleteAfter), tm, time.Second)
 
 		require.Equal(t, snap2, snapshotName(snaps[1].Name))
 		require.Equal(t, "", snaps[1].ExtraProps[deleteProp])
