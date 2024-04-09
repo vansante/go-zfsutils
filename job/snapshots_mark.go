@@ -10,6 +10,8 @@ import (
 	zfshttp "github.com/vansante/go-zfsutils/http"
 )
 
+const deleteAfter = time.Minute * 5
+
 func (r *Runner) markPrunableSnapshots() error {
 	err := r.markPrunableExcessSnapshots()
 	if err != nil {
@@ -80,7 +82,7 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 	slices.Reverse(snaps)
 
 	currentFound := int64(0)
-	now := time.Now()
+	deleteAt := time.Now().Add(deleteAfter)
 	for i := range snaps {
 		if r.ctx.Err() != nil {
 			return nil // context expired, no problem
@@ -100,17 +102,17 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 			continue // Not at the max yet
 		}
 
-		err = snap.SetProperty(r.ctx, deleteProp, now.Format(dateTimeFormat))
+		err = snap.SetProperty(r.ctx, deleteProp, deleteAt.Format(dateTimeFormat))
 		if err != nil {
 			return fmt.Errorf("error setting %s property for %s: %w", deleteProp, snap.Name, err)
 		}
 
-		err = r.markRemoteDatasetSnapshot(snap, snap.ExtraProps[serverProp], deleteProp, now)
+		err = r.markRemoteDatasetSnapshot(snap, snap.ExtraProps[serverProp], deleteProp, deleteAt)
 		if err != nil {
 			r.logger.Error("zfs.job.Runner.markAgingDatasetSnapshots: Remote mark failed",
 				"error", err,
 				"snapshot", snap.Name,
-				"deleteAt", now.Format(dateTimeFormat),
+				"deleteAt", deleteAt.Format(dateTimeFormat),
 				"maxCount", maxCount,
 				"server", snap.ExtraProps[serverProp],
 			)
@@ -119,7 +121,7 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 		r.logger.Debug("zfs.job.Runner.markExcessDatasetSnapshots: Snapshot marked",
 			"snapshot", snap.Name,
 			"snapshotIndex", currentFound,
-			"deleteAt", now.Format(dateTimeFormat),
+			"deleteAt", deleteAt.Format(dateTimeFormat),
 			"maxCount", maxCount,
 			"remoteMarked", r.config.EnableSnapshotMarkRemote,
 			"server", snap.ExtraProps[serverProp],
@@ -178,7 +180,7 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
 	}
 
-	now := time.Now()
+	deleteAt := time.Now().Add(deleteAfter)
 	for i := range snaps {
 		if r.ctx.Err() != nil {
 			return nil // context expired, no problem
@@ -194,22 +196,22 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 			return fmt.Errorf("error parsing %s property for %s: %w", createdProp, snap.Name, err)
 		}
 
-		if createdAt.Add(duration).After(now) {
+		if createdAt.Add(duration).After(deleteAt) {
 			continue // Retention period has not passed yet.
 		}
 
-		err = snap.SetProperty(r.ctx, deleteProp, now.Format(dateTimeFormat))
+		err = snap.SetProperty(r.ctx, deleteProp, deleteAt.Format(dateTimeFormat))
 		if err != nil {
 			return fmt.Errorf("error setting %s property for %s: %w", deleteProp, snap.Name, err)
 		}
 
-		err = r.markRemoteDatasetSnapshot(snap, snap.ExtraProps[serverProp], deleteProp, now)
+		err = r.markRemoteDatasetSnapshot(snap, snap.ExtraProps[serverProp], deleteProp, deleteAt)
 		if err != nil {
 			r.logger.Warn("zfs.job.Runner.markAgingDatasetSnapshots: Remote mark failed",
 				"error", err,
 				"snapshot", snap.Name,
 				"createdAt", createdAt,
-				"deleteAt", now.Format(dateTimeFormat),
+				"deleteAt", deleteAt.Format(dateTimeFormat),
 				"deleteAfter", duration,
 				"server", snap.ExtraProps[serverProp],
 			)
@@ -218,7 +220,7 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 		r.logger.Debug("zfs.job.Runner.markAgingDatasetSnapshots: Snapshot marked",
 			"snapshot", snap.Name,
 			"createdAt", createdAt,
-			"deleteAt", now.Format(dateTimeFormat),
+			"deleteAt", deleteAt.Format(dateTimeFormat),
 			"deleteAfter", duration,
 			"remoteMarked", r.config.EnableSnapshotMarkRemote,
 			"server", snap.ExtraProps[serverProp],
