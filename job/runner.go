@@ -16,11 +16,12 @@ const (
 
 	requestTimeout = time.Second * 20
 
-	createSnapshotInterval  = time.Minute
-	sendSnapshotInterval    = time.Minute
-	markSnapshotInterval    = time.Minute
-	pruneSnapshotInterval   = time.Minute
-	pruneFilesystemInterval = time.Minute
+	createSnapshotInterval   = time.Minute
+	sendSnapshotInterval     = time.Minute
+	pruneRemoteCacheInterval = 5 * time.Minute
+	markSnapshotInterval     = time.Minute
+	pruneSnapshotInterval    = time.Minute
+	pruneFilesystemInterval  = time.Minute
 )
 
 // NewRunner creates a new job runner
@@ -28,6 +29,7 @@ func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
 	r := &Runner{
 		config:      conf,
 		datasetLock: make(map[string]struct{}),
+		remoteCache: make(map[string]map[string]datasetCache),
 		logger:      logger,
 		ctx:         ctx,
 	}
@@ -42,6 +44,9 @@ type Runner struct {
 	config      Config
 	mapLock     sync.Mutex
 	datasetLock map[string]struct{}
+
+	remoteCache map[string]map[string]datasetCache // Snapshots indexed by server, then dataset name
+	cacheLock   sync.RWMutex
 
 	logger *slog.Logger
 	ctx    context.Context
@@ -124,6 +129,8 @@ func (r *Runner) Run() {
 		for i := 1; i <= r.config.SendRoutines; i++ {
 			go r.runSendSnapshotRoutine(i)
 		}
+
+		go r.runPruneRemoteCache()
 	}
 
 	if r.config.EnableSnapshotMark {
@@ -185,6 +192,21 @@ func (r *Runner) runSendSnapshotRoutine(id int) {
 			case err != nil:
 				r.logger.Error("zfs.job.Runner.runSendSnapshots: Error sending snapshots", "error", err)
 			}
+		case <-r.ctx.Done():
+			return
+		}
+	}
+}
+
+func (r *Runner) runPruneRemoteCache() {
+	dur := randomizeDuration(pruneRemoteCacheInterval)
+	ticker := time.NewTicker(dur)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			r.pruneRemoteDatasetCache()
 		case <-r.ctx.Done():
 			return
 		}

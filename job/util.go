@@ -55,7 +55,7 @@ func snapshotName(name string) string {
 	return name[idx+1:]
 }
 
-func filterSnapshotsWithProp(list []zfs.Dataset, prop string) []zfs.Dataset {
+func filterSnapshotsWithoutProp(list []zfs.Dataset, prop string) []zfs.Dataset {
 	nwList := make([]zfs.Dataset, 0, len(list))
 	for _, snap := range list {
 		if !propertyIsSet(snap.ExtraProps[prop]) {
