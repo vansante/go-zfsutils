@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"github.com/klauspost/compress/zstd"
+	"github.com/stretchr/testify/require"
 
 	zfs "github.com/vansante/go-zfsutils"
-
-	"github.com/stretchr/testify/require"
 )
 
 var sendSnaps = []string{
