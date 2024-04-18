@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -61,10 +62,19 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 		}
 	}
 
+	wg := sync.WaitGroup{}
 	sendingCount := 0
 	runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
 		verifyArgs(false, sendingCount, arguments)
-		sendingCount++
+		wg.Add(1)
+		go func() {
+			ds, err := zfs.GetDataset(context.Background(), testFilesystem, runner.config.Properties.snapshotSending())
+			require.NoError(t, err)
+			require.Equal(t, sendSnaps[sendingCount], ds.ExtraProps[runner.config.Properties.snapshotSending()])
+
+			sendingCount++
+			wg.Done()
+		}()
 	})
 
 	sentCount := 0
@@ -75,6 +85,8 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 
 	err := runner.sendSnapshots(1)
 	require.NoError(t, err)
+
+	wg.Wait()
 
 	require.Equal(t, 5, sendingCount)
 	require.Equal(t, 5, sentCount)

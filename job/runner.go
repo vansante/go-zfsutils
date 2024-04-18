@@ -3,12 +3,12 @@ package job
 import (
 	"context"
 	"fmt"
-	zfs "github.com/vansante/go-zfsutils"
 	"log/slog"
 	"sync"
 	"time"
 
 	eventemitter "github.com/vansante/go-event-emitter"
+	zfs "github.com/vansante/go-zfsutils"
 )
 
 const (
@@ -25,12 +25,14 @@ const (
 
 // NewRunner creates a new job runner
 func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
-	return &Runner{
+	r := &Runner{
 		config:      conf,
 		datasetLock: make(map[string]struct{}),
 		logger:      logger,
 		ctx:         ctx,
 	}
+	r.attachListeners()
+	return r
 }
 
 // Runner runs Create, Send and Prune snapshot jobs. Additionally, it can prune filesystems.
