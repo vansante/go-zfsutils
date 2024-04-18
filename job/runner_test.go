@@ -39,7 +39,7 @@ func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 			r.attachListeners()
 
 			r.config.ApplyDefaults()
-			r.config.MaximumSendTimeMinutes = 1
+			r.config.MaximumSendTimeSeconds = 30
 			r.config.SendSetProperties = map[string]string{
 				zfs.PropertyCanMount: zfs.PropertyOff,
 			}
