@@ -52,8 +52,8 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 		require.Equal(t, testFilesystem+"@"+sendSnaps[i], args[0])
 		require.Equal(t, url, args[1])
 		if sent {
-			require.NotZero(t, args[2])
-			require.NotZero(t, args[3])
+			require.NotZero(t, args[2], "bytes sent should not be zero")
+			require.NotZero(t, args[3], "time taken should not be zero")
 			require.Len(t, args, 4)
 			t.Logf("sent %d bytes in %s", args[2], args[3].(time.Duration).String())
 		} else {
@@ -125,8 +125,8 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i+1], args[0])
 			require.Equal(t, url, args[1])
 			if sent {
-				require.NotZero(t, args[2])
-				require.NotZero(t, args[3])
+				require.NotZero(t, args[2], "bytes sent should not be zero")
+				require.NotZero(t, args[3], "time taken should not be zero")
 				require.Len(t, args, 4)
 				t.Logf("sent %d bytes in %s", args[2], args[3].(time.Duration).String())
 			} else {
@@ -200,11 +200,11 @@ func TestRunner_sendResumeSnapshot(t *testing.T) {
 
 		// Now start the test by seeing if it resumes
 		verifyArgs := func(sent bool, i int, args []interface{}) {
-			require.Equal(t, testFilesystem+"@"+sendSnaps[i+1], args[0])
+			require.Equal(t, testFilesystem+"@"+sendSnaps[i], args[0])
 			require.Equal(t, url, args[1])
 			if sent {
-				require.NotZero(t, args[2])
-				require.NotZero(t, args[3])
+				require.NotZero(t, args[2], "bytes sent should not be zero")
+				require.NotZero(t, args[3], "time taken should not be zero")
 				require.Len(t, args, 4)
 				t.Logf("sent %d bytes in %s", args[2], args[3].(time.Duration).String())
 			} else {
@@ -221,7 +221,7 @@ func TestRunner_sendResumeSnapshot(t *testing.T) {
 			t.Logf("Resuming snapshot %s", args[0])
 		})
 
-		sendingCount := 0
+		sendingCount := 1
 		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
 			verifyArgs(false, sendingCount, arguments)
 			sendingCount++
@@ -238,9 +238,13 @@ func TestRunner_sendResumeSnapshot(t *testing.T) {
 		err = runner.sendSnapshots(1)
 		require.NoError(t, err)
 
+		// Send again, because on resume the function stops.
+		err = runner.sendSnapshots(1)
+		require.NoError(t, err)
+
 		require.Equal(t, 1, resumeCount)
-		require.Equal(t, 3, sendingCount)
-		require.Equal(t, 4, sentCount)
+		require.Equal(t, 5, sendingCount)
+		require.Equal(t, 5, sentCount)
 
 		snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{
 			ParentDataset: testHTTPZPool + "/" + datasetName(testFilesystem, true),
