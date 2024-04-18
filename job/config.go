@@ -2,8 +2,9 @@ package job
 
 import (
 	"fmt"
-	"github.com/klauspost/compress/zstd"
 	"time"
+
+	"github.com/klauspost/compress/zstd"
 
 	zfs "github.com/vansante/go-zfsutils"
 )
