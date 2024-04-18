@@ -25,7 +25,10 @@ const (
 	GETParamCompressionLevel    = "compressionLevel"
 )
 
-const HeaderResumeReceiveToken = "X-Receive-Resume-Token"
+const (
+	HeaderResumeReceiveToken  = "X-Receive-Resume-Token"
+	HeaderResumeReceivedBytes = "X-Received-Bytes"
+)
 
 type ReceiveProperties map[string]string
 
@@ -235,6 +238,7 @@ func (h *HTTP) handleGetResumeToken(w http.ResponseWriter, req *http.Request, lo
 	}
 
 	w.Header().Set(HeaderResumeReceiveToken, ds.ExtraProps[zfs.PropertyReceiveResumeToken])
+	w.Header().Set(HeaderResumeReceivedBytes, strconv.FormatUint(ds.Referenced, 10))
 	w.WriteHeader(http.StatusNoContent)
 }
 

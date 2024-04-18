@@ -156,7 +156,7 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 
 func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, remoteDataset, sendingSnapName string) (bool, error) {
 	ctx, cancel := context.WithTimeout(r.ctx, requestTimeout)
-	resumeToken, err := client.ResumableSendToken(ctx, remoteDataset)
+	resumeToken, curBytes, err := client.ResumableSendToken(ctx, remoteDataset)
 	cancel()
 	switch {
 	case isContextError(err):
@@ -178,9 +178,10 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		"server", client.Server(),
 		"snapshotName", sendingSnapName,
 		"snapshot", fullSnapName,
+		"curBytes", curBytes,
 	)
 
-	r.EmitEvent(ResumeSendingSnapshotEvent, fullSnapName, client.Server())
+	r.EmitEvent(ResumeSendingSnapshotEvent, fullSnapName, client.Server(), curBytes)
 
 	ctx, cancel = context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
 	result, err := client.ResumeSend(ctx, datasetName(ds.Name, true), resumeToken, zfshttp.ResumeSendOptions{
@@ -190,10 +191,11 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		},
 		ProgressEvery: r.config.SendProgressEventInterval,
 		ProgressFn: func(bytes int64) {
-			r.EmitEvent(SnapshotSendingProgressEvent, fullSnapName, client.Server(), bytes)
+			r.EmitEvent(SnapshotSendingProgressEvent, fullSnapName, client.Server(), int64(curBytes)+bytes)
 		},
 	})
 	cancel()
+	result.BytesSent += int64(curBytes)
 	if err != nil {
 		return false, fmt.Errorf("error resuming send of %s (sent %d bytes in %s): %w",
 			fullSnapName, result.BytesSent, result.TimeTaken, err,

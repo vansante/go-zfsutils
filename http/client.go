@@ -97,29 +97,30 @@ func (c *Client) DatasetSnapshots(ctx context.Context, dataset string, extraProp
 }
 
 // ResumableSendToken requests the resume token for a remote dataset, if there is one
-func (c *Client) ResumableSendToken(ctx context.Context, dataset string) (string, error) {
+func (c *Client) ResumableSendToken(ctx context.Context, dataset string) (token string, curBytes uint64, err error) {
 	req, err := c.request(ctx, http.MethodGet, fmt.Sprintf("filesystems/%s/resume-token",
 		dataset,
 	), nil)
 	if err != nil {
-		return "", fmt.Errorf("error creating token request: %w", err)
+		return "", 0, fmt.Errorf("error creating token request: %w", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("error requesting resume token: %w", err)
+		return "", 0, fmt.Errorf("error requesting resume token: %w", err)
 	}
 	_ = resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusNoContent:
-		return resp.Header.Get(HeaderResumeReceiveToken), nil
+		curBytes, _ = strconv.ParseUint(resp.Header.Get(HeaderResumeReceivedBytes), 10, 64)
+		return resp.Header.Get(HeaderResumeReceiveToken), curBytes, nil
 	case http.StatusNotFound:
-		return "", ErrDatasetNotFound
+		return "", 0, ErrDatasetNotFound
 	case http.StatusPreconditionFailed:
-		return "", nil // Nothing to resume
+		return "", 0, nil // Nothing to resume
 	default:
-		return "", fmt.Errorf("unexpected status %d requesting resume token", resp.StatusCode)
+		return "", 0, fmt.Errorf("unexpected status %d requesting resume token", resp.StatusCode)
 	}
 }
 

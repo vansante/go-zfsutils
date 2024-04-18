@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"github.com/klauspost/compress/zstd"
+	"github.com/stretchr/testify/require"
 
 	zfs "github.com/vansante/go-zfsutils"
-
-	"github.com/stretchr/testify/require"
 )
 
 var sendSnaps = []string{
@@ -228,7 +227,8 @@ func TestRunner_sendResumeSnapshot(t *testing.T) {
 		runner.AddListener(ResumeSendingSnapshotEvent, func(args ...interface{}) {
 			require.Equal(t, testFilesystem+"@"+sendSnaps[0], args[0])
 			require.Equal(t, url, args[1])
-			require.Len(t, args, 2)
+			require.NotZero(t, args[2])
+			require.Len(t, args, 3)
 			resumeCount++
 			t.Logf("Resuming snapshot %s", args[0])
 		})
