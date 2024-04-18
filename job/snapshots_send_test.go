@@ -359,7 +359,7 @@ func TestRunner_sendNoCommonSnapshots(t *testing.T) {
 		dataset, err := zfs.GetDataset(context.Background(), testFilesystem, runner.config.Properties.snapshotSendTo())
 		require.NoError(t, err)
 
-		err = runner.sendDatasetSnapshots(1, dataset)
+		err = runner.sendDatasetSnapshots(dataset)
 		require.ErrorIs(t, err, ErrNoCommonSnapshots)
 	})
 }

@@ -43,7 +43,7 @@ func (r *Runner) sendSnapshots(routineID int) error {
 			continue // Dont know where to send this one ¯\_(ツ)_/¯
 		}
 
-		err = r.sendDatasetSnapshots(routineID, ds)
+		err = r.sendDatasetSnapshots(ds)
 		switch {
 		case isContextError(err):
 			r.logger.Info("zfs.job.Runner.sendSnapshots: Send snapshot job interrupted",
@@ -64,7 +64,7 @@ func (r *Runner) sendSnapshots(routineID int) error {
 	return nil
 }
 
-func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
+func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 	locked, unlock := r.lockDataset(datasetName(ds.Name, true))
 	if !locked {
 		return nil // Some other goroutine is doing something with this dataset already, continue to next.
