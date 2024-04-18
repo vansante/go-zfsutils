@@ -193,6 +193,11 @@ func TestRunner_sendResumeSnapshot(t *testing.T) {
 		require.True(t, errors.As(err, &zfsErr))
 		require.NotEmpty(t, zfsErr.ResumeToken(), zfsErr)
 
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
+		require.NoError(t, err)
+		// Manually set the sending property (this will be done by every normal send)
+		require.NoError(t, ds.SetProperty(context.Background(), runner.config.Properties.snapshotSending(), sendSnaps[0]))
+
 		// Now start the test by seeing if it resumes
 		verifyArgs := func(sent bool, i int, args []interface{}) {
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i+1], args[0])

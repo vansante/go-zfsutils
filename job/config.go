@@ -81,6 +81,7 @@ type Properties struct {
 	SnapshotIntervalMinutes  string `json:"SnapshotIntervalMinutes" yaml:"SnapshotIntervalMinutes"`
 	SnapshotCreatedAt        string `json:"SnapshotCreatedAt" yaml:"SnapshotCreatedAt"`
 	SnapshotSendTo           string `json:"SnapshotSendTo" yaml:"SnapshotSendTo"`
+	SnapshotSending          string `json:"SnapshotSending" yaml:"SnapshotSending"`
 	SnapshotSentAt           string `json:"SnapshotSentAt" yaml:"SnapshotSentAt"`
 	SnapshotRetentionCount   string `json:"SnapshotRetentionCount" yaml:"SnapshotRetentionCount"`
 	SnapshotRetentionMinutes string `json:"SnapshotRetentionMinutes" yaml:"SnapshotRetentionMinutes"`
@@ -93,6 +94,7 @@ const (
 	defaultSnapshotIntervalMinutesProperty  = "snapshot-interval-minutes"
 	defaultSnapshotCreatedAtProperty        = "snapshot-created-at"
 	defaultSnapshotSendToProperty           = "snapshot-send-to"
+	defaultSnapshotSendingProperty          = "snapshot-sending"
 	defaultSnapshotSentAtProperty           = "snapshot-sent-at"
 	defaultSnapshotRetentionCountProperty   = "snapshot-retention-count"
 	defaultSnapshotRetentionMinutesProperty = "snapshot-retention-minutes"
@@ -107,6 +109,7 @@ func (p *Properties) ApplyDefaults() {
 	p.SnapshotIntervalMinutes = defaultSnapshotIntervalMinutesProperty
 	p.SnapshotCreatedAt = defaultSnapshotCreatedAtProperty
 	p.SnapshotSendTo = defaultSnapshotSendToProperty
+	p.SnapshotSending = defaultSnapshotSendingProperty
 	p.SnapshotSentAt = defaultSnapshotSentAtProperty
 	p.SnapshotRetentionCount = defaultSnapshotRetentionCountProperty
 	p.SnapshotRetentionMinutes = defaultSnapshotRetentionMinutesProperty
@@ -124,6 +127,10 @@ func (p *Properties) snapshotCreatedAt() string {
 
 func (p *Properties) snapshotSendTo() string {
 	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotSendTo)
+}
+
+func (p *Properties) snapshotSending() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotSending)
 }
 
 func (p *Properties) snapshotSentAt() string {
