@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"errors"
 	"io"
 	"testing"
 	"time"
@@ -165,7 +166,88 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 	})
 }
 
-// TODO: FIXME: Add a test for a resumed send with associated events
+func TestRunner_sendResumeSnapshot(t *testing.T) {
+	sendTest(t, func(url string, runner *Runner) {
+		// Setup by doing an interrupted snapshot send
+		snap, err := zfs.GetDataset(context.Background(), testFilesystem+"@"+sendSnaps[0])
+		require.NoError(t, err)
+
+		pipeRdr, pipeWrtr := io.Pipe()
+		go func() {
+			err := snap.SendSnapshot(context.Background(), pipeWrtr, zfs.SendOptions{})
+			require.NoError(t, err)
+			require.NoError(t, pipeWrtr.Close())
+		}()
+
+		_, err = zfs.ReceiveSnapshot(
+			context.Background(),
+			io.LimitReader(pipeRdr, 10*1024),
+			testHTTPZPool+"/"+datasetName(snap.Name, false),
+			zfs.ReceiveOptions{
+				Resumable:  true,
+				Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+			},
+		)
+		require.Error(t, err)
+		var zfsErr *zfs.ResumableStreamError
+		require.True(t, errors.As(err, &zfsErr))
+		require.NotEmpty(t, zfsErr.ResumeToken(), zfsErr)
+
+		// Now start the test by seeing if it resumes
+		verifyArgs := func(sent bool, i int, args []interface{}) {
+			require.Equal(t, testFilesystem+"@"+sendSnaps[i+1], args[0])
+			require.Equal(t, url, args[1])
+			if sent {
+				require.NotZero(t, args[2])
+				require.NotZero(t, args[3])
+				require.Len(t, args, 4)
+				t.Logf("sent %d bytes in %s", args[2], args[3].(time.Duration).String())
+			} else {
+				require.Len(t, args, 2)
+			}
+		}
+
+		resumeCount := 0
+		runner.AddListener(ResumeSendingSnapshotEvent, func(args ...interface{}) {
+			require.Equal(t, testFilesystem+"@"+sendSnaps[0], args[0])
+			require.Equal(t, url, args[1])
+			require.Len(t, args, 2)
+			resumeCount++
+			t.Logf("Resuming snapshot %s", args[0])
+		})
+
+		sendingCount := 0
+		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
+			verifyArgs(false, sendingCount, arguments)
+			sendingCount++
+			t.Logf("Sending snapshot %s", arguments[0])
+		})
+
+		sentCount := 0
+		runner.AddListener(SentSnapshotEvent, func(arguments ...interface{}) {
+			verifyArgs(true, sentCount, arguments)
+			sentCount++
+			t.Logf("Sent snapshot %s", arguments[0])
+		})
+
+		err = runner.sendSnapshots(1)
+		require.NoError(t, err)
+
+		require.Equal(t, 1, resumeCount)
+		require.Equal(t, 3, sendingCount)
+		require.Equal(t, 4, sentCount)
+
+		snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{
+			ParentDataset: testHTTPZPool + "/" + datasetName(testFilesystem, true),
+		})
+		require.NoError(t, err)
+		require.Len(t, snaps, 5)
+
+		for i, snap := range sendSnaps {
+			require.Equal(t, testHTTPZPool+"/"+datasetName(testFilesystem, true)+"@"+snap, snaps[i].Name)
+		}
+	})
+}
 
 func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 	sendTest(t, func(url string, runner *Runner) {
