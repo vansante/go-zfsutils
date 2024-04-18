@@ -2,11 +2,13 @@ package job
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
 	eventemitter "github.com/vansante/go-event-emitter"
+	zfs "github.com/vansante/go-zfsutils"
 )
 
 const (
@@ -23,12 +25,14 @@ const (
 
 // NewRunner creates a new job runner
 func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
-	return &Runner{
+	r := &Runner{
 		config:      conf,
 		datasetLock: make(map[string]struct{}),
 		logger:      logger,
 		ctx:         ctx,
 	}
+	r.attachListeners()
+	return r
 }
 
 // Runner runs Create, Send and Prune snapshot jobs. Additionally, it can prune filesystems.
@@ -41,6 +45,52 @@ type Runner struct {
 
 	logger *slog.Logger
 	ctx    context.Context
+}
+
+func (r *Runner) attachListeners() {
+	r.AddListener(StartSendingSnapshotEvent, func(args ...interface{}) {
+		snapName := args[0].(string)
+		r.onSendStart(snapName)
+	})
+
+	r.AddListener(SentSnapshotEvent, func(args ...interface{}) {
+		snapName := args[0].(string)
+		r.onSendComplete(snapName)
+	})
+}
+
+func (r *Runner) onSendStart(snapName string) {
+	dsName := fmt.Sprintf("%s/%s", r.config.ParentDataset, datasetName(snapName, true))
+	ds, err := zfs.GetDataset(r.ctx, dsName)
+	if err != nil {
+		r.logger.Error("zfs.job.runner.onSendStart: Error retrieving dataset", "error", err, "snapName", snapName)
+		return
+	}
+	err = ds.SetProperty(r.ctx, r.config.Properties.snapshotSending(), snapshotName(snapName))
+	if err != nil {
+		r.logger.Error("zfs.job.runner.onSendStart: Error setting dataset property",
+			"error", err, "dataset", ds.Name, "property", r.config.Properties.snapshotSending(),
+		)
+		return
+	}
+	r.logger.Debug("zfs.job.runner.onSendStart: Snapshot sending property set")
+}
+
+func (r *Runner) onSendComplete(snapName string) {
+	dsName := fmt.Sprintf("%s/%s", r.config.ParentDataset, datasetName(snapName, true))
+	ds, err := zfs.GetDataset(r.ctx, dsName)
+	if err != nil {
+		r.logger.Error("zfs.job.runner.onSendComplete: Error retrieving dataset", "error", err, "snapName", snapName)
+		return
+	}
+	err = ds.InheritProperty(r.ctx, r.config.Properties.snapshotSending())
+	if err != nil {
+		r.logger.Error("zfs.job.runner.onSendComplete: Error inheriting dataset property",
+			"error", err, "dataset", ds.Name, "property", r.config.Properties.snapshotSending(),
+		)
+		return
+	}
+	r.logger.Debug("zfs.job.runner.onSendStart: Snapshot sending property removed")
 }
 
 func (r *Runner) lockDataset(dataset string) (succeeded bool, unlock func()) {

@@ -35,6 +35,7 @@ func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 				logger: slog.Default(),
 				ctx:    context.Background(),
 			}
+			r.attachListeners()
 
 			r.config.ApplyDefaults()
 			r.config.MaximumSendTimeMinutes = 1

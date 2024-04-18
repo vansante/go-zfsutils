@@ -109,7 +109,7 @@ func (c *Client) ResumableSendToken(ctx context.Context, dataset string) (string
 	if err != nil {
 		return "", fmt.Errorf("error requesting resume token: %w", err)
 	}
-	defer resp.Body.Close()
+	_ = resp.Body.Close()
 
 	switch resp.StatusCode {
 	case http.StatusNoContent:
@@ -167,16 +167,19 @@ func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, op
 		GETParamResumable, "true",
 		GETParamEnableDecompression, strconv.FormatBool(options.CompressionLevel > 0),
 	), countReader)
-	result := SendResult{
-		BytesSent: countReader.Count(),
-		TimeTaken: time.Since(startTime),
-	}
 	if err != nil {
 		cancelSend()
-		return result, fmt.Errorf("error creating resume request: %w", err)
+		return SendResult{
+			BytesSent: countReader.Count(),
+			TimeTaken: time.Since(startTime),
+		}, fmt.Errorf("error creating resume request: %w", err)
 	}
 
-	return result, c.doSendStream(req, pipeWrtr, cancelSend)
+	err = c.doSendStream(req, pipeWrtr, cancelSend)
+	return SendResult{
+		BytesSent: countReader.Count(),
+		TimeTaken: time.Since(startTime),
+	}, err
 }
 
 // SnapshotSendOptions is a struct for a send job to a remote server using a Client
