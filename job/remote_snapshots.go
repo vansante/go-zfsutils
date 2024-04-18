@@ -10,10 +10,6 @@ import (
 	zfshttp "github.com/vansante/go-zfsutils/http"
 )
 
-const (
-	maximumCacheAge = 2 * time.Minute * 60
-)
-
 type datasetCache struct {
 	cachedAt  time.Time
 	snapshots []zfs.Dataset
@@ -25,7 +21,7 @@ func (r *Runner) remoteDatasetSnapshots(client *zfshttp.Client, remoteDataset st
 	serverCache, ok := r.remoteCache[client.Server()]
 	if ok {
 		dsCache, ok := serverCache[remoteDataset]
-		if ok && time.Since(dsCache.cachedAt) < maximumCacheAge {
+		if ok && time.Since(dsCache.cachedAt) < r.config.maximumRemoteSnapshotCacheAge() {
 			r.cacheLock.RUnlock()
 			return dsCache.snapshots, nil
 		}
@@ -83,7 +79,7 @@ func (r *Runner) pruneRemoteDatasetCache() {
 
 	for _, serverCache := range r.remoteCache {
 		for remoteDataset, dsCache := range serverCache {
-			if time.Since(dsCache.cachedAt) >= maximumCacheAge {
+			if time.Since(dsCache.cachedAt) >= r.config.maximumRemoteSnapshotCacheAge() {
 				delete(serverCache, remoteDataset)
 			}
 		}

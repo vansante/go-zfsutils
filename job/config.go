@@ -2,19 +2,19 @@ package job
 
 import (
 	"fmt"
-	"time"
-
 	"github.com/klauspost/compress/zstd"
+	"time"
 
 	zfs "github.com/vansante/go-zfsutils"
 )
 
 const (
-	defaultDatasetType               = zfs.DatasetFilesystem
-	defaultSnapshotNameTemplate      = "backup_%UNIXTIME%"
-	defaultMaximumSendTimeMinutes    = 12 * 60
-	defaultSendRoutines              = 3
-	defaultSendProgressEventInterval = 5 * time.Minute
+	defaultDatasetType                          = zfs.DatasetFilesystem
+	defaultSnapshotNameTemplate                 = "backup_%UNIXTIME%"
+	defaultMaximumSendTimeSeconds               = 12 * 60 * 60 // 12 hours
+	defaultSendRoutines                         = 3
+	defaultSendProgressEventIntervalSeconds     = 5 * 60  // 5 minutes
+	defaultMaximumRemoteSnapshotCacheAgeSeconds = 60 * 60 // 1 hour
 )
 
 // Config configures the runner
@@ -40,10 +40,11 @@ type Config struct {
 
 	IgnoreSnapshotsWithoutCreatedProperty bool `json:"IgnoreSnapshotsWithoutCreatedProperty" yaml:"IgnoreSnapshotsWithoutCreatedProperty"`
 
-	SendCompressionLevel      zstd.EncoderLevel `json:"SendCompressionLevel" yaml:"SendCompressionLevel"`
-	SendSpeedBytesPerSecond   int64             `json:"SendSpeedBytesPerSecond" yaml:"SendSpeedBytesPerSecond"`
-	SendProgressEventInterval time.Duration     `json:"SendProgressEventInterval" yaml:"SendProgressEventInterval"`
-	MaximumSendTimeMinutes    int64             `json:"MaximumSendTimeMinutes" yaml:"MaximumSendTimeMinutes"`
+	SendCompressionLevel                 zstd.EncoderLevel `json:"SendCompressionLevel" yaml:"SendCompressionLevel"`
+	SendSpeedBytesPerSecond              int64             `json:"SendSpeedBytesPerSecond" yaml:"SendSpeedBytesPerSecond"`
+	SendProgressEventIntervalSeconds     int64             `json:"SendProgressEventIntervalSeconds" yaml:"SendProgressEventIntervalSeconds"`
+	MaximumSendTimeSeconds               int64             `json:"MaximumSendTimeSeconds" yaml:"MaximumSendTimeSeconds"`
+	MaximumRemoteSnapshotCacheAgeSeconds int64             `json:"MaximumRemoteSnapshotCacheAgeSeconds" yaml:"MaximumRemoteSnapshotCacheAgeSeconds"`
 
 	Properties Properties `json:"Properties" yaml:"Properties"`
 }
@@ -52,8 +53,9 @@ type Config struct {
 func (c *Config) ApplyDefaults() {
 	c.DatasetType = defaultDatasetType
 	c.SnapshotNameTemplate = defaultSnapshotNameTemplate
-	c.MaximumSendTimeMinutes = defaultMaximumSendTimeMinutes
-	c.SendProgressEventInterval = defaultSendProgressEventInterval
+	c.MaximumSendTimeSeconds = defaultMaximumSendTimeSeconds
+	c.SendProgressEventIntervalSeconds = defaultSendProgressEventIntervalSeconds
+	c.MaximumRemoteSnapshotCacheAgeSeconds = defaultMaximumRemoteSnapshotCacheAgeSeconds
 
 	c.EnableSnapshotCreate = true
 	c.EnableSnapshotSend = true
@@ -72,6 +74,18 @@ func (c *Config) ApplyDefaults() {
 	c.SendCopyProperties = []string{
 		c.Properties.snapshotCreatedAt(),
 	}
+}
+
+func (c *Config) maximumSendTime() time.Duration {
+	return time.Duration(c.MaximumSendTimeSeconds) * time.Second
+}
+
+func (c *Config) sendProgressInterval() time.Duration {
+	return time.Duration(c.SendProgressEventIntervalSeconds) * time.Second
+}
+
+func (c *Config) maximumRemoteSnapshotCacheAge() time.Duration {
+	return time.Duration(c.MaximumRemoteSnapshotCacheAgeSeconds) * time.Second
 }
 
 // Properties sets the names of the custom ZFS properties to use

@@ -170,13 +170,13 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 
 	r.EmitEvent(ResumeSendingSnapshotEvent, fullSnapName, client.Server(), curBytes)
 
-	ctx, cancel = context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
+	ctx, cancel = context.WithTimeout(r.ctx, r.config.maximumSendTime())
 	result, err := client.ResumeSend(ctx, datasetName(ds.Name, true), resumeToken, zfshttp.ResumeSendOptions{
 		ResumeSendOptions: zfs.ResumeSendOptions{
 			BytesPerSecond:   r.config.SendSpeedBytesPerSecond,
 			CompressionLevel: r.config.SendCompressionLevel,
 		},
-		ProgressEvery: r.config.SendProgressEventInterval,
+		ProgressEvery: r.config.sendProgressInterval(),
 		ProgressFn: func(bytes int64) {
 			r.EmitEvent(SnapshotSendingProgressEvent, fullSnapName, client.Server(), int64(curBytes)+bytes)
 		},
@@ -211,7 +211,7 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 
 	r.EmitEvent(StartSendingSnapshotEvent, send.Snapshot.Name, client.Server())
 
-	ctx, cancel := context.WithTimeout(r.ctx, time.Duration(r.config.MaximumSendTimeMinutes)*time.Minute)
+	ctx, cancel := context.WithTimeout(r.ctx, r.config.maximumSendTime())
 	result, err := client.Send(ctx, send)
 	cancel()
 	if err != nil {
@@ -286,7 +286,7 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, server string) 
 			},
 			Resumable:     r.config.SendResumable,
 			Properties:    props,
-			ProgressEvery: r.config.SendProgressEventInterval,
+			ProgressEvery: r.config.sendProgressInterval(),
 			ProgressFn: func(bytes int64) {
 				r.EmitEvent(SnapshotSendingProgressEvent, snap.Name, server, bytes)
 			},
