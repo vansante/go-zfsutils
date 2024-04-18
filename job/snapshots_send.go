@@ -112,7 +112,7 @@ func (r *Runner) sendDatasetSnapshots(routineID int, ds *zfs.Dataset) error {
 	}
 
 	if r.config.IgnoreSnapshotsWithoutCreatedProperty {
-		localSnaps = filterSnapshotsWithProp(localSnaps, createdProp)
+		localSnaps = filterSnapshotsWithoutProp(localSnaps, createdProp)
 	}
 
 	toSend, err := r.reconcileSnapshots(localSnaps, remoteSnaps, server)
@@ -249,6 +249,7 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, server string) 
 		snap := &local[i]
 		remoteExists := snapshotsContain(remote, datasetName(snap.Name, true), snapshotName(snap.Name))
 		if remoteExists {
+			prevRemoteSnap = snap
 			continue // No more to do
 		}
 
