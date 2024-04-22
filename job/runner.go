@@ -27,6 +27,7 @@ const (
 // NewRunner creates a new job runner
 func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
 	r := &Runner{
+		Emitter:     eventemitter.NewEmitter(false),
 		config:      conf,
 		datasetLock: make(map[string]struct{}),
 		remoteCache: make(map[string]map[string]datasetCache),
@@ -39,7 +40,7 @@ func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
 
 // Runner runs Create, Send and Prune snapshot jobs. Additionally, it can prune filesystems.
 type Runner struct {
-	eventemitter.Emitter
+	*eventemitter.Emitter
 
 	config      Config
 	mapLock     sync.Mutex
