@@ -39,30 +39,43 @@ func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
 	return r
 }
 
-// Runner runs Create, Send and Prune snapshot jobs. Additionally, it can prune filesystems.
+// Runner runs Create, ZFSSending and Prune snapshot jobs. Additionally, it can prune filesystems.
 type Runner struct {
 	*eventemitter.Emitter
 
-	config      Config
-	mapLock     sync.Mutex
+	config Config
+
 	datasetLock map[string]struct{}
+	dsLock      sync.Mutex
 
 	remoteCache map[string]map[string]datasetCache // Snapshots indexed by server, then dataset name
 	cacheLock   sync.RWMutex
+
+	sends    []*ZFSSending
+	sendLock sync.RWMutex
 
 	logger *slog.Logger
 	ctx    context.Context
 }
 
 func (r *Runner) attachListeners() {
-	r.AddListener(StartSendingSnapshotEvent, func(args ...interface{}) {
+	r.AddListener(StartSendingSnapshotEvent, func(args ...any) {
 		snapName := args[0].(string)
 		r.onSendStart(snapName)
 	})
 
-	r.AddListener(SentSnapshotEvent, func(args ...interface{}) {
+	r.AddListener(SentSnapshotEvent, func(args ...any) {
 		snapName := args[0].(string)
 		r.onSendComplete(snapName)
+	})
+
+	r.AddListener(SnapshotSendingProgressEvent, func(args ...any) {
+		snapName := args[0].(string)
+
+		r.updateSendingState(snapName, func(sending *ZFSSending) {
+			sending.SentBytes = args[2].(int64)
+			sending.LastUpdate = time.Now()
+		})
 	})
 }
 
@@ -120,22 +133,22 @@ func (r *Runner) lockDataset(dataset string) (succeeded bool, unlock func()) {
 		// The dataset has been locked by property
 		return false, func() {} // Noop unlock
 	}
-	r.mapLock.Lock()
+	r.dsLock.Lock()
 	_, ok := r.datasetLock[dataset]
 	if ok {
 		// Entry found, already locked.
-		r.mapLock.Unlock()
+		r.dsLock.Unlock()
 		return false, func() {} // Noop unlock
 	}
 	// Set the lock!
 	r.datasetLock[dataset] = struct{}{}
-	r.mapLock.Unlock()
+	r.dsLock.Unlock()
 
 	return true, func() {
 		// Simple unlock function removes entry from map:
-		r.mapLock.Lock()
+		r.dsLock.Lock()
 		delete(r.datasetLock, dataset)
-		r.mapLock.Unlock()
+		r.dsLock.Unlock()
 	}
 }
 
@@ -165,6 +178,17 @@ func (r *Runner) Run() {
 	if r.config.EnableFilesystemPrune {
 		go r.runPruneFilesystems()
 	}
+}
+
+// ListCurrentSends returns a list of current ZFS sends in progress
+func (r *Runner) ListCurrentSends() []ZFSSending {
+	r.sendLock.RLock()
+	lst := make([]ZFSSending, len(r.sends))
+	for i := range r.sends {
+		lst[i] = *r.sends[i]
+	}
+	r.sendLock.RUnlock()
+	return lst
 }
 
 func (r *Runner) runCreateSnapshots() {
