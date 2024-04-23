@@ -65,11 +65,25 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 	sendingCount := 0
 	runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
 		verifyArgs(false, sendingCount, arguments)
+
 		wg.Add(1)
 		go func() {
 			ds, err := zfs.GetDataset(context.Background(), testFilesystem, runner.config.Properties.snapshotSending())
 			require.NoError(t, err)
 			require.Equal(t, sendSnaps[sendingCount], ds.ExtraProps[runner.config.Properties.snapshotSending()])
+
+			sends := runner.ListCurrentSends()
+			found := false
+			for _, send := range sends {
+				if send.Dataset == testFilesystem+"@"+sendSnaps[sendingCount] {
+					found = true
+					require.Equal(t, arguments[1], send.Server)
+					require.NotNil(t, send.Cancel)
+
+					t.Logf("Found sending struct: %#v", send)
+				}
+			}
+			require.True(t, found)
 
 			sendingCount++
 			wg.Done()
@@ -112,6 +126,21 @@ func TestRunner_sendSnapshotsWithSpeedAndCompression(t *testing.T) {
 		runner.config.SendSpeedBytesPerSecond = 10_000
 		runner.config.SendCompressionLevel = zstd.SpeedBetterCompression
 		testSendSnapshots(t, url, runner)
+	})
+}
+
+func TestRunner_sendCancelSnapshots(t *testing.T) {
+	sendTest(t, func(url string, runner *Runner) {
+		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
+			sends := runner.ListCurrentSends()
+			require.Len(t, sends, 1)
+
+			// Cancel!
+			sends[0].Cancel()
+		})
+
+		err := runner.sendSnapshots(1)
+		require.ErrorIs(t, err, context.Canceled)
 	})
 }
 
@@ -250,7 +279,7 @@ func TestRunner_sendResumeSnapshot(t *testing.T) {
 		err = runner.sendSnapshots(1)
 		require.NoError(t, err)
 
-		// Send again, because on resume the function stops.
+		// ZFSSending again, because on resume the function stops.
 		err = runner.sendSnapshots(1)
 		require.NoError(t, err)
 

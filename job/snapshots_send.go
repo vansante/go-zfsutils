@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	zfs "github.com/vansante/go-zfsutils"
@@ -14,6 +15,14 @@ var (
 	ErrNoCommonSnapshots = errors.New("local and remote datasets have no common snapshot")
 	ErrNoLocalSnapshots  = errors.New("no local snapshots to send")
 )
+
+type ZFSSending struct {
+	Dataset    string
+	Server     string
+	SentBytes  int64
+	LastUpdate time.Time
+	Cancel     context.CancelFunc
+}
 
 func (r *Runner) sendSnapshots(routineID int) error {
 	sendToProp := r.config.Properties.snapshotSendTo()
@@ -51,7 +60,7 @@ func (r *Runner) sendSnapshots(routineID int) error {
 				"routineID", routineID,
 				"dataset", dataset,
 			)
-			return nil // Return no error
+			return err
 		case err != nil:
 			r.logger.Error("zfs.job.Runner.sendSnapshots: Error sending snapshot",
 				"error", err,
@@ -168,9 +177,21 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		"curBytes", curBytes,
 	)
 
+	ctx, cancel = context.WithTimeout(r.ctx, r.config.maximumSendTime())
+	sending := &ZFSSending{
+		Dataset:    fullSnapName,
+		Server:     client.Server(),
+		LastUpdate: time.Now(),
+		Cancel:     cancel,
+	}
+
+	r.setSendingState(sending)
+	defer func() {
+		r.clearSendingState(sending)
+	}()
+
 	r.EmitEvent(ResumeSendingSnapshotEvent, fullSnapName, client.Server(), curBytes)
 
-	ctx, cancel = context.WithTimeout(r.ctx, r.config.maximumSendTime())
 	result, err := client.ResumeSend(ctx, datasetName(ds.Name, true), resumeToken, zfshttp.ResumeSendOptions{
 		ResumeSendOptions: zfs.ResumeSendOptions{
 			BytesPerSecond:   r.config.SendSpeedBytesPerSecond,
@@ -209,9 +230,21 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 		"sendSnapshotName", send.SnapshotName,
 	)
 
+	ctx, cancel := context.WithTimeout(r.ctx, r.config.maximumSendTime())
+	sending := &ZFSSending{
+		Dataset:    send.Snapshot.Name,
+		Server:     client.Server(),
+		LastUpdate: time.Now(),
+		Cancel:     cancel,
+	}
+
+	r.setSendingState(sending)
+	defer func() {
+		r.clearSendingState(sending)
+	}()
+
 	r.EmitEvent(StartSendingSnapshotEvent, send.Snapshot.Name, client.Server())
 
-	ctx, cancel := context.WithTimeout(r.ctx, r.config.maximumSendTime())
 	result, err := client.Send(ctx, send)
 	cancel()
 	if err != nil {
@@ -301,4 +334,35 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, server string) 
 	}
 
 	return toSend, nil
+}
+
+func (r *Runner) setSendingState(sending *ZFSSending) {
+	r.sendLock.Lock()
+	defer r.sendLock.Unlock()
+
+	r.sends = append(r.sends, sending)
+}
+
+func (r *Runner) updateSendingState(datasetName string, updater func(*ZFSSending)) {
+	r.sendLock.RLock()
+	defer r.sendLock.RUnlock()
+
+	for i := range r.sends {
+		send := r.sends[i]
+		if send.Dataset != datasetName {
+			continue
+		}
+
+		updater(send)
+		return
+	}
+}
+
+func (r *Runner) clearSendingState(sending *ZFSSending) {
+	r.sendLock.Lock()
+	defer r.sendLock.Unlock()
+
+	r.sends = slices.DeleteFunc(r.sends, func(s *ZFSSending) bool {
+		return sending.Dataset == s.Dataset
+	})
 }
