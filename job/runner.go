@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -66,7 +67,7 @@ func (r *Runner) attachListeners() {
 }
 
 func (r *Runner) onSendStart(snapName string) {
-	dsName := fmt.Sprintf("%s/%s", r.config.ParentDataset, datasetName(snapName, true))
+	dsName := r.fullDatasetName(datasetName(snapName, true))
 	ds, err := zfs.GetDataset(r.ctx, dsName)
 	if err != nil {
 		r.logger.Error("zfs.job.runner.onSendStart: Error retrieving dataset", "error", err, "snapName", snapName)
@@ -83,7 +84,7 @@ func (r *Runner) onSendStart(snapName string) {
 }
 
 func (r *Runner) onSendComplete(snapName string) {
-	dsName := fmt.Sprintf("%s/%s", r.config.ParentDataset, datasetName(snapName, true))
+	dsName := r.fullDatasetName(datasetName(snapName, true))
 	ds, err := zfs.GetDataset(r.ctx, dsName)
 	if err != nil {
 		r.logger.Error("zfs.job.runner.onSendComplete: Error retrieving dataset", "error", err, "snapName", snapName)
@@ -99,9 +100,14 @@ func (r *Runner) onSendComplete(snapName string) {
 	r.logger.Debug("zfs.job.runner.onSendStart: Snapshot sending property removed")
 }
 
+func (r *Runner) fullDatasetName(dataset string) string {
+	return fmt.Sprintf("%s/%s", strings.TrimRight(r.config.ParentDataset, "/"), dataset)
+}
+
 func (r *Runner) datasetHasLockProperty(dataset string) bool {
 	prop := r.config.Properties.datasetLocked()
-	ds, err := zfs.GetDataset(r.ctx, dataset, prop)
+
+	ds, err := zfs.GetDataset(r.ctx, r.fullDatasetName(dataset), prop)
 	if err != nil {
 		r.logger.Error("zfs.job.runner.datasetHasLockProperty: Error retrieving dataset", "dataset", dataset, "error", err)
 		return true // Lets assume it is locked then!
