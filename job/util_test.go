@@ -28,7 +28,7 @@ func Test_datasetName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := datasetName(tt.name, tt.strip); got != tt.want {
-				t.Errorf("datasetName() = %v, want %v", got, tt.want)
+				t.Errorf("fullDatasetName() = %v, want %v", got, tt.want)
 			}
 		})
 	}

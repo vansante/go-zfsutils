@@ -65,7 +65,7 @@ func (r *Runner) sendSnapshots(routineID int) error {
 }
 
 func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
-	locked, unlock := r.lockDataset(datasetName(ds.Name, true))
+	locked, unlock := r.lockDataset(ds.Name)
 	if !locked {
 		return nil // Some other goroutine is doing something with this dataset already, continue to next.
 	}

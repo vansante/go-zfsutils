@@ -93,6 +93,7 @@ func (c *Config) maximumRemoteSnapshotCacheAge() time.Duration {
 type Properties struct {
 	Namespace string `json:"Namespace" yaml:"Namespace"`
 
+	DatasetLocked            string `json:"DatasetLocked" yaml:"DatasetLocked"`
 	SnapshotIntervalMinutes  string `json:"SnapshotIntervalMinutes" yaml:"SnapshotIntervalMinutes"`
 	SnapshotCreatedAt        string `json:"SnapshotCreatedAt" yaml:"SnapshotCreatedAt"`
 	SnapshotSendTo           string `json:"SnapshotSendTo" yaml:"SnapshotSendTo"`
@@ -105,7 +106,9 @@ type Properties struct {
 }
 
 const (
-	defaultNamespace                        = "com.github.vansante"
+	defaultNamespace = "com.github.vansante"
+
+	defaultDatasetLockedProperty            = "dataset-locked"
 	defaultSnapshotIntervalMinutesProperty  = "snapshot-interval-minutes"
 	defaultSnapshotCreatedAtProperty        = "snapshot-created-at"
 	defaultSnapshotSendToProperty           = "snapshot-send-to"
@@ -121,6 +124,7 @@ const (
 func (p *Properties) ApplyDefaults() {
 	p.Namespace = defaultNamespace
 
+	p.DatasetLocked = defaultDatasetLockedProperty
 	p.SnapshotIntervalMinutes = defaultSnapshotIntervalMinutesProperty
 	p.SnapshotCreatedAt = defaultSnapshotCreatedAtProperty
 	p.SnapshotSendTo = defaultSnapshotSendToProperty
@@ -130,6 +134,10 @@ func (p *Properties) ApplyDefaults() {
 	p.SnapshotRetentionMinutes = defaultSnapshotRetentionMinutesProperty
 	p.DeleteAt = defaultDeleteAtProperty
 	p.DeleteWithoutSnapshots = defaultDeleteWithoutSnapshotsProperty
+}
+
+func (p *Properties) datasetLocked() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.DatasetLocked)
 }
 
 func (p *Properties) snapshotIntervalMinutes() string {
