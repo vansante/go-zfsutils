@@ -99,7 +99,21 @@ func (r *Runner) onSendComplete(snapName string) {
 	r.logger.Debug("zfs.job.runner.onSendStart: Snapshot sending property removed")
 }
 
+func (r *Runner) datasetHasLockProperty(dataset string) bool {
+	prop := r.config.Properties.datasetLocked()
+	ds, err := zfs.GetDataset(r.ctx, dataset, prop)
+	if err != nil {
+		r.logger.Error("zfs.job.runner.datasetHasLockProperty: Error retrieving dataset", "dataset", dataset, "error", err)
+		return true // Lets assume it is locked then!
+	}
+	return propertyIsSet(ds.ExtraProps[prop])
+}
+
 func (r *Runner) lockDataset(dataset string) (succeeded bool, unlock func()) {
+	if r.datasetHasLockProperty(dataset) {
+		// The dataset has been locked by property
+		return false, func() {} // Noop unlock
+	}
 	r.mapLock.Lock()
 	_, ok := r.datasetLock[dataset]
 	if ok {

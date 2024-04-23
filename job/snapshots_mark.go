@@ -61,6 +61,15 @@ func (r *Runner) markPrunableExcessSnapshots() error {
 }
 
 func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) error {
+	locked, unlock := r.lockDataset(ds.Name)
+	if !locked {
+		return nil // Some other goroutine is doing something with this dataset already, continue to next.
+	}
+	defer func() {
+		// Unlock this dataset again
+		unlock()
+	}()
+
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	deleteProp := r.config.Properties.deleteAt()
 	serverProp := r.config.Properties.snapshotSendTo()
@@ -169,6 +178,15 @@ func (r *Runner) markPrunableSnapshotsByAge() error {
 }
 
 func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Duration) error {
+	locked, unlock := r.lockDataset(ds.Name)
+	if !locked {
+		return nil // Some other goroutine is doing something with this dataset already, continue to next.
+	}
+	defer func() {
+		// Unlock this dataset again
+		unlock()
+	}()
+
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	deleteProp := r.config.Properties.deleteAt()
 	serverProp := r.config.Properties.snapshotSendTo()
