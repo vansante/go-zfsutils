@@ -47,6 +47,14 @@ func datasetName(name string, stripSnap bool) string {
 	return name[:idx]
 }
 
+func stripDatasetSnapshot(name string) string {
+	idx := strings.Index(name, "@")
+	if idx < 0 {
+		return name
+	}
+	return name[:idx]
+}
+
 func snapshotName(name string) string {
 	idx := strings.LastIndex(name, "@")
 	if idx < 0 {

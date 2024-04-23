@@ -20,7 +20,7 @@ func (r *Runner) pruneSnapshots() error {
 			return nil // context expired, no problem
 		}
 
-		err = r.pruneAgedSnapshot(snapshot)
+		err = r.pruneMarkedSnapshot(snapshot)
 		switch {
 		case isContextError(err):
 			r.logger.Info("zfs.job.Runner.pruneSnapshots: Prune snapshot job interrupted",
@@ -44,8 +44,8 @@ func (r *Runner) pruneSnapshots() error {
 	return nil
 }
 
-func (r *Runner) pruneAgedSnapshot(snapshot string) error {
-	locked, unlock := r.lockDataset(datasetName(snapshot, true))
+func (r *Runner) pruneMarkedSnapshot(snapshot string) error {
+	locked, unlock := r.lockDataset(stripDatasetSnapshot(snapshot))
 	if !locked {
 		return nil // Some other goroutine is doing something with this dataset already, continue to next.
 	}
@@ -84,7 +84,7 @@ func (r *Runner) pruneAgedSnapshot(snapshot string) error {
 		return fmt.Errorf("error destroying %s: %w", snap.Name, err)
 	}
 
-	r.logger.Debug("zfs.job.Runner.pruneAgedSnapshot: Snapshot pruned",
+	r.logger.Debug("zfs.job.Runner.pruneMarkedSnapshot: Snapshot pruned",
 		"snapshot", snap.Name,
 		"deleteAt", deleteAt.Format(dateTimeFormat),
 	)
