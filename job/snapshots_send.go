@@ -16,14 +16,6 @@ var (
 	ErrNoLocalSnapshots  = errors.New("no local snapshots to send")
 )
 
-type ZFSSending struct {
-	Dataset    string
-	Server     string
-	SentBytes  int64
-	LastUpdate time.Time
-	Cancel     context.CancelFunc
-}
-
 func (r *Runner) sendSnapshots(routineID int) error {
 	sendToProp := r.config.Properties.snapshotSendTo()
 	sendingProp := r.config.Properties.snapshotSending()
@@ -177,12 +169,14 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		"curBytes", curBytes,
 	)
 
+	now := time.Now()
 	ctx, cancel = context.WithTimeout(r.ctx, r.config.maximumSendTime())
-	sending := &ZFSSending{
-		Dataset:    fullSnapName,
-		Server:     client.Server(),
-		LastUpdate: time.Now(),
-		Cancel:     cancel,
+	sending := &zfsSend{
+		dataset: fullSnapName,
+		server:  client.Server(),
+		updated: now,
+		started: now,
+		cancel:  cancel,
 	}
 
 	r.setSendingState(sending)
@@ -230,12 +224,14 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 		"sendSnapshotName", send.SnapshotName,
 	)
 
+	now := time.Now()
 	ctx, cancel := context.WithTimeout(r.ctx, r.config.maximumSendTime())
-	sending := &ZFSSending{
-		Dataset:    send.Snapshot.Name,
-		Server:     client.Server(),
-		LastUpdate: time.Now(),
-		Cancel:     cancel,
+	sending := &zfsSend{
+		dataset: send.Snapshot.Name,
+		server:  client.Server(),
+		updated: now,
+		started: now,
+		cancel:  cancel,
 	}
 
 	r.setSendingState(sending)
@@ -336,20 +332,20 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, server string) 
 	return toSend, nil
 }
 
-func (r *Runner) setSendingState(sending *ZFSSending) {
+func (r *Runner) setSendingState(sending *zfsSend) {
 	r.sendLock.Lock()
 	defer r.sendLock.Unlock()
 
 	r.sends = append(r.sends, sending)
 }
 
-func (r *Runner) updateSendingState(datasetName string, updater func(*ZFSSending)) {
+func (r *Runner) updateSendingState(datasetName string, updater func(*zfsSend)) {
 	r.sendLock.RLock()
 	defer r.sendLock.RUnlock()
 
 	for i := range r.sends {
 		send := r.sends[i]
-		if send.Dataset != datasetName {
+		if send.dataset != datasetName {
 			continue
 		}
 
@@ -358,11 +354,11 @@ func (r *Runner) updateSendingState(datasetName string, updater func(*ZFSSending
 	}
 }
 
-func (r *Runner) clearSendingState(sending *ZFSSending) {
+func (r *Runner) clearSendingState(sending *zfsSend) {
 	r.sendLock.Lock()
 	defer r.sendLock.Unlock()
 
-	r.sends = slices.DeleteFunc(r.sends, func(s *ZFSSending) bool {
-		return sending.Dataset == s.Dataset
+	r.sends = slices.DeleteFunc(r.sends, func(s *zfsSend) bool {
+		return sending == s
 	})
 }
