@@ -51,7 +51,7 @@ type Runner struct {
 	remoteCache map[string]map[string]datasetCache // Snapshots indexed by server, then dataset name
 	cacheLock   sync.RWMutex
 
-	sends    []*ZFSSending
+	sends    []*zfsSend
 	sendLock sync.RWMutex
 
 	logger *slog.Logger
@@ -72,9 +72,9 @@ func (r *Runner) attachListeners() {
 	r.AddListener(SnapshotSendingProgressEvent, func(args ...any) {
 		snapName := args[0].(string)
 
-		r.updateSendingState(snapName, func(sending *ZFSSending) {
-			sending.SentBytes = args[2].(int64)
-			sending.LastUpdate = time.Now()
+		r.updateSendingState(snapName, func(sending *zfsSend) {
+			sending.bytesSent = args[2].(int64)
+			sending.updated = time.Now()
 		})
 	})
 }
@@ -181,9 +181,9 @@ func (r *Runner) Run() {
 }
 
 // ListCurrentSends returns a list of current ZFS sends in progress
-func (r *Runner) ListCurrentSends() []ZFSSending {
+func (r *Runner) ListCurrentSends() []ZFSSend {
 	r.sendLock.RLock()
-	lst := make([]ZFSSending, len(r.sends))
+	lst := make([]ZFSSend, len(r.sends))
 	for i := range r.sends {
 		lst[i] = *r.sends[i]
 	}

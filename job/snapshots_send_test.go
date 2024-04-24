@@ -75,10 +75,10 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 			sends := runner.ListCurrentSends()
 			found := false
 			for _, send := range sends {
-				if send.Dataset == testFilesystem+"@"+sendSnaps[sendingCount] {
+				if send.Dataset() == testFilesystem+"@"+sendSnaps[sendingCount] {
 					found = true
-					require.Equal(t, arguments[1], send.Server)
-					require.NotNil(t, send.Cancel)
+					require.Equal(t, arguments[1], send.Server())
+					require.NotNil(t, send.CancelSend)
 
 					t.Logf("Found sending struct: %#v", send)
 				}
@@ -103,6 +103,8 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 
 	require.Equal(t, 5, sendingCount)
 	require.Equal(t, 5, sentCount)
+
+	require.Empty(t, runner.ListCurrentSends())
 
 	snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{
 		ParentDataset: testHTTPZPool + "/" + datasetName(testFilesystem, true),
@@ -136,7 +138,7 @@ func TestRunner_sendCancelSnapshots(t *testing.T) {
 			require.Len(t, sends, 1)
 
 			// Cancel!
-			sends[0].Cancel()
+			sends[0].CancelSend()
 		})
 
 		err := runner.sendSnapshots(1)
