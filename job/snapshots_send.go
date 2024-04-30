@@ -18,7 +18,6 @@ var (
 
 func (r *Runner) sendSnapshots(routineID int) error {
 	sendToProp := r.config.Properties.snapshotSendTo()
-	sendingProp := r.config.Properties.snapshotSending()
 
 	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, sendToProp)
 	if err != nil {
@@ -30,37 +29,52 @@ func (r *Runner) sendSnapshots(routineID int) error {
 			return nil // context expired, no problem
 		}
 
-		ds, err := zfs.GetDataset(r.ctx, dataset, sendToProp, sendingProp)
-		if err != nil {
-			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
-		}
-
-		server := ds.ExtraProps[sendToProp]
-		if !propertyIsSet(server) {
-			r.logger.Debug("zfs.job.Runner.sendSnapshots: No server specified",
-				"routineID", routineID,
-				"dataset", dataset,
-			)
-			continue // Dont know where to send this one ¯\_(ツ)_/¯
-		}
-
-		err = r.sendDatasetSnapshots(ds)
+		err := r.sendDatasetSnapshotsByName(routineID, dataset)
 		switch {
 		case isContextError(err):
-			r.logger.Info("zfs.job.Runner.sendSnapshots: Send snapshot job interrupted",
-				"error", err,
-				"routineID", routineID,
-				"dataset", dataset,
-			)
 			return err
 		case err != nil:
-			r.logger.Error("zfs.job.Runner.sendSnapshots: Error sending snapshot",
-				"error", err,
-				"routineID", routineID,
-				"dataset", dataset,
-			)
-			continue // on to the next dataset :-/
+			// Errors are already logged, we do want to continue sending other dataset snapshots
+			continue
 		}
+	}
+	return nil
+}
+
+func (r *Runner) sendDatasetSnapshotsByName(routineID int, dataset string) error {
+	sendToProp := r.config.Properties.snapshotSendTo()
+	sendingProp := r.config.Properties.snapshotSending()
+
+	ds, err := zfs.GetDataset(r.ctx, dataset, sendToProp, sendingProp)
+	if err != nil {
+		return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
+	}
+
+	server := ds.ExtraProps[sendToProp]
+	if !propertyIsSet(server) {
+		r.logger.Debug("zfs.job.Runner.sendDatasetSnapshotsByName: No server specified",
+			"routineID", routineID,
+			"dataset", dataset,
+		)
+		return nil // Dont know where to send this one ¯\_(ツ)_/¯
+	}
+
+	err = r.sendDatasetSnapshots(ds)
+	switch {
+	case isContextError(err):
+		r.logger.Info("zfs.job.Runner.sendDatasetSnapshotsByName: Send snapshot job interrupted",
+			"error", err,
+			"routineID", routineID,
+			"dataset", dataset,
+		)
+		return err
+	case err != nil:
+		r.logger.Error("zfs.job.Runner.sendDatasetSnapshotsByName: Error sending snapshot",
+			"error", err,
+			"routineID", routineID,
+			"dataset", dataset,
+		)
+		return err
 	}
 	return nil
 }
