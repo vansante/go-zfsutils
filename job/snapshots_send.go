@@ -29,7 +29,7 @@ func (r *Runner) sendSnapshots(routineID int) error {
 			return nil // context expired, no problem
 		}
 
-		err := r.routineSendDatasetSnapshots(routineID, dataset)
+		err := r.sendDatasetSnapshotsByName(routineID, dataset)
 		switch {
 		case isContextError(err):
 			return err
@@ -41,7 +41,7 @@ func (r *Runner) sendSnapshots(routineID int) error {
 	return nil
 }
 
-func (r *Runner) routineSendDatasetSnapshots(routineID int, dataset string) error {
+func (r *Runner) sendDatasetSnapshotsByName(routineID int, dataset string) error {
 	sendToProp := r.config.Properties.snapshotSendTo()
 	sendingProp := r.config.Properties.snapshotSending()
 
@@ -52,7 +52,7 @@ func (r *Runner) routineSendDatasetSnapshots(routineID int, dataset string) erro
 
 	server := ds.ExtraProps[sendToProp]
 	if !propertyIsSet(server) {
-		r.logger.Debug("zfs.job.Runner.routineSendDatasetSnapshots: No server specified",
+		r.logger.Debug("zfs.job.Runner.sendDatasetSnapshotsByName: No server specified",
 			"routineID", routineID,
 			"dataset", dataset,
 		)
@@ -62,14 +62,14 @@ func (r *Runner) routineSendDatasetSnapshots(routineID int, dataset string) erro
 	err = r.sendDatasetSnapshots(ds)
 	switch {
 	case isContextError(err):
-		r.logger.Info("zfs.job.Runner.routineSendDatasetSnapshots: Send snapshot job interrupted",
+		r.logger.Info("zfs.job.Runner.sendDatasetSnapshotsByName: Send snapshot job interrupted",
 			"error", err,
 			"routineID", routineID,
 			"dataset", dataset,
 		)
 		return err
 	case err != nil:
-		r.logger.Error("zfs.job.Runner.routineSendDatasetSnapshots: Error sending snapshot",
+		r.logger.Error("zfs.job.Runner.sendDatasetSnapshotsByName: Error sending snapshot",
 			"error", err,
 			"routineID", routineID,
 			"dataset", dataset,

@@ -190,7 +190,7 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 			t.Logf("Sent snapshot %s", arguments[0])
 		})
 
-		err = runner.sendSnapshots(1)
+		err = runner.sendDatasetSnapshotsByName(1, testFilesystem)
 		require.NoError(t, err)
 
 		require.Equal(t, 4, sendingCount)

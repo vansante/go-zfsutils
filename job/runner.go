@@ -194,11 +194,12 @@ func (r *Runner) ListCurrentSends() []ZFSSend {
 }
 
 // SendDataset can be used to trigger send for a specific dataset.
+// Should be just the path from the parent dataset to the dataset to be sent.
 // Do not include the snapshot part of the dataset.
 // Blocking call, will block until one of the send goroutines has picked
 // up the call. If sending is disabled, will block forever.
 func (r *Runner) SendDataset(dataset string) {
-	r.sendChan <- dataset
+	r.sendChan <- r.fullDatasetName(dataset)
 }
 
 func (r *Runner) runCreateSnapshots() {
@@ -249,7 +250,7 @@ func (r *Runner) runSendSnapshotRoutine(id int) {
 			}
 		case dataset := <-r.sendChan:
 			// Errors are already logged
-			_ = r.routineSendDatasetSnapshots(id, dataset)
+			_ = r.sendDatasetSnapshotsByName(id, dataset)
 		case <-r.ctx.Done():
 			return
 		}
