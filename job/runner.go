@@ -17,12 +17,12 @@ const (
 
 	requestTimeout = time.Second * 20
 
-	createSnapshotInterval   = time.Minute
-	sendSnapshotInterval     = time.Minute
+	createSnapshotInterval   = 5 * time.Minute
+	sendSnapshotInterval     = 5 * time.Minute
 	pruneRemoteCacheInterval = 5 * time.Minute
-	markSnapshotInterval     = time.Minute
-	pruneSnapshotInterval    = time.Minute
-	pruneFilesystemInterval  = time.Minute
+	markSnapshotInterval     = 5 * time.Minute
+	pruneSnapshotInterval    = 5 * time.Minute
+	pruneFilesystemInterval  = 5 * time.Minute
 )
 
 // NewRunner creates a new job runner
@@ -32,6 +32,7 @@ func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
 		config:      conf,
 		datasetLock: make(map[string]struct{}),
 		remoteCache: make(map[string]map[string]datasetCache),
+		sendChan:    make(chan string),
 		logger:      logger,
 		ctx:         ctx,
 	}
@@ -51,6 +52,7 @@ type Runner struct {
 	remoteCache map[string]map[string]datasetCache // Snapshots indexed by server, then dataset name
 	cacheLock   sync.RWMutex
 
+	sendChan chan string
 	sends    []*zfsSend
 	sendLock sync.RWMutex
 
@@ -191,6 +193,14 @@ func (r *Runner) ListCurrentSends() []ZFSSend {
 	return lst
 }
 
+// SendDataset can be used to trigger send for a specific dataset.
+// Do not include the snapshot part of the dataset.
+// Blocking call, will block until one of the send goroutines has picked
+// up the call. If sending is disabled, will block forever.
+func (r *Runner) SendDataset(dataset string) {
+	r.sendChan <- dataset
+}
+
 func (r *Runner) runCreateSnapshots() {
 	dur := randomizeDuration(createSnapshotInterval)
 	ticker := time.NewTicker(dur)
@@ -237,6 +247,9 @@ func (r *Runner) runSendSnapshotRoutine(id int) {
 			case err != nil:
 				r.logger.Error("zfs.job.Runner.runSendSnapshots: Error sending snapshots", "error", err)
 			}
+		case dataset := <-r.sendChan:
+			// Errors are already logged
+			_ = r.routineSendDatasetSnapshots(id, dataset)
 		case <-r.ctx.Done():
 			return
 		}

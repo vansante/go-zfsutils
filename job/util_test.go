@@ -1,6 +1,9 @@
 package job
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func Test_datasetName(t *testing.T) {
 	tests := []struct {
@@ -55,5 +58,18 @@ func Test_snapshotName(t *testing.T) {
 				t.Errorf("snapshotName() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func Test_randomizeDuration(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		dur := randomizeDuration(5 * time.Minute)
+		if dur < time.Second*280 {
+			t.Errorf("randomizeDuration() = %v < %v", dur, time.Second*57)
+		}
+		if dur > time.Second*320 {
+			t.Errorf("randomizeDuration() = %v > %v", dur, time.Second*63)
+		}
+		//t.Logf("randomizeDuration() = %v", dur)
 	}
 }

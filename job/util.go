@@ -103,7 +103,10 @@ func snapshotsContain(list []zfs.Dataset, dataset, snapshot string) bool {
 
 // randomizeDuration adds or removes up to 5% of the duration to randomize background routine wake up times
 func randomizeDuration(d time.Duration) time.Duration { // nolint:unparam
-	rnd := time.Duration(rand.Int63n(int64(d / 10)))
-
-	return d - (d / 20) + rnd
+	// Subtract 1/40th of duration d
+	d -= (d / 40).Truncate(time.Second)
+	// Generate a random duration of zero to 1/20th of duration d
+	rnd := time.Duration(rand.Int63n(int64(d / 20))).Truncate(time.Second)
+	// then add it to d, giving a duration of duration d plus or minus 1/20th
+	return d + rnd
 }
