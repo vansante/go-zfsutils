@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -72,24 +71,6 @@ func filterSnapshotsWithoutProp(list []zfs.Dataset, prop string) []zfs.Dataset {
 		nwList = append(nwList, snap)
 	}
 	return nwList
-}
-
-func orderSnapshotsByCreated(set []zfs.Dataset, prop string) ([]zfs.Dataset, error) {
-	var err error
-	sort.Slice(set, func(i, j int) bool {
-		createdI, parseErr := parseDatasetTimeProperty(&set[i], prop)
-		if parseErr != nil {
-			err = parseErr
-			return false
-		}
-		createdJ, parseErr := parseDatasetTimeProperty(&set[j], prop)
-		if parseErr != nil {
-			err = parseErr
-			return false
-		}
-		return createdI.Before(createdJ)
-	})
-	return set, err
 }
 
 func snapshotsContain(list []zfs.Dataset, dataset, snapshot string) bool {
