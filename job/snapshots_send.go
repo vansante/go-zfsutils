@@ -149,7 +149,13 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 		}
 
 		err = send.Snapshot.SetProperty(r.ctx, sentProp, time.Now().Format(dateTimeFormat))
-		if err != nil {
+		switch {
+		case errors.Is(err, zfs.ErrDatasetNotFound):
+			r.logger.Warn("zfs.job.Runner.sendDatasetSnapshots: Dataset not found, did not set sent property",
+				"snapshot", send.Snapshot.Name, "property", sentProp,
+			)
+			continue
+		case err != nil:
 			return fmt.Errorf("error setting %s property on %s after send: %w", sentProp, send.Snapshot.Name, err)
 		}
 	}
