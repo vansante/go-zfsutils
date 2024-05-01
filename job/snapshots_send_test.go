@@ -107,13 +107,15 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 	require.Empty(t, runner.ListCurrentSends())
 
 	snaps, err := zfs.ListSnapshots(context.Background(), zfs.ListOptions{
-		ParentDataset: testHTTPZPool + "/" + datasetName(testFilesystem, true),
+		ParentDataset:   testHTTPZPool + "/" + datasetName(testFilesystem, true),
+		ExtraProperties: []string{runner.config.Properties.snapshotCreatedAt()},
 	})
 	require.NoError(t, err)
 	require.Len(t, snaps, 5)
 
 	for i, snap := range sendSnaps {
 		require.Equal(t, testHTTPZPool+"/"+datasetName(testFilesystem, true)+"@"+snap, snaps[i].Name)
+		require.NotEmpty(t, snaps[i].ExtraProps[runner.config.Properties.snapshotCreatedAt()])
 	}
 }
 
