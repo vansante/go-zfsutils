@@ -176,11 +176,29 @@ func TestSnapshot(t *testing.T) {
 			require.Equal(t, DatasetFilesystem, filesystem.Type)
 		}
 
-		s, err := f.Snapshot(context.Background(), "test", SnapshotOptions{})
-		require.NoError(t, err)
+		const prop = "nl.test:prop"
+		const propVal = "hello"
 
+		s, err := f.Snapshot(context.Background(), "test", SnapshotOptions{
+			Properties: map[string]string{
+				prop: propVal,
+			},
+		})
+		require.NoError(t, err)
 		require.Equal(t, DatasetSnapshot, s.Type)
 		require.Equal(t, testZPool+"/snapshot-test@test", s.Name)
+
+		f, err = GetDataset(context.Background(), testZPool+"/snapshot-test", prop)
+		require.NoError(t, err)
+		require.Empty(t, f.ExtraProps[prop])
+
+		snaps, err := f.Snapshots(context.Background(), ListOptions{
+			ExtraProperties: []string{prop},
+		})
+		require.NoError(t, err)
+		require.Len(t, snaps, 1)
+		require.Equal(t, DatasetSnapshot, snaps[0].Type)
+		require.Equal(t, propVal, snaps[0].ExtraProps[prop], snaps)
 
 		require.NoError(t, s.Destroy(context.Background(), DestroyOptions{}))
 		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
