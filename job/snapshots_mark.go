@@ -81,12 +81,6 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
 	}
 
-	// Sort the list by created, newest first:
-	snaps, err = orderSnapshotsByCreated(snaps, createdProp)
-	if err != nil {
-		return fmt.Errorf("error sorting snapshots for %s: %w", ds.Name, err)
-	}
-
 	// Snapshots are always retrieved with the newest last, so reverse the list:
 	slices.Reverse(snaps)
 
@@ -98,7 +92,7 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 		}
 		snap := &snaps[i]
 
-		if !propertyIsSet(snap.ExtraProps[createdProp]) {
+		if r.config.IgnoreSnapshotsWithoutCreatedProperty && !propertyIsSet(snap.ExtraProps[createdProp]) {
 			continue // Ignore
 		}
 		currentFound++
@@ -206,7 +200,10 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 		}
 		snap := &snaps[i]
 
-		if !propertyIsSet(snap.ExtraProps[createdProp]) || propertyIsSet(snap.ExtraProps[deleteProp]) {
+		if !propertyIsSet(snap.ExtraProps[createdProp]) {
+			continue // Cannot determine age
+		}
+		if propertyIsSet(snap.ExtraProps[deleteProp]) {
 			continue // Ignore
 		}
 

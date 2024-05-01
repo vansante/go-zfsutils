@@ -282,16 +282,6 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 }
 
 func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, server string) ([]zfshttp.SnapshotSendOptions, error) {
-	createdProp := r.config.Properties.snapshotCreatedAt()
-	if len(local) == 0 {
-		return nil, ErrNoLocalSnapshots
-	}
-
-	local, err := orderSnapshotsByCreated(local, createdProp)
-	if err != nil {
-		return nil, err
-	}
-
 	toSend := make([]zfshttp.SnapshotSendOptions, 0, 8)
 	var prevRemoteSnap *zfs.Dataset
 	for i := range local {
