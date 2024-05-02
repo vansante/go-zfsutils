@@ -1,7 +1,6 @@
 package job
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -112,15 +111,13 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 
 	tm := time.Now()
 	name := r.snapshotName(tm)
-	snap, err := ds.Snapshot(r.ctx, name, zfs.SnapshotOptions{})
+	snap, err := ds.Snapshot(r.ctx, name, zfs.SnapshotOptions{
+		Properties: map[string]string{
+			createdProp: tm.Format(dateTimeFormat),
+		},
+	})
 	if err != nil {
 		return fmt.Errorf("error creating snapshot %s for %s: %w", name, ds.Name, err)
-	}
-
-	// Deliberately using context.Background here, because I always want to set the property if the snapshot was made
-	err = snap.SetProperty(context.Background(), createdProp, tm.Format(dateTimeFormat))
-	if err != nil {
-		return fmt.Errorf("error setting %s on snapshot %s: %w", createdProp, snap.Name, err)
 	}
 
 	r.logger.Debug("zfs.job.Runner.createDatasetSnapshot: Snapshot created",
