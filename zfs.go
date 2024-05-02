@@ -734,11 +734,11 @@ type RollbackOptions struct {
 	Force bool
 }
 
-// Rollback rolls back the receiving ZFS dataset to a previous snapshot.
+// Rollback rolls back the ZFS dataset to a previous snapshot.
 // Optionally, intermediate snapshots can be destroyed.
-// A ZFS snapshot rollback cannot be completed without this option, if more recent snapshots exist.
+// A ZFS snapshot rollback cannot be completed without the option DestroyMoreRecent, if more recent snapshots exist.
 // An error will be returned if the input dataset is not of snapshot type.
-func (d *Dataset) Rollback(ctx context.Context, options RollbackOptions) error {
+func (d *Dataset) Rollback(ctx context.Context, snapshot string, options RollbackOptions) error {
 	if d.Type != DatasetSnapshot {
 		return ErrOnlySnapshotsSupported
 	}
