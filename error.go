@@ -10,6 +10,7 @@ import (
 const (
 	datasetNotFoundMessage = "dataset does not exist"
 	resumableErrorMessage  = "resuming stream can be generated on the sending system"
+	datasetBusyMessage     = "pool or dataset is busy"
 )
 
 var (
@@ -21,6 +22,9 @@ var (
 
 	// ErrSnapshotsNotSupported is returned when an unsupported action is executed on a snapshot
 	ErrSnapshotsNotSupported = errors.New("snapshots are not supported for this action")
+
+	// ErrPoolOrDatasetBusy is returned when an action fails because ZFS is doing another action
+	ErrPoolOrDatasetBusy = errors.New("pool or dataset busy")
 )
 
 // CommandError is an error which is returned when the `zfs` or `zpool` shell
@@ -43,6 +47,12 @@ func createError(cmd *exec.Cmd, stderr string, err error) error {
 	switch {
 	case strings.Contains(stderr, datasetNotFoundMessage):
 		return ErrDatasetNotFound
+	case strings.Contains(stderr, datasetBusyMessage):
+		idx := strings.LastIndex(stderr, ":")
+		if idx > 0 {
+			stderr = stderr[:idx]
+		}
+		return fmt.Errorf("%s: %w", stderr, ErrPoolOrDatasetBusy)
 	case strings.Contains(stderr, resumableErrorMessage):
 		return &ResumableStreamError{
 			CommandError: CommandError{

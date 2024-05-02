@@ -3,6 +3,7 @@ package zfs
 import (
 	"errors"
 	"fmt"
+	"os/exec"
 	"testing"
 )
 
@@ -33,5 +34,17 @@ func TestError(t *testing.T) {
 		if str := zErr.Error(); str != fmt.Sprintf("%s: %q => %s", test.err, test.debug, test.stderr) {
 			t.Fatalf("unexpected CommandError string: %v", str)
 		}
+	}
+}
+
+func Test_createError(t *testing.T) {
+	err := createError(
+		&exec.Cmd{},
+		`exit status 1: "/sbin/zfs zfs umount fe29/252799" => cannot unmount '/disks/252799': pool or dataset is busy`,
+		errors.New("test"),
+	)
+
+	if !errors.Is(err, ErrPoolOrDatasetBusy) {
+		t.Fatalf("unexpected error type: %v", err)
 	}
 }
