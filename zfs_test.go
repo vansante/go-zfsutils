@@ -290,14 +290,14 @@ func TestCloneAndPromote(t *testing.T) {
 		err = c.Promote(context.Background())
 		require.NoError(t, err)
 
-		require.NoError(t, s.Destroy(context.Background(), DestroyOptions{}))
-
 		clone, err := GetDataset(context.Background(), testZPool+"/clone-test")
 		require.NoError(t, err)
 		require.NotEmpty(t, clone)
 
-		require.NoError(t, clone.Destroy(context.Background(), DestroyOptions{}))
 		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
+		require.NoError(t, clone.Destroy(context.Background(), DestroyOptions{
+			Recursive: true,
+		}))
 	})
 }
 
