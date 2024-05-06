@@ -175,6 +175,17 @@ func (d *Dataset) Clone(ctx context.Context, dest string, options CloneOptions) 
 	return GetDataset(ctx, dest)
 }
 
+// Promote promotes a cloned dataset to no longer depend on origin snapshot.
+// An error will be returned if the input dataset is not of snapshot type.
+// The
+func (d *Dataset) Promote(ctx context.Context) error {
+	args := make([]string, 1, 4)
+	args[0] = "promote"
+	args = append(args, []string{d.Name}...)
+
+	return zfs(ctx, args...)
+}
+
 // UnmountOptions are options you can specify to customize the unmount command
 type UnmountOptions struct {
 	// Forcefully unmount the file system, even if it is currently in use.

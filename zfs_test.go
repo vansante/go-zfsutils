@@ -261,7 +261,7 @@ func TestListWithProperty(t *testing.T) {
 	})
 }
 
-func TestClone(t *testing.T) {
+func TestCloneAndPromote(t *testing.T) {
 	TestZPool(testZPool, func() {
 		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
 			Properties: noMountProps,
@@ -286,9 +286,18 @@ func TestClone(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Equal(t, DatasetFilesystem, c.Type)
-		require.NoError(t, c.Destroy(context.Background(), DestroyOptions{}))
-		require.NoError(t, s.Destroy(context.Background(), DestroyOptions{}))
+
+		err = c.Promote(context.Background())
+		require.NoError(t, err)
+
+		clone, err := GetDataset(context.Background(), testZPool+"/clone-test")
+		require.NoError(t, err)
+		require.NotEmpty(t, clone)
+
 		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
+		require.NoError(t, clone.Destroy(context.Background(), DestroyOptions{
+			Recursive: true,
+		}))
 	})
 }
 
