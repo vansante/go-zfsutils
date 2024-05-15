@@ -39,7 +39,7 @@ func TestClient_Send(t *testing.T) {
 		results, err := client.Send(ctx, SnapshotSendOptions{
 			DatasetName: newFs,
 			Snapshot:    snap1,
-			Properties:  ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff},
+			Properties:  ReceiveProperties{zfs.PropertyCanMount: zfs.ValueOff},
 		})
 		require.NoError(t, err)
 		require.NotZero(t, results.BytesSent)
@@ -48,7 +48,7 @@ func TestClient_Send(t *testing.T) {
 		results, err = client.Send(ctx, SnapshotSendOptions{
 			DatasetName: newFs,
 			Snapshot:    snap2,
-			Properties:  ReceiveProperties{zfs.PropertyCanMount: zfs.PropertyOff},
+			Properties:  ReceiveProperties{zfs.PropertyCanMount: zfs.ValueOff},
 			SendOptions: zfs.SendOptions{
 				Raw:               true,
 				IncludeProperties: true,

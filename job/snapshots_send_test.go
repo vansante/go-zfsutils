@@ -161,7 +161,7 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 		}()
 
 		_, err = zfs.ReceiveSnapshot(context.Background(), pipeRdr, testHTTPZPool+"/"+datasetName(ds.Name, false), zfs.ReceiveOptions{
-			Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+			Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 		})
 		require.NoError(t, err)
 
@@ -229,7 +229,7 @@ func TestRunner_sendResumeSnapshot(t *testing.T) {
 			testHTTPZPool+"/"+datasetName(snap.Name, false),
 			zfs.ReceiveOptions{
 				Resumable:  true,
-				Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+				Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 			},
 		)
 		require.Error(t, err)
@@ -316,7 +316,7 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 		}()
 
 		_, err = zfs.ReceiveSnapshot(context.Background(), pipeRdr, testHTTPZPool+"/"+datasetName(ds.Name, false), zfs.ReceiveOptions{
-			Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+			Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 		})
 		require.NoError(t, err)
 
@@ -376,7 +376,7 @@ func TestRunner_sendNoCommonSnapshots(t *testing.T) {
 		}()
 
 		ds, err = zfs.ReceiveSnapshot(context.Background(), pipeRdr, testHTTPZPool+"/"+datasetName(ds.Name, true), zfs.ReceiveOptions{
-			Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+			Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 		})
 		require.NoError(t, err)
 

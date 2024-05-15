@@ -14,7 +14,7 @@ import (
 
 // propertyIsSet returns whether a property is set
 func propertyIsSet(val string) bool {
-	return val != "" && val != zfs.PropertyUnset
+	return val != "" && val != zfs.ValueUnset
 }
 
 func isContextError(err error) bool {

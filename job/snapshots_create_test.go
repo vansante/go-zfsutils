@@ -19,7 +19,7 @@ func TestRunner_createSnapshots(t *testing.T) {
 		ds, err := zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsName, zfs.CreateFilesystemOptions{
 			Properties: map[string]string{
 				intervalProp:         "1",
-				zfs.PropertyCanMount: zfs.PropertyOff,
+				zfs.PropertyCanMount: zfs.ValueOff,
 			},
 		})
 		require.NoError(t, err)

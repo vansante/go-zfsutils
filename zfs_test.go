@@ -15,7 +15,7 @@ import (
 
 const testZPool = "go-test-zpool"
 
-var noMountProps = map[string]string{PropertyCanMount: PropertyOff}
+var noMountProps = map[string]string{PropertyCanMount: ValueOff}
 
 func TestDatasets(t *testing.T) {
 	t.Helper()
@@ -125,7 +125,7 @@ func TestCreateFilesystemWithProperties(t *testing.T) {
 		f, err := CreateFilesystem(context.Background(), testZPool+"/filesystem-test", CreateFilesystemOptions{
 			Properties: map[string]string{
 				PropertyCompression: "lz4",
-				PropertyCanMount:    PropertyOff,
+				PropertyCanMount:    ValueOff,
 			},
 		})
 		require.NoError(t, err)

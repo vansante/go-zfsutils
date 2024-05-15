@@ -110,7 +110,7 @@ func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
 		case PropertyReferenced:
 			ds.Referenced, setError = setUint(val)
 		default:
-			if val == PropertyUnset {
+			if val == ValueUnset {
 				ds.ExtraProps[prop] = ""
 				continue
 			}
@@ -125,14 +125,14 @@ func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
 }
 
 func setString(val string) string {
-	if val == PropertyUnset {
+	if val == ValueUnset {
 		return ""
 	}
 	return val
 }
 
 func setUint(val string) (uint64, error) {
-	if val == PropertyUnset {
+	if val == ValueUnset {
 		return 0, nil
 	}
 
@@ -144,5 +144,5 @@ func setUint(val string) (uint64, error) {
 }
 
 func setBool(val string) bool {
-	return strings.EqualFold(val, PropertyYes) || strings.EqualFold(val, PropertyOn)
+	return strings.EqualFold(val, ValueYes) || strings.EqualFold(val, ValueOn)
 }

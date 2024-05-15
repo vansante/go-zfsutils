@@ -42,14 +42,14 @@ func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 			r.config.ApplyDefaults()
 			r.config.MaximumSendTimeSeconds = 30
 			r.config.SendSetProperties = map[string]string{
-				zfs.PropertyCanMount: zfs.PropertyOff,
+				zfs.PropertyCanMount: zfs.ValueOff,
 			}
 			r.config.SendCopyProperties = []string{
 				defaultNamespace + ":" + defaultSnapshotCreatedAtProperty,
 			}
 
 			_, err := zfs.CreateFilesystem(context.Background(), testFilesystem, zfs.CreateFilesystemOptions{
-				Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+				Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 			})
 			if err != nil {
 				panic(err)

@@ -19,7 +19,7 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 		require.NoError(t, fs.SetProperty(context.Background(), delProp, time.Now().Add(-time.Minute).Format(dateTimeFormat)))
 
 		createOpts := zfs.CreateFilesystemOptions{
-			Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+			Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 		}
 
 		const otherFs, fsWithoutDel, fsWithSnap, otherVol, deleteLater = "test1", "test2", "test3", "test4", "test5"

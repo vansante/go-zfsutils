@@ -24,27 +24,35 @@ const (
 	PropertyUsedByDataset      = "usedbydataset"
 	PropertyVolSize            = "volsize"
 	PropertyWritten            = "written"
+)
 
-	PropertyYes   = "yes"
-	PropertyOn    = "on"
-	PropertyNo    = "no"
-	PropertyOff   = "off"
-	PropertyNone  = "none"
-	PropertyUnset = "-"
+const (
+	ValueYes   = "yes"
+	ValueOn    = "on"
+	ValueNo    = "no"
+	ValueOff   = "off"
+	ValueNone  = "none"
+	ValueUnset = "-"
+)
 
+const (
 	EncryptionAES128CCM = "aes-128-ccm"
 	EncryptionAES192CCM = "aes-192-ccm"
 	EncryptionAES256CCM = "aes-256-ccm"
 	EncryptionAES128GCM = "aes-128-gcm"
 	EncryptionAES192GCM = "aes-192-gcm"
 	EncryptionAES256GCM = "aes-256-gcm"
+)
 
+const (
 	KeyFormatHex        = "hex"
 	KeyFormatPassphrase = "passphrase"
 	KeyFormatRaw        = "raw"
+)
 
+const (
 	KeyLocationPrompt  = "prompt"
 	KeyStatusAvailable = "available"
-
-	CanMountNoAuto = "noauto"
 )
+
+const CanMountNoAuto = "noauto"
