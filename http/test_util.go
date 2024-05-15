@@ -25,7 +25,7 @@ func TestHTTPZPool(testZPool, prefix, testFs string, fn func(server *httptest.Se
 
 		if testFs != "" {
 			_, err := zfs.CreateFilesystem(context.Background(), testFs, zfs.CreateFilesystemOptions{
-				Properties: map[string]string{zfs.PropertyCanMount: zfs.PropertyOff},
+				Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 			})
 			if err != nil {
 				panic(err)
