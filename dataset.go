@@ -144,5 +144,5 @@ func setUint(val string) (uint64, error) {
 }
 
 func setBool(val string) bool {
-	return val == PropertyYes || val == PropertyOn
+	return strings.EqualFold(val, PropertyYes) || strings.EqualFold(val, PropertyOn)
 }
