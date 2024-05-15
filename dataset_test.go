@@ -23,6 +23,7 @@ func Test_readDatasets(t *testing.T) {
 		require.Equal(t, "", ds[i].Origin)
 		require.NotEmpty(t, ds[i].Name)
 		require.NotEmpty(t, ds[i].Mountpoint)
+		require.True(t, ds[i].Mounted || i == 2)
 		require.NotZero(t, ds[i].Referenced)
 		require.NotZero(t, ds[i].Used)
 		require.NotZero(t, ds[i].Available)
@@ -36,6 +37,7 @@ testpool/ds0	type	filesystem
 testpool/ds0	origin	-
 testpool/ds0	used	196416
 testpool/ds0	available	186368146928528
+testpool/ds0	mounted	yes
 testpool/ds0	mountpoint	none
 testpool/ds0	compression	off
 testpool/ds0	volsize	-
@@ -52,6 +54,7 @@ testpool/ds1	type	filesystem
 testpool/ds1	origin	-
 testpool/ds1	used	196416
 testpool/ds1	available	186368146928528
+testpool/ds1	mounted	yes
 testpool/ds1	mountpoint	none
 testpool/ds1	compression	off
 testpool/ds1	volsize	-
@@ -68,6 +71,7 @@ testpool/ds10	type	filesystem
 testpool/ds10	origin	-
 testpool/ds10	used	196416
 testpool/ds10	available	186368146928528
+testpool/ds10	mounted	no
 testpool/ds10	mountpoint	none
 testpool/ds10	compression	off
 testpool/ds10	volsize	-

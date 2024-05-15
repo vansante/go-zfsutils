@@ -28,6 +28,7 @@ type Dataset struct {
 	Origin        string            `json:"Origin"`
 	Used          uint64            `json:"Used"`
 	Available     uint64            `json:"Available"`
+	Mounted       bool              `json:"Mounted"`
 	Mountpoint    string            `json:"Mountpoint"`
 	Compression   string            `json:"Compression"`
 	Written       uint64            `json:"Written"`
@@ -88,6 +89,8 @@ func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
 			ds.Used, setError = setUint(val)
 		case PropertyAvailable:
 			ds.Available, setError = setUint(val)
+		case PropertyMounted:
+			ds.Mounted, setError = setBool(val)
 		case PropertyMountPoint:
 			ds.Mountpoint = setString(val)
 		case PropertyCompression:
@@ -138,4 +141,12 @@ func setUint(val string) (uint64, error) {
 		return 0, err
 	}
 	return v, nil
+}
+
+func setBool(val string) (bool, error) {
+	if val == PropertyUnset {
+		return false, nil
+	}
+
+	return val == PropertyYes || val == PropertyOn, nil
 }

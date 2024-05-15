@@ -5,6 +5,7 @@ const (
 	PropertyCanMount           = "canmount"
 	PropertyCompression        = "compression"
 	PropertyEncryption         = "encryption"
+	PropertyFilesystemCount    = "filesystem_count"
 	PropertyKeyFormat          = "keyformat"
 	PropertyKeyStatus          = "keystatus"
 	PropertyKeyLocation        = "keylocation"
@@ -28,6 +29,7 @@ const (
 	PropertyOn    = "on"
 	PropertyNo    = "no"
 	PropertyOff   = "off"
+	PropertyNone  = "none"
 	PropertyUnset = "-"
 
 	EncryptionAES128CCM = "aes-128-ccm"
