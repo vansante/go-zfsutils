@@ -90,7 +90,7 @@ func readDatasets(output [][]string, extraProps []string) ([]Dataset, error) {
 		case PropertyAvailable:
 			ds.Available, setError = setUint(val)
 		case PropertyMounted:
-			ds.Mounted, setError = setBool(val)
+			ds.Mounted = setBool(val)
 		case PropertyMountPoint:
 			ds.Mountpoint = setString(val)
 		case PropertyCompression:
@@ -143,10 +143,6 @@ func setUint(val string) (uint64, error) {
 	return v, nil
 }
 
-func setBool(val string) (bool, error) {
-	if val == PropertyUnset {
-		return false, nil
-	}
-
-	return val == PropertyYes || val == PropertyOn, nil
+func setBool(val string) bool {
+	return val == PropertyYes || val == PropertyOn
 }
