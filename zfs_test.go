@@ -452,14 +452,14 @@ func TestChildren(t *testing.T) {
 
 		children, err := f.Children(context.Background(), ListOptions{
 			DatasetType:     DatasetSnapshot,
-			ExtraProperties: []string{PropertyMounted},
+			ExtraProperties: []string{PropertyFilesystemCount},
 		})
 		require.NoError(t, err)
 
 		require.Equal(t, 1, len(children))
 		require.Equal(t, testZPool+"/snapshot-test@test", children[0].Name)
 		require.Len(t, children[0].ExtraProps, 1)
-		require.Equal(t, children[0].ExtraProps, map[string]string{PropertyMounted: ""})
+		require.Equal(t, map[string]string{PropertyFilesystemCount: ""}, children[0].ExtraProps)
 
 		require.NoError(t, s.Destroy(context.Background(), DestroyOptions{}))
 		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))

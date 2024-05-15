@@ -16,6 +16,7 @@ var dsPropList = []string{
 	PropertyOrigin,
 	PropertyUsed,
 	PropertyAvailable,
+	PropertyMounted,
 	PropertyMountPoint,
 	PropertyCompression,
 	PropertyVolSize,
