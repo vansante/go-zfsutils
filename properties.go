@@ -34,6 +34,7 @@ const (
 	ValueNone  = "none"
 	ValueUnset = "-"
 )
+
 const (
 	EncryptionAES128CCM = "aes-128-ccm"
 	EncryptionAES192CCM = "aes-192-ccm"
@@ -48,6 +49,7 @@ const (
 	KeyFormatPassphrase = "passphrase"
 	KeyFormatRaw        = "raw"
 )
+
 const (
 	KeyLocationPrompt  = "prompt"
 	KeyStatusAvailable = "available"
