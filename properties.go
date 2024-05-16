@@ -5,6 +5,7 @@ const (
 	PropertyCanMount           = "canmount"
 	PropertyCompression        = "compression"
 	PropertyEncryption         = "encryption"
+	PropertyEncryptionRoot     = "encryptionroot"
 	PropertyFilesystemCount    = "filesystem_count"
 	PropertyKeyFormat          = "keyformat"
 	PropertyKeyStatus          = "keystatus"

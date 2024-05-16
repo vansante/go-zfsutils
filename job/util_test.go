@@ -70,6 +70,6 @@ func Test_randomizeDuration(t *testing.T) {
 		if dur > time.Second*320 {
 			t.Errorf("randomizeDuration() = %v > %v", dur, time.Second*63)
 		}
-		//t.Logf("randomizeDuration() = %v", dur)
+		// t.Logf("randomizeDuration() = %v", dur)
 	}
 }
