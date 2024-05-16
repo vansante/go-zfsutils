@@ -13,7 +13,6 @@ import (
 
 var (
 	ErrNoCommonSnapshots = errors.New("local and remote datasets have no common snapshot")
-	ErrNoLocalSnapshots  = errors.New("no local snapshots to send")
 )
 
 func (r *Runner) sendSnapshots(routineID int) error {
@@ -100,6 +99,11 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 	})
 	if err != nil {
 		return fmt.Errorf("error listing local %s snapshots: %w", ds.Name, err)
+	}
+
+	if len(localSnaps) == 0 {
+		// Nothing to do
+		return nil
 	}
 
 	server := ds.ExtraProps[sendToProp]
