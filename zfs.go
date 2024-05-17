@@ -196,9 +196,9 @@ type UnmountOptions struct {
 }
 
 // Unmount unmounts currently mounted ZFS file systems.
-func (d *Dataset) Unmount(ctx context.Context, options UnmountOptions) (*Dataset, error) {
+func (d *Dataset) Unmount(ctx context.Context, options UnmountOptions) error {
 	if d.Type == DatasetSnapshot {
-		return nil, ErrSnapshotsNotSupported
+		return ErrSnapshotsNotSupported
 	}
 	args := make([]string, 1, 5)
 	args[0] = "umount"
@@ -210,11 +210,7 @@ func (d *Dataset) Unmount(ctx context.Context, options UnmountOptions) (*Dataset
 	}
 	args = append(args, d.Name)
 
-	err := zfs(ctx, args...)
-	if err != nil {
-		return nil, err
-	}
-	return GetDataset(ctx, d.Name)
+	return zfs(ctx, args...)
 }
 
 // LoadKeyOptions are options you can specify to customize the load-key command
@@ -291,9 +287,9 @@ type MountOptions struct {
 }
 
 // Mount mounts ZFS file systems.
-func (d *Dataset) Mount(ctx context.Context, options MountOptions) (*Dataset, error) {
+func (d *Dataset) Mount(ctx context.Context, options MountOptions) error {
 	if d.Type == DatasetSnapshot {
-		return nil, ErrSnapshotsNotSupported
+		return ErrSnapshotsNotSupported
 	}
 	args := make([]string, 1, 5)
 	args[0] = "mount"
@@ -309,11 +305,7 @@ func (d *Dataset) Mount(ctx context.Context, options MountOptions) (*Dataset, er
 	}
 	args = append(args, d.Name)
 
-	err := zfs(ctx, args...)
-	if err != nil {
-		return nil, err
-	}
-	return GetDataset(ctx, d.Name)
+	return zfs(ctx, args...)
 }
 
 // ReceiveOptions are options you can specify to customize the receive command
@@ -608,7 +600,7 @@ type RenameOptions struct {
 }
 
 // Rename renames a dataset.
-func (d *Dataset) Rename(ctx context.Context, name string, options RenameOptions) (*Dataset, error) {
+func (d *Dataset) Rename(ctx context.Context, name string, options RenameOptions) error {
 	args := make([]string, 1, 6)
 	args[0] = "rename"
 	if options.CreateParent {
@@ -627,12 +619,7 @@ func (d *Dataset) Rename(ctx context.Context, name string, options RenameOptions
 	args = append(args, d.Name)
 	args = append(args, name)
 
-	err := zfs(ctx, args...)
-	if err != nil {
-		return d, err
-	}
-
-	return GetDataset(ctx, name)
+	return zfs(ctx, args...)
 }
 
 // Snapshots returns a slice of all ZFS snapshots of a given dataset.
