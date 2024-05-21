@@ -137,9 +137,6 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 		return fmt.Errorf("error reconciling %s snapshots: %w", ds.Name, err)
 	}
 
-	// Clear remote cache, because we are sending snapshots, its no longer correct
-	r.clearRemoteDatasetCache(client.Server(), remoteDataset)
-
 	for _, send := range toSend {
 		if r.ctx.Err() != nil {
 			return nil // context expired, no problem
@@ -160,6 +157,9 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 		case err != nil:
 			return fmt.Errorf("error setting %s property on %s after send: %w", sentProp, send.Snapshot.Name, err)
 		}
+
+		// Clear remote cache, because we are sending snapshots, its no longer correct
+		r.clearRemoteDatasetCache(client.Server(), remoteDataset)
 	}
 	return nil
 }
