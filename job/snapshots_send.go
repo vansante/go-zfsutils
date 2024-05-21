@@ -147,6 +147,11 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 			return err
 		}
 
+		err = r.setSendSnapshotProperties(client, send.Snapshot.Name)
+		if err != nil {
+			r.logger.Error("zfs.job.Runner.resumeSendSnapshot: Error setting snapshot properties", "error", err, "snapshot", send.Snapshot.Name)
+		}
+
 		err = send.Snapshot.SetProperty(r.ctx, sentProp, time.Now().Format(dateTimeFormat))
 		switch {
 		case errors.Is(err, zfs.ErrDatasetNotFound):
@@ -226,6 +231,11 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		)
 	}
 
+	err = r.setSendSnapshotProperties(client, fullSnapName)
+	if err != nil {
+		r.logger.Error("zfs.job.Runner.resumeSendSnapshot: Error setting snapshot properties", "error", err, "snapshot", fullSnapName)
+	}
+
 	r.logger.Debug("zfs.job.Runner.resumeSendSnapshot: Sent snapshot",
 		"snapshot", ds.Name,
 		"server", client.Server(),
@@ -283,6 +293,27 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 	return nil
 }
 
+func (r *Runner) setSendSnapshotProperties(client *zfshttp.Client, snapName string) error {
+	snapProps, err := r.getSendSnapshotProperties(snapName)
+	if err != nil {
+		return fmt.Errorf("error getting properties for snapshot %s: %w", snapName, err)
+	}
+
+	if len(snapProps) == 0 {
+		return nil // Nothing to do!
+	}
+
+	setProps := zfshttp.SetProperties{
+		Set: snapProps,
+	}
+
+	err = client.SetSnapshotProperties(r.ctx, datasetName(snapName, true), snapshotName(snapName), setProps)
+	if err != nil {
+		return fmt.Errorf("error setting snapshot properties for snapshot %s: %w", snapName, err)
+	}
+	return nil
+}
+
 func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, server string) ([]zfshttp.SnapshotSendOptions, error) {
 	toSend := make([]zfshttp.SnapshotSendOptions, 0, 8)
 	var prevRemoteSnap *zfs.Dataset
@@ -299,19 +330,9 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, server string) 
 			continue
 		}
 
-		props := make(map[string]string, len(r.config.SendSetProperties)+len(r.config.SendCopyProperties))
-		for k, v := range r.config.SendSetProperties {
-			props[k] = v
-		}
-		for _, prop := range r.config.SendCopyProperties {
-			val, err := snap.GetProperty(r.ctx, prop)
-			if err != nil {
-				return nil, fmt.Errorf("error getting prop %s copy value for %s: %w", prop, snap.Name, err)
-			}
-			if !propertyIsSet(val) {
-				continue
-			}
-			props[prop] = val
+		dsProps, err := r.getSendDatasetProperties(stripDatasetSnapshot(snap.Name))
+		if err != nil {
+			return nil, fmt.Errorf("error getting properties for dataset %s: %w", stripDatasetSnapshot(snap.Name), err)
 		}
 
 		toSend = append(toSend, zfshttp.SnapshotSendOptions{
@@ -326,7 +347,7 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, server string) 
 				IncrementalBase:   prevRemoteSnap,
 			},
 			Resumable:     r.config.SendResumable,
-			Properties:    props,
+			Properties:    dsProps,
 			ProgressEvery: r.config.sendProgressInterval(),
 			ProgressFn: func(bytes int64) {
 				r.EmitEvent(SnapshotSendingProgressEvent, snap.Name, server, bytes)
@@ -373,4 +394,36 @@ func (r *Runner) clearSendingState(sending *zfsSend) {
 	r.sends = slices.DeleteFunc(r.sends, func(s *zfsSend) bool {
 		return sending == s
 	})
+}
+
+func (r *Runner) getSendDatasetProperties(datasetName string) (map[string]string, error) {
+	props := r.config.sendSetProperties()
+	ds, err := zfs.GetDataset(r.ctx, datasetName, r.config.SendCopyProperties...)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, prop := range r.config.SendCopyProperties {
+		if !propertyIsSet(ds.ExtraProps[prop]) {
+			continue
+		}
+		props[prop] = ds.ExtraProps[prop]
+	}
+	return props, nil
+}
+
+func (r *Runner) getSendSnapshotProperties(datasetName string) (map[string]string, error) {
+	props := r.config.sendSetSnapshotProperties()
+	ds, err := zfs.GetDataset(r.ctx, datasetName, r.config.SendCopySnapshotProperties...)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, prop := range r.config.SendCopySnapshotProperties {
+		if !propertyIsSet(ds.ExtraProps[prop]) {
+			continue
+		}
+		props[prop] = ds.ExtraProps[prop]
+	}
+	return props, nil
 }

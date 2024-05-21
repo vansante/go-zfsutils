@@ -196,6 +196,7 @@ type SnapshotSendOptions struct {
 	// Resumable determines whether the stream can be resumed
 	Resumable bool
 
+	// Properties are set on the receiving dataset (filesystem usually)
 	Properties ReceiveProperties
 
 	// ProgressFn: Set a callback function to receive updates about progress

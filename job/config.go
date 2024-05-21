@@ -32,12 +32,16 @@ type Config struct {
 	EnableSnapshotPrune      bool `json:"EnableSnapshotPrune" yaml:"EnableSnapshotPrune"`
 	EnableFilesystemPrune    bool `json:"EnableFilesystemPrune" yaml:"EnableFilesystemPrune"`
 
-	SendRoutines          int               `json:"SendRoutines" yaml:"SendRoutines"`
-	SendResumable         bool              `json:"SendResumable" yaml:"SendResumable"`
-	SendRaw               bool              `json:"SendRaw" yaml:"SendRaw"`
-	SendIncludeProperties bool              `json:"SendIncludeProperties" yaml:"SendIncludeProperties"`
-	SendCopyProperties    []string          `json:"SendCopyProperties" yaml:"SendCopyProperties"`
-	SendSetProperties     map[string]string `json:"SendSetProperties" yaml:"SendSetProperties"`
+	SendRoutines          int  `json:"SendRoutines" yaml:"SendRoutines"`
+	SendResumable         bool `json:"SendResumable" yaml:"SendResumable"`
+	SendRaw               bool `json:"SendRaw" yaml:"SendRaw"`
+	SendIncludeProperties bool `json:"SendIncludeProperties" yaml:"SendIncludeProperties"`
+
+	SendCopyProperties []string          `json:"SendCopyProperties" yaml:"SendCopyProperties"`
+	SendSetProperties  map[string]string `json:"SendSetProperties" yaml:"SendSetProperties"`
+
+	SendCopySnapshotProperties []string          `json:"SendCopySnapshotProperties" yaml:"SendCopySnapshotProperties"`
+	SendSetSnapshotProperties  map[string]string `json:"SendSetSnapshotProperties" yaml:"SendSetSnapshotProperties"`
 
 	IgnoreSnapshotsWithoutCreatedProperty bool `json:"IgnoreSnapshotsWithoutCreatedProperty" yaml:"IgnoreSnapshotsWithoutCreatedProperty"`
 
@@ -87,6 +91,22 @@ func (c *Config) sendProgressInterval() time.Duration {
 
 func (c *Config) maximumRemoteSnapshotCacheAge() time.Duration {
 	return time.Duration(c.MaximumRemoteSnapshotCacheAgeSeconds) * time.Second
+}
+
+func (c *Config) sendSetProperties() map[string]string {
+	props := make(map[string]string, len(c.SendSetProperties)+len(c.SendCopyProperties))
+	for k, v := range c.SendSetProperties {
+		props[k] = v
+	}
+	return props
+}
+
+func (c *Config) sendSetSnapshotProperties() map[string]string {
+	props := make(map[string]string, len(c.SendSetSnapshotProperties)+len(c.SendCopySnapshotProperties))
+	for k, v := range c.SendSetSnapshotProperties {
+		props[k] = v
+	}
+	return props
 }
 
 // Properties sets the names of the custom ZFS properties to use
