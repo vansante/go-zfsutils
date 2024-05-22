@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -23,7 +24,10 @@ func (r *Runner) markPrunableSnapshots() error {
 func (r *Runner) markPrunableExcessSnapshots() error {
 	countProp := r.config.Properties.snapshotRetentionCount()
 	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, countProp)
-	if err != nil {
+	switch {
+	case errors.Is(err, zfs.ErrDatasetNotFound):
+		return nil
+	case err != nil:
 		return fmt.Errorf("error finding retention count datasets: %w", err)
 	}
 
@@ -139,7 +143,10 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 func (r *Runner) markPrunableSnapshotsByAge() error {
 	retentionProp := r.config.Properties.snapshotRetentionMinutes()
 	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, retentionProp)
-	if err != nil {
+	switch {
+	case errors.Is(err, zfs.ErrDatasetNotFound):
+		return nil
+	case err != nil:
 		return fmt.Errorf("error finding retention time datasets: %w", err)
 	}
 

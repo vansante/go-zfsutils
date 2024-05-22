@@ -17,7 +17,10 @@ func (r *Runner) sendSnapshots(routineID int) error {
 	sendToProp := r.config.Properties.snapshotSendTo()
 
 	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, sendToProp)
-	if err != nil {
+	switch {
+	case errors.Is(err, zfs.ErrDatasetNotFound):
+		return nil
+	case err != nil:
 		return fmt.Errorf("error finding snapshottable datasets: %w", err)
 	}
 
