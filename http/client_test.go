@@ -36,10 +36,15 @@ func TestClient_Send(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 		defer cancel()
 
+		const testProp = "nl.vansante:pipo"
+		const testPropVal = "clown"
+
 		results, err := client.Send(ctx, SnapshotSendOptions{
 			DatasetName: newFs,
 			Snapshot:    snap1,
-			Properties:  ReceiveProperties{zfs.PropertyCanMount: zfs.ValueOff},
+			Properties: ReceiveProperties{
+				zfs.PropertyCanMount: zfs.ValueOff,
+			},
 		})
 		require.NoError(t, err)
 		require.NotZero(t, results.BytesSent)
@@ -48,10 +53,13 @@ func TestClient_Send(t *testing.T) {
 		results, err = client.Send(ctx, SnapshotSendOptions{
 			DatasetName: newFs,
 			Snapshot:    snap2,
-			Properties:  ReceiveProperties{zfs.PropertyCanMount: zfs.ValueOff},
+			Properties: ReceiveProperties{
+				zfs.PropertyCanMount: zfs.ValueOff,
+				testProp:             testPropVal,
+			},
 			SendOptions: zfs.SendOptions{
 				Raw:               true,
-				IncludeProperties: true,
+				IncludeProperties: false,
 				IncrementalBase:   snap1,
 			},
 		})
@@ -60,10 +68,12 @@ func TestClient_Send(t *testing.T) {
 		require.NotZero(t, results.TimeTaken)
 
 		const fullNewFs = testZPool + "/" + newFs
-		ds, err = zfs.GetDataset(context.Background(), fullNewFs)
+		ds, err = zfs.GetDataset(context.Background(), fullNewFs, testProp)
 		require.NoError(t, err)
 
-		snaps, err := ds.Snapshots(context.Background(), zfs.ListOptions{})
+		require.Equal(t, testPropVal, ds.ExtraProps[testProp])
+
+		snaps, err := ds.Snapshots(context.Background(), zfs.ListOptions{ExtraProperties: []string{testProp}})
 		require.NoError(t, err)
 		require.Len(t, snaps, 2)
 		require.Equal(t, fullNewFs+"@lala1", snaps[0].Name)

@@ -68,6 +68,8 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
+
 			ds, err := zfs.GetDataset(context.Background(), testFilesystem, runner.config.Properties.snapshotSending())
 			require.NoError(t, err)
 			require.Equal(t, sendSnaps[sendingCount], ds.ExtraProps[runner.config.Properties.snapshotSending()])
@@ -86,7 +88,6 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 			require.True(t, found)
 
 			sendingCount++
-			wg.Done()
 		}()
 	})
 
@@ -122,6 +123,35 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 func TestRunner_sendSnapshots(t *testing.T) {
 	sendTest(t, func(url string, runner *Runner) {
 		testSendSnapshots(t, url, runner)
+	})
+}
+
+func TestRunner_sendSnapshotsSnapshotProps(t *testing.T) {
+	const testProp = "nl.vansante:haha"
+	const propVal = "hihi"
+
+	const copyProp = "nl.vansante:copythis"
+	const copyVal = "yessir"
+
+	sendTest(t, func(url string, runner *Runner) {
+		runner.config.SendSetSnapshotProperties = map[string]string{
+			testProp: propVal,
+		}
+		runner.config.SendCopySnapshotProperties = []string{copyProp, runner.config.Properties.snapshotCreatedAt()}
+		//runner.config.SendSetProperties = nil
+		runner.config.SendCopyProperties = nil
+
+		snap, err := zfs.GetDataset(context.Background(), testFilesystem+"@"+sendSnaps[0])
+		require.NoError(t, err)
+		err = snap.SetProperty(context.Background(), copyProp, copyVal)
+		require.NoError(t, err)
+
+		testSendSnapshots(t, url, runner)
+
+		snap, err = zfs.GetDataset(context.Background(), testHTTPZPool+"/"+datasetName(testFilesystem, true)+"@"+sendSnaps[0], testProp, copyProp)
+		require.NoError(t, err)
+		require.Equal(t, propVal, snap.ExtraProps[testProp])
+		require.Equal(t, copyVal, snap.ExtraProps[copyProp])
 	})
 }
 
