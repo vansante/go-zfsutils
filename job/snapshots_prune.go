@@ -1,6 +1,7 @@
 package job
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,7 +12,10 @@ func (r *Runner) pruneSnapshots() error {
 	deleteProp := r.config.Properties.deleteAt()
 
 	snapshots, err := zfs.ListWithProperty(r.ctx, zfs.DatasetSnapshot, r.config.ParentDataset, deleteProp)
-	if err != nil {
+	switch {
+	case errors.Is(err, zfs.ErrDatasetNotFound):
+		return nil
+	case err != nil:
 		return fmt.Errorf("error finding prunable datasets: %w", err)
 	}
 
