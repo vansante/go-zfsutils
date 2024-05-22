@@ -71,15 +71,12 @@ func TestClient_Send(t *testing.T) {
 		ds, err = zfs.GetDataset(context.Background(), fullNewFs, testProp)
 		require.NoError(t, err)
 
-		require.Equal(t, "", ds.ExtraProps[testProp])
+		require.Equal(t, testPropVal, ds.ExtraProps[testProp])
 
 		snaps, err := ds.Snapshots(context.Background(), zfs.ListOptions{ExtraProperties: []string{testProp}})
 		require.NoError(t, err)
 		require.Len(t, snaps, 2)
 		require.Equal(t, fullNewFs+"@lala1", snaps[0].Name)
 		require.Equal(t, fullNewFs+"@lala2", snaps[1].Name)
-
-		require.Equal(t, "", snaps[0].ExtraProps[testProp])
-		require.Equal(t, testPropVal, snaps[1].ExtraProps[testProp])
 	})
 }

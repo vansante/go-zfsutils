@@ -76,7 +76,7 @@ func (c *Config) ApplyDefaults() {
 
 	c.Properties.ApplyDefaults()
 
-	c.SendCopyProperties = []string{
+	c.SendCopySnapshotProperties = []string{
 		c.Properties.snapshotCreatedAt(),
 	}
 }
