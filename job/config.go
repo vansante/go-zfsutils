@@ -15,7 +15,7 @@ const (
 	defaultMaximumSendTimeSeconds               = 12 * 60 * 60 // 12 hours
 	defaultSendRoutines                         = 3
 	defaultSendProgressEventIntervalSeconds     = 5 * 60  // 5 minutes
-	defaultMaximumRemoteSnapshotCacheAgeSeconds = 60 * 60 // 1 hour
+	defaultMaximumRemoteSnapshotCacheAgeSeconds = 30 * 60 // 30 minutes
 )
 
 // Config configures the runner
