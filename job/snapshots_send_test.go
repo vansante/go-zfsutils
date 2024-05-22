@@ -426,3 +426,16 @@ func TestRunner_sendNoCommonSnapshots(t *testing.T) {
 		require.ErrorIs(t, err, ErrNoCommonSnapshots)
 	})
 }
+
+func TestRunner_reconcileSnapshots(t *testing.T) {
+	list := []zfs.Dataset{
+		{
+			Name: "parent/test@1234567",
+		},
+	}
+	runnerTest(t, func(url string, runner *Runner) {
+		toSend, err := runner.reconcileSnapshots(list, list, url)
+		require.NoError(t, err)
+		require.Empty(t, toSend)
+	})
+}
