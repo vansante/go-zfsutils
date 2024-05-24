@@ -318,6 +318,9 @@ type ReceiveOptions struct {
 
 	// EnableCompression enables zstd decompression
 	EnableDecompression bool
+
+	// Force a rollback of the file system to the most recent snapshot before performing the receive operation.
+	ForceRollback bool
 }
 
 // ReceiveSnapshot receives a ZFS stream from the input io.Reader.
@@ -337,8 +340,11 @@ func ReceiveSnapshot(ctx context.Context, input io.Reader, name string, options 
 		stdin: input,
 	}
 
-	args := make([]string, 1, 3)
+	args := make([]string, 1, 4)
 	args[0] = "receive"
+	if options.ForceRollback {
+		args = append(args, "-F")
+	}
 	if options.Resumable {
 		args = append(args, "-s")
 	}
