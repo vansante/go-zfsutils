@@ -31,7 +31,7 @@ func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
 		Emitter:     eventemitter.NewEmitter(false),
 		config:      conf,
 		datasetLock: make(map[string]struct{}),
-		remoteCache: make(map[string]map[string]datasetCache),
+		remoteCache: make(map[string]map[string]*datasetCache),
 		sendChan:    make(chan string),
 		logger:      logger,
 		ctx:         ctx,
@@ -49,7 +49,7 @@ type Runner struct {
 	datasetLock map[string]struct{}
 	dsLock      sync.Mutex
 
-	remoteCache map[string]map[string]datasetCache // Snapshots indexed by server, then dataset name
+	remoteCache map[string]map[string]*datasetCache // Snapshots indexed by server, then dataset name
 	cacheLock   sync.RWMutex
 
 	sendChan chan string

@@ -49,13 +49,13 @@ func (r *Runner) setRemoteDatasetCache(server, remoteDataset string, snapshots [
 
 	serverCache, ok := r.remoteCache[server]
 	if !ok {
-		serverCache = make(map[string]datasetCache)
+		serverCache = make(map[string]*datasetCache)
 		r.remoteCache[server] = serverCache
 	}
 
 	dsCache, ok := serverCache[remoteDataset]
 	if !ok {
-		dsCache = datasetCache{}
+		dsCache = &datasetCache{}
 		serverCache[remoteDataset] = dsCache
 	}
 	dsCache.cachedAt = time.Now()
