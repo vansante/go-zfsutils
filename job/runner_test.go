@@ -28,7 +28,7 @@ func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 			r := &Runner{
 				Emitter:     eventemitter.NewEmitter(false),
 				datasetLock: make(map[string]struct{}),
-				remoteCache: make(map[string]map[string]datasetCache),
+				remoteCache: make(map[string]map[string]*datasetCache),
 				sendChan:    make(chan string),
 				config: Config{
 					ParentDataset: testZPool,
