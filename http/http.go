@@ -92,6 +92,15 @@ func (h *HTTP) getSpeed(req *http.Request) int64 {
 	return speed
 }
 
+func (h *HTTP) getReceiveForceRollback(req *http.Request) bool {
+	rollbackStr := req.URL.Query().Get(GETParamForceRollback)
+	if rollbackStr == "" {
+		return false
+	}
+	rollback, _ := strconv.ParseBool(rollbackStr)
+	return rollback
+}
+
 func (h *HTTP) getEnableDecompression(req *http.Request) bool {
 	enableStr := req.URL.Query().Get(GETParamEnableDecompression)
 	if enableStr == "" {

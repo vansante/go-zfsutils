@@ -48,6 +48,7 @@ type Config struct {
 	SendCompressionLevel                 zstd.EncoderLevel `json:"SendCompressionLevel" yaml:"SendCompressionLevel"`
 	SendSpeedBytesPerSecond              int64             `json:"SendSpeedBytesPerSecond" yaml:"SendSpeedBytesPerSecond"`
 	SendProgressEventIntervalSeconds     int64             `json:"SendProgressEventIntervalSeconds" yaml:"SendProgressEventIntervalSeconds"`
+	SendReceiveForceRollback             bool              `json:"SendReceiveForceRollback" yaml:"SendReceiveForceRollback"`
 	MaximumSendTimeSeconds               int64             `json:"MaximumSendTimeSeconds" yaml:"MaximumSendTimeSeconds"`
 	MaximumRemoteSnapshotCacheAgeSeconds int64             `json:"MaximumRemoteSnapshotCacheAgeSeconds" yaml:"MaximumRemoteSnapshotCacheAgeSeconds"`
 
