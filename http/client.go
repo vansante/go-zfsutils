@@ -195,6 +195,8 @@ type SnapshotSendOptions struct {
 	Snapshot *zfs.Dataset
 	// Resumable determines whether the stream can be resumed
 	Resumable bool
+	// ReceiveForceRollback sets whether the receiving dataset is rolled back to the received snapshot
+	ReceiveForceRollback bool
 
 	// Properties are set on the receiving dataset (filesystem usually)
 	Properties ReceiveProperties
@@ -253,7 +255,8 @@ func (c *Client) Send(ctx context.Context, send SnapshotSendOptions) (SendResult
 	q := req.URL.Query()
 	q.Set(GETParamResumable, strconv.FormatBool(send.Resumable))
 	q.Set(GETParamEnableDecompression, strconv.FormatBool(send.CompressionLevel > 0))
-	if send.Properties != nil {
+	q.Set(GETParamForceRollback, strconv.FormatBool(send.ReceiveForceRollback))
+	if len(send.Properties) > 0 {
 		q.Set(GETParamReceiveProperties, send.Properties.Encode())
 	}
 	req.URL.RawQuery = q.Encode() // Add new GET params

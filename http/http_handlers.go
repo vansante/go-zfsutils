@@ -18,6 +18,7 @@ const (
 	GETParamExtraProperties     = "extraProps"
 	GETParamResumable           = "resumable"
 	GETParamIncludeProperties   = "includeProps"
+	GETParamForceRollback       = "forceRollback"
 	GETParamRaw                 = "raw"
 	GETParamReceiveProperties   = "receiveProps"
 	GETParamBytesPerSecond      = "bytesPerSecond"
@@ -293,6 +294,7 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, l
 
 	ds, err := zfs.ReceiveSnapshot(req.Context(), req.Body, receiveDataset, zfs.ReceiveOptions{
 		EnableDecompression: h.getEnableDecompression(req),
+		ForceRollback:       h.getReceiveForceRollback(req),
 		Resumable:           resumable,
 		Properties:          props,
 	})

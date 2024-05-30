@@ -349,9 +349,10 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, server string) 
 				IncludeProperties: r.config.SendIncludeProperties,
 				IncrementalBase:   prevRemoteSnap,
 			},
-			Resumable:     r.config.SendResumable,
-			Properties:    dsProps,
-			ProgressEvery: r.config.sendProgressInterval(),
+			Resumable:            r.config.SendResumable,
+			ReceiveForceRollback: r.config.SendReceiveForceRollback,
+			Properties:           dsProps,
+			ProgressEvery:        r.config.sendProgressInterval(),
 			ProgressFn: func(bytes int64) {
 				r.EmitEvent(SnapshotSendingProgressEvent, snap.Name, server, bytes)
 			},
