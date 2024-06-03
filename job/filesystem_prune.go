@@ -1,6 +1,7 @@
 package job
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -12,7 +13,10 @@ func (r *Runner) pruneFilesystems() error {
 	deleteProp := r.config.Properties.deleteAt()
 
 	filesystems, err := zfs.ListWithProperty(r.ctx, zfs.DatasetFilesystem, r.config.ParentDataset, deleteProp)
-	if err != nil {
+	switch {
+	case errors.Is(err, zfs.ErrDatasetNotFound):
+		return nil
+	case err != nil:
 		return fmt.Errorf("error finding prunable old filesystems: %w", err)
 	}
 
@@ -34,7 +38,10 @@ func (r *Runner) pruneFilesystems() error {
 
 	deleteWithoutSnaps := r.config.Properties.deleteWithoutSnapshots()
 	filesystems, err = zfs.ListWithProperty(r.ctx, zfs.DatasetFilesystem, r.config.ParentDataset, deleteWithoutSnaps)
-	if err != nil {
+	switch {
+	case errors.Is(err, zfs.ErrDatasetNotFound):
+		return nil
+	case err != nil:
 		return fmt.Errorf("error finding prunable filesystems without snapshots: %w", err)
 	}
 
