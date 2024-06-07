@@ -57,7 +57,7 @@ type SetProperties struct {
 }
 
 var (
-	validIdentifierRegexp  = regexp.MustCompile(`^[a-zA-Z0-9_]{2,100}$`)
+	validIdentifierRegexp  = regexp.MustCompile(`^[a-zA-Z0-9_]{1,100}$`)
 	validResumeTokenRegexp = regexp.MustCompile(`^[a-zA-Z0-9_-]{100,500}$`)
 )
 
