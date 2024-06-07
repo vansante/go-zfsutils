@@ -88,7 +88,7 @@ func (c *Client) DatasetSnapshots(ctx context.Context, dataset string, extraProp
 	case http.StatusNotFound:
 		return nil, ErrDatasetNotFound
 	default:
-		return nil, fmt.Errorf("unexpected status %d requesting remote snapshots: %w", resp.StatusCode, err)
+		return nil, fmt.Errorf("unexpected status %d requesting remote snapshots", resp.StatusCode)
 	}
 
 	var datasets []zfs.Dataset
@@ -292,7 +292,7 @@ func (c *Client) doSendStream(req *http.Request, pipeWrtr *io.PipeWriter, cancel
 	case http.StatusNotFound:
 		return ErrDatasetNotFound
 	default:
-		return fmt.Errorf("unexpected status %d sending stream: %w", resp.StatusCode, err)
+		return fmt.Errorf("unexpected status %d sending stream", resp.StatusCode)
 	}
 }
 
