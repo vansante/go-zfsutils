@@ -129,3 +129,46 @@ func TestRunner_markPrunableSnapshotsByAge(t *testing.T) {
 		require.Equal(t, "", snaps[3].ExtraProps[deleteProp])
 	})
 }
+
+func TestRunner_markPrunableSnapshotsWithParentDeleteAt(t *testing.T) {
+	runnerTest(t, func(url string, runner *Runner) {
+		retentionProp := runner.config.Properties.snapshotRetentionMinutes()
+		createdProp := runner.config.Properties.snapshotCreatedAt()
+		deleteProp := runner.config.Properties.deleteAt()
+
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
+		require.NoError(t, err)
+
+		now := time.Now()
+		err = ds.SetProperty(context.Background(), retentionProp, "15")
+		require.NoError(t, err)
+		err = ds.SetProperty(context.Background(), deleteProp, now.Add(time.Minute*60).Format(dateTimeFormat))
+		require.NoError(t, err)
+
+		const snap1 = "s1"
+
+		snap, err := ds.Snapshot(context.Background(), snap1, zfs.SnapshotOptions{})
+		require.NoError(t, err)
+		require.NoError(t, snap.SetProperty(context.Background(), createdProp, now.Add(-time.Minute*20).Format(dateTimeFormat)))
+
+		// Setup done, start
+
+		events := 0
+		runner.AddListener(MarkSnapshotDeletionEvent, func(arguments ...interface{}) {
+			events++
+		})
+
+		err = runner.markPrunableSnapshotsByAge()
+		require.NoError(t, err)
+		require.Equal(t, 1, events)
+
+		snaps, err := ds.Snapshots(context.Background(), zfs.ListOptions{ExtraProperties: []string{deleteProp}})
+		require.NoError(t, err)
+		require.Len(t, snaps, 1)
+
+		require.Equal(t, snap1, snapshotName(snaps[0].Name))
+		tm, err := parseDatasetTimeProperty(&snaps[0], deleteProp)
+		require.NoError(t, err)
+		require.WithinDuration(t, now.Add(deleteAfter), tm, time.Second)
+	})
+}

@@ -17,6 +17,14 @@ func propertyIsSet(val string) bool {
 	return val != "" && val != zfs.ValueUnset
 }
 
+func propertyIsBefore(val string, tm time.Time) bool {
+	dsTime, err := time.Parse(dateTimeFormat, val)
+	if err != nil {
+		return false
+	}
+	return dsTime.Before(tm)
+}
+
 func isContextError(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
 }
