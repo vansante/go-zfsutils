@@ -101,8 +101,8 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 		}
 		currentFound++
 
-		if propertyIsSet(snap.ExtraProps[deleteProp]) {
-			continue // Already being deleted
+		if propertyIsSet(snap.ExtraProps[deleteProp]) && propertyIsBefore(snap.ExtraProps[deleteProp], deleteAt) {
+			continue // Already being deleted, sooner than we would
 		}
 
 		if currentFound <= maxCount {
@@ -210,8 +210,8 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 		if !propertyIsSet(snap.ExtraProps[createdProp]) {
 			continue // Cannot determine age
 		}
-		if propertyIsSet(snap.ExtraProps[deleteProp]) {
-			continue // Ignore
+		if propertyIsSet(snap.ExtraProps[deleteProp]) && propertyIsBefore(snap.ExtraProps[deleteProp], deleteAt) {
+			continue // Already being deleted, sooner than we would
 		}
 
 		createdAt, err := parseDatasetTimeProperty(snap, createdProp)
