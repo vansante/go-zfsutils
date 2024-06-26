@@ -11,7 +11,12 @@ import (
 func (r *Runner) pruneSnapshots() error {
 	deleteProp := r.config.Properties.deleteAt()
 
-	snapshots, err := zfs.ListWithProperty(r.ctx, zfs.DatasetSnapshot, r.config.ParentDataset, deleteProp)
+	snapshots, err := zfs.ListWithProperty(r.ctx, deleteProp, zfs.ListWithPropertyOptions{
+		ParentDataset: r.config.ParentDataset,
+		DatasetType:   zfs.DatasetSnapshot,
+		// Also include inherited here, so we delete snapshots when the parent Filesystem is marked for deletion:
+		PropertySources: []zfs.PropertySource{zfs.PropertySourceLocal, zfs.PropertySourceInherited},
+	})
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		return nil

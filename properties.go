@@ -1,5 +1,25 @@
 package zfs
 
+type PropertySource string
+
+type PropertySources []PropertySource
+
+func (ps PropertySources) StringSlice() []string {
+	strs := make([]string, len(ps))
+	for i, p := range ps {
+		strs[i] = string(p)
+	}
+	return strs
+}
+
+const (
+	PropertySourceLocal     PropertySource = "local"
+	PropertySourceInherited PropertySource = "inherited"
+	PropertySourceTemporary PropertySource = "temporary"
+	PropertySourceReceived  PropertySource = "received"
+	PropertySourceDefault   PropertySource = "default"
+)
+
 const (
 	PropertyAvailable          = "available"
 	PropertyCanMount           = "canmount"

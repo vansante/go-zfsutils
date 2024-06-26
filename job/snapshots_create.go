@@ -16,7 +16,11 @@ func (r *Runner) createSnapshots() error {
 	intervalProp := r.config.Properties.snapshotIntervalMinutes()
 	deleteProp := r.config.Properties.deleteAt()
 
-	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, intervalProp)
+	datasets, err := zfs.ListWithProperty(r.ctx, intervalProp, zfs.ListWithPropertyOptions{
+		ParentDataset:   r.config.ParentDataset,
+		DatasetType:     r.config.DatasetType,
+		PropertySources: []zfs.PropertySource{zfs.PropertySourceLocal},
+	})
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		return nil

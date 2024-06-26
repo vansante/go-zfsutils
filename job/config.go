@@ -21,7 +21,7 @@ const (
 // Config configures the runner
 type Config struct {
 	ParentDataset        string            `json:"ParentDataset" yaml:"ParentDataset"`
-	DatasetType          zfs.DatasetType   `json:"DatasetTypes" yaml:"DatasetTypes"`
+	DatasetType          zfs.DatasetType   `json:"DatasetType" yaml:"DatasetType"`
 	HTTPHeaders          map[string]string `json:"HTTPHeaders" yaml:"HTTPHeaders"`
 	SnapshotNameTemplate string            `json:"SnapshotNameTemplate" yaml:"SnapshotNameTemplate"`
 
