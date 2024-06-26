@@ -252,7 +252,10 @@ func TestListWithProperty(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, f1.SetProperty(context.Background(), prop, "123"))
 
-		ls, err := ListWithProperty(context.Background(), DatasetFilesystem, testZPool+"/list-test", prop)
+		ls, err := ListWithProperty(context.Background(), prop, ListWithPropertyOptions{
+			ParentDataset: testZPool + "/list-test",
+			DatasetType:   DatasetFilesystem,
+		})
 		require.NoError(t, err)
 		require.Len(t, ls, 1)
 		require.Equal(t, map[string]string{

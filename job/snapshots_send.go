@@ -16,7 +16,11 @@ var ErrNoCommonSnapshots = errors.New("local and remote datasets have no common 
 func (r *Runner) sendSnapshots(routineID int) error {
 	sendToProp := r.config.Properties.snapshotSendTo()
 
-	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, sendToProp)
+	datasets, err := zfs.ListWithProperty(r.ctx, sendToProp, zfs.ListWithPropertyOptions{
+		ParentDataset:   r.config.ParentDataset,
+		DatasetType:     r.config.DatasetType,
+		PropertySources: []zfs.PropertySource{zfs.PropertySourceLocal},
+	})
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		return nil

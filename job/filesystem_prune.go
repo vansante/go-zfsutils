@@ -12,7 +12,11 @@ import (
 func (r *Runner) pruneFilesystems() error {
 	deleteProp := r.config.Properties.deleteAt()
 
-	filesystems, err := zfs.ListWithProperty(r.ctx, zfs.DatasetFilesystem, r.config.ParentDataset, deleteProp)
+	filesystems, err := zfs.ListWithProperty(r.ctx, deleteProp, zfs.ListWithPropertyOptions{
+		ParentDataset:   r.config.ParentDataset,
+		DatasetType:     zfs.DatasetFilesystem,
+		PropertySources: []zfs.PropertySource{zfs.PropertySourceLocal},
+	})
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		return nil
@@ -37,7 +41,11 @@ func (r *Runner) pruneFilesystems() error {
 	}
 
 	deleteWithoutSnaps := r.config.Properties.deleteWithoutSnapshots()
-	filesystems, err = zfs.ListWithProperty(r.ctx, zfs.DatasetFilesystem, r.config.ParentDataset, deleteWithoutSnaps)
+	filesystems, err = zfs.ListWithProperty(r.ctx, deleteWithoutSnaps, zfs.ListWithPropertyOptions{
+		ParentDataset:   r.config.ParentDataset,
+		DatasetType:     r.config.DatasetType,
+		PropertySources: []zfs.PropertySource{zfs.PropertySourceLocal},
+	})
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		return nil

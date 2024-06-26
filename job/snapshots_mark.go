@@ -23,7 +23,12 @@ func (r *Runner) markPrunableSnapshots() error {
 
 func (r *Runner) markPrunableExcessSnapshots() error {
 	countProp := r.config.Properties.snapshotRetentionCount()
-	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, countProp)
+
+	datasets, err := zfs.ListWithProperty(r.ctx, countProp, zfs.ListWithPropertyOptions{
+		ParentDataset:   r.config.ParentDataset,
+		DatasetType:     r.config.DatasetType,
+		PropertySources: []zfs.PropertySource{zfs.PropertySourceLocal},
+	})
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		return nil
@@ -142,7 +147,12 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 
 func (r *Runner) markPrunableSnapshotsByAge() error {
 	retentionProp := r.config.Properties.snapshotRetentionMinutes()
-	datasets, err := zfs.ListWithProperty(r.ctx, r.config.DatasetType, r.config.ParentDataset, retentionProp)
+
+	datasets, err := zfs.ListWithProperty(r.ctx, retentionProp, zfs.ListWithPropertyOptions{
+		ParentDataset:   r.config.ParentDataset,
+		DatasetType:     r.config.DatasetType,
+		PropertySources: []zfs.PropertySource{zfs.PropertySourceLocal},
+	})
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		return nil

@@ -16,7 +16,7 @@ const (
 	Binary = "zfs"
 )
 
-// ListOptions are options you can specify to customize the list command
+// ListOptions are options you can specify to customize the ListDatasets and other List commands
 type ListOptions struct {
 	// ParentDataset filters by parent dataset, empty lists all
 	ParentDataset string
@@ -100,13 +100,44 @@ func ListSnapshots(ctx context.Context, options ListOptions) ([]Dataset, error) 
 	return ListDatasets(ctx, options)
 }
 
+// ListWithPropertyOptions are options you can specify to customize the ListWithProperty command
+type ListWithPropertyOptions struct {
+	// ParentDataset filters by parent dataset, empty lists all
+	ParentDataset string
+	// DatasetType filters the results by type
+	DatasetType DatasetType
+	// PropertySources determines the source(s) of the property
+	PropertySources PropertySources
+}
+
 // ListWithProperty returns a map of dataset names mapped to the properties value for datasets which have the given ZFS property.
-func ListWithProperty(ctx context.Context, tp DatasetType, parentDataset, prop string) (map[string]string, error) {
+func ListWithProperty(ctx context.Context, property string, options ListWithPropertyOptions) (map[string]string, error) {
 	c := command{
 		cmd: Binary,
 		ctx: ctx,
 	}
-	lines, err := c.Run("get", "-t", string(tp), "-Hp", "-o", "name,value", "-r", "-s", "local", prop, parentDataset)
+
+	args := make([]string, 0, 16)
+	args = append(args, "get")
+	if options.ParentDataset != "" {
+		args = append(args, "-t", string(options.DatasetType))
+	}
+	args = append(args, "-Hp", "-o", "name,value", "-r")
+
+	// If we have none specified, always assume we want local properties _only_
+	if len(options.PropertySources) == 0 {
+		options.PropertySources = []PropertySource{PropertySourceLocal}
+	}
+	args = append(args, "-s", strings.Join(options.PropertySources.StringSlice(), ","))
+
+	// The prop we are querying:
+	args = append(args, property)
+
+	if options.ParentDataset != "" {
+		args = append(args, options.ParentDataset)
+	}
+
+	lines, err := c.Run(args...)
 	if err != nil {
 		return nil, err
 	}
