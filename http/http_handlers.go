@@ -305,7 +305,7 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, l
 	if err != nil {
 		logger.Error("zfs.http.handleReceiveSnapshot: Error storing", "error", err)
 		w.Header().Set(HeaderError, err.Error())
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
