@@ -10,6 +10,7 @@ import (
 
 	eventemitter "github.com/vansante/go-event-emitter"
 	zfs "github.com/vansante/go-zfsutils"
+	zfshttp "github.com/vansante/go-zfsutils/http"
 )
 
 const (
@@ -58,6 +59,14 @@ type Runner struct {
 
 	logger *slog.Logger
 	ctx    context.Context
+}
+
+func (r *Runner) getServerClient(server string) *zfshttp.Client {
+	client := zfshttp.NewClient(server, r.logger)
+	for hdr := range r.config.HTTPHeaders {
+		client.SetHeader(hdr, r.config.HTTPHeaders[hdr])
+	}
+	return client
 }
 
 func (r *Runner) attachListeners() {

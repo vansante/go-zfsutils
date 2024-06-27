@@ -124,10 +124,7 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 	}
 
 	server := ds.ExtraProps[sendToProp]
-	client := zfshttp.NewClient(server, r.logger)
-	for hdr := range r.config.HTTPHeaders {
-		client.SetHeader(hdr, r.config.HTTPHeaders[hdr])
-	}
+	client := r.getServerClient(server)
 	remoteDataset := datasetName(ds.Name, true)
 
 	// If we have a sending property, its worth checking whether we can resume a transfer

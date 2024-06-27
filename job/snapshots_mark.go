@@ -272,7 +272,7 @@ func (r *Runner) markRemoteDatasetSnapshot(localSnap *zfs.Dataset, server, delet
 	ctx, cancel := context.WithTimeout(r.ctx, 5*time.Minute)
 	defer cancel()
 
-	client := zfshttp.NewClient(server, r.logger)
+	client := r.getServerClient(server)
 	return client.SetSnapshotProperties(ctx, datasetName(localSnap.Name, true), snapshotName(localSnap.Name), zfshttp.SetProperties{
 		Set: map[string]string{
 			deleteProp: deleteAt.Format(dateTimeFormat),
