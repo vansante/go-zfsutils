@@ -302,7 +302,7 @@ func (c *Client) doSendStream(req *http.Request, pipeWrtr *io.PipeWriter, cancel
 	case http.StatusNotFound:
 		return ErrDatasetNotFound
 	default:
-		return fmt.Errorf("unexpected status %d sending stream", resp.StatusCode)
+		return fmt.Errorf("unexpected status %d sending stream, server error: %s", resp.StatusCode, resp.Header.Get(HeaderError))
 	}
 }
 
