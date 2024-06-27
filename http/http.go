@@ -69,6 +69,8 @@ func (h *HTTP) middleware(handle handle) http.HandlerFunc {
 		logger := h.logger.With(slog.Group("req",
 			"URL", req.URL.String(),
 			"method", req.Method),
+			"remoteAddr", req.RemoteAddr,
+			"userAgent", req.UserAgent(),
 		)
 		logger.Info("zfs.http.middleware: Handling")
 

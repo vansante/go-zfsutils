@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,8 @@ var (
 	ErrResumeNotPossible  = errors.New("resume not possible")
 )
 
+const clientUserAgent = "go-zfsutils@%s"
+
 // Client is the struct used to send requests to a zfs http server
 type Client struct {
 	server  string
@@ -32,12 +35,19 @@ type Client struct {
 
 // NewClient creates a new client for a zfs http server
 func NewClient(server string, logger *slog.Logger) *Client {
-	return &Client{
+	client := &Client{
 		server:  server,
 		headers: make(map[string]string, 8),
 		logger:  logger,
 		client:  http.DefaultClient,
 	}
+	host, _ := os.Hostname()
+	client.headers["User-Agent"] = fmt.Sprintf(
+		clientUserAgent,
+		host,
+	)
+
+	return client
 }
 
 // SetClient configures a custom http client for doing requests
