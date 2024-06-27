@@ -29,6 +29,7 @@ const (
 const (
 	HeaderResumeReceiveToken  = "X-Receive-Resume-Token"
 	HeaderResumeReceivedBytes = "X-Received-Bytes"
+	HeaderError               = "X-Error"
 )
 
 type ReceiveProperties map[string]string
@@ -253,6 +254,7 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, l
 
 	if !validIdentifier(filesystem) || (snapshot != "" && !validIdentifier(snapshot)) {
 		logger.Info("zfs.http.handleReceiveSnapshot: Invalid identifier")
+		w.Header().Set(HeaderError, "invalid identifier")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -271,6 +273,7 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, l
 
 	if datasetResumeToken == "" && givenResumeToken != "" {
 		logger.Info("zfs.http.handleReceiveSnapshot: Got resume token but found none on dataset", "resumeToken", givenResumeToken)
+		w.Header().Set(HeaderError, "no resume token on dataset")
 		w.WriteHeader(http.StatusPreconditionFailed)
 		return
 	}
@@ -280,6 +283,7 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, l
 			"givenResumeToken", givenResumeToken,
 			"actualResumeToken", datasetResumeToken,
 		)
+		w.Header().Set(HeaderError, "invalid resume token")
 		w.WriteHeader(http.StatusConflict)
 		return
 	}
@@ -300,7 +304,8 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, l
 	})
 	if err != nil {
 		logger.Error("zfs.http.handleReceiveSnapshot: Error storing", "error", err)
-		w.WriteHeader(http.StatusNotFound)
+		w.Header().Set(HeaderError, err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
