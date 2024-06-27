@@ -11,6 +11,8 @@ import (
 	zfshttp "github.com/vansante/go-zfsutils/http"
 )
 
+const stopSendingBeforeDeleteDuration = 24 * time.Hour
+
 var ErrNoCommonSnapshots = errors.New("local and remote datasets have no common snapshot")
 
 func (r *Runner) sendSnapshots(routineID int) error {
@@ -48,8 +50,9 @@ func (r *Runner) sendSnapshots(routineID int) error {
 func (r *Runner) sendDatasetSnapshotsByName(routineID int, dataset string) error {
 	sendToProp := r.config.Properties.snapshotSendTo()
 	sendingProp := r.config.Properties.snapshotSending()
+	deleteProp := r.config.Properties.deleteAt()
 
-	ds, err := zfs.GetDataset(r.ctx, dataset, sendToProp, sendingProp)
+	ds, err := zfs.GetDataset(r.ctx, dataset, sendToProp, sendingProp, deleteProp)
 	if err != nil {
 		return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 	}
@@ -61,6 +64,15 @@ func (r *Runner) sendDatasetSnapshotsByName(routineID int, dataset string) error
 			"dataset", dataset,
 		)
 		return nil // Dont know where to send this one ¯\_(ツ)_/¯
+	}
+
+	deleteAtStopSend := time.Now().Add(stopSendingBeforeDeleteDuration)
+	if propertyIsSet(ds.ExtraProps[deleteProp]) && propertyIsBefore(ds.ExtraProps[deleteProp], deleteAtStopSend) {
+		r.logger.Debug("zfs.job.Runner.sendDatasetSnapshotsByName: Dataset will be deleted, skipping",
+			"routineID", routineID,
+			"dataset", dataset,
+		)
+		return nil
 	}
 
 	err = r.sendDatasetSnapshots(ds)
