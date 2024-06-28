@@ -90,7 +90,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 
 	for i := range snapshots {
 		snap := &snapshots[i]
-		if r.config.IgnoreSnapshotsWithoutCreatedProperty && !propertyIsSet(snap.ExtraProps[createdProp]) {
+		if r.config.CreateSnapshotsIgnoreWithoutCreatedProperty && !propertyIsSet(snap.ExtraProps[createdProp]) {
 			continue
 		}
 

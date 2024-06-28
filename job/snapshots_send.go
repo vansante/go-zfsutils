@@ -144,7 +144,7 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 		return err
 	}
 
-	if r.config.IgnoreSnapshotsWithoutCreatedProperty {
+	if r.config.SendSnapshotsIgnoreWithoutCreatedProperty {
 		localSnaps = filterSnapshotsWithoutProp(localSnaps, createdProp)
 	}
 
