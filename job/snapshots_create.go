@@ -80,8 +80,10 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	}
 
 	createdProp := r.config.Properties.snapshotCreatedAt()
+	ignoreProp := r.config.Properties.snapshotIgnoreCreate()
+
 	snapshots, err := ds.Snapshots(r.ctx, zfs.ListOptions{
-		ExtraProperties: []string{createdProp},
+		ExtraProperties: []string{createdProp, ignoreProp},
 	})
 	if err != nil {
 		return fmt.Errorf("error listing existing snapshots: %w", err)
@@ -90,8 +92,11 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 
 	for i := range snapshots {
 		snap := &snapshots[i]
-		if r.config.CreateSnapshotsIgnoreWithoutCreatedProperty && !propertyIsSet(snap.ExtraProps[createdProp]) {
-			continue
+		if propertyIsSet(snap.ExtraProps[ignoreProp]) {
+			continue // Ignored
+		}
+		if !propertyIsSet(snap.ExtraProps[createdProp]) {
+			continue // Cannot determine age, so skip anyway
 		}
 
 		created, err := parseDatasetTimeProperty(snap, createdProp)

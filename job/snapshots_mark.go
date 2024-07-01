@@ -82,9 +82,10 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	deleteProp := r.config.Properties.deleteAt()
 	serverProp := r.config.Properties.snapshotSendTo()
+	ignoreProp := r.config.Properties.snapshotIgnorePrune()
 
 	snaps, err := ds.Snapshots(r.ctx, zfs.ListOptions{
-		ExtraProperties: []string{createdProp, deleteProp},
+		ExtraProperties: []string{createdProp, deleteProp, ignoreProp},
 	})
 	if err != nil {
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
@@ -101,8 +102,11 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 		}
 		snap := &snaps[i]
 
-		if r.config.PruneSnapshotsIgnoreWithoutCreatedProperty && !propertyIsSet(snap.ExtraProps[createdProp]) {
-			continue // Ignore
+		if r.config.SnapshotRetentionCountIgnoreWithoutCreated && !propertyIsSet(snap.ExtraProps[createdProp]) {
+			continue // Ignore without created property
+		}
+		if propertyIsSet(snap.ExtraProps[ignoreProp]) {
+			continue // Ignored by property
 		}
 		currentFound++
 
