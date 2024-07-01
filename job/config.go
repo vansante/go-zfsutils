@@ -115,37 +115,39 @@ func (c *Config) sendSetSnapshotProperties() map[string]string {
 type Properties struct {
 	Namespace string `json:"Namespace" yaml:"Namespace"`
 
-	DatasetLocked            string `json:"DatasetLocked" yaml:"DatasetLocked"`
-	SnapshotIntervalMinutes  string `json:"SnapshotIntervalMinutes" yaml:"SnapshotIntervalMinutes"`
-	SnapshotCreatedAt        string `json:"SnapshotCreatedAt" yaml:"SnapshotCreatedAt"`
-	SnapshotIgnoreCreate     string `json:"SnapshotIgnoreCreate" yaml:"SnapshotIgnoreCreate"`
-	SnapshotSendTo           string `json:"SnapshotSendTo" yaml:"SnapshotSendTo"`
-	SnapshotSending          string `json:"SnapshotSending" yaml:"SnapshotSending"`
-	SnapshotSentAt           string `json:"SnapshotSentAt" yaml:"SnapshotSentAt"`
-	SnapshotIgnoreSend       string `json:"SnapshotIgnoreSend" yaml:"SnapshotIgnoreSend"`
-	SnapshotRetentionCount   string `json:"SnapshotRetentionCount" yaml:"SnapshotRetentionCount"`
-	SnapshotRetentionMinutes string `json:"SnapshotRetentionMinutes" yaml:"SnapshotRetentionMinutes"`
-	SnapshotIgnorePrune      string `json:"SnapshotIgnorePrune" yaml:"SnapshotIgnorePrune"`
-	DeleteAt                 string `json:"DeleteAt" yaml:"DeleteAt"`
-	DeleteWithoutSnapshots   string `json:"DeleteWithoutSnapshots" yaml:"DeleteWithoutSnapshots"`
+	DatasetLocked              string `json:"DatasetLocked" yaml:"DatasetLocked"`
+	SnapshotIntervalMinutes    string `json:"SnapshotIntervalMinutes" yaml:"SnapshotIntervalMinutes"`
+	SnapshotCreatedAt          string `json:"SnapshotCreatedAt" yaml:"SnapshotCreatedAt"`
+	SnapshotIgnoreCreate       string `json:"SnapshotIgnoreCreate" yaml:"SnapshotIgnoreCreate"`
+	SnapshotSendTo             string `json:"SnapshotSendTo" yaml:"SnapshotSendTo"`
+	SnapshotSending            string `json:"SnapshotSending" yaml:"SnapshotSending"`
+	SnapshotSentAt             string `json:"SnapshotSentAt" yaml:"SnapshotSentAt"`
+	SnapshotIgnoreSend         string `json:"SnapshotIgnoreSend" yaml:"SnapshotIgnoreSend"`
+	SnapshotRetentionCount     string `json:"SnapshotRetentionCount" yaml:"SnapshotRetentionCount"`
+	SnapshotIgnoreCountPrune   string `json:"SnapshotIgnoreCountPrune" yaml:"SnapshotIgnoreCountPrune"`
+	SnapshotRetentionMinutes   string `json:"SnapshotRetentionMinutes" yaml:"SnapshotRetentionMinutes"`
+	SnapshotIgnoreMinutesPrune string `json:"SnapshotIgnoreMinutesPrune" yaml:"SnapshotIgnoreMinutesPrune"`
+	DeleteAt                   string `json:"DeleteAt" yaml:"DeleteAt"`
+	DeleteWithoutSnapshots     string `json:"DeleteWithoutSnapshots" yaml:"DeleteWithoutSnapshots"`
 }
 
 const (
 	defaultNamespace = "com.github.vansante"
 
-	defaultDatasetLockedProperty            = "dataset-locked"
-	defaultSnapshotIntervalMinutesProperty  = "snapshot-interval-minutes"
-	defaultSnapshotCreatedAtProperty        = "snapshot-created-at"
-	defaultSnapshotIgnoreCreate             = "snapshot-ignore-create"
-	defaultSnapshotSendToProperty           = "snapshot-send-to"
-	defaultSnapshotSendingProperty          = "snapshot-sending"
-	defaultSnapshotSentAtProperty           = "snapshot-sent-at"
-	defaultSnapshotIgnoreSendProperty       = "snapshot-ignore-send"
-	defaultSnapshotRetentionCountProperty   = "snapshot-retention-count"
-	defaultSnapshotRetentionMinutesProperty = "snapshot-retention-minutes"
-	defaultSnapshotIgnorePruneProperty      = "snapshot-ignore-prune"
-	defaultDeleteAtProperty                 = "delete-at"
-	defaultDeleteWithoutSnapshotsProperty   = "delete-without-snapshots"
+	defaultDatasetLockedProperty              = "dataset-locked"
+	defaultSnapshotIntervalMinutesProperty    = "snapshot-interval-minutes"
+	defaultSnapshotCreatedAtProperty          = "snapshot-created-at"
+	defaultSnapshotIgnoreCreate               = "snapshot-ignore-create"
+	defaultSnapshotSendToProperty             = "snapshot-send-to"
+	defaultSnapshotSendingProperty            = "snapshot-sending"
+	defaultSnapshotSentAtProperty             = "snapshot-sent-at"
+	defaultSnapshotIgnoreSendProperty         = "snapshot-ignore-send"
+	defaultSnapshotRetentionCountProperty     = "snapshot-retention-count"
+	defaultSnapshotIgnoreCountPruneProperty   = "snapshot-ignore-count-prune"
+	defaultSnapshotRetentionMinutesProperty   = "snapshot-retention-minutes"
+	defaultSnapshotIgnoreMinutesPruneProperty = "snapshot-ignore-minutes-prune"
+	defaultDeleteAtProperty                   = "delete-at"
+	defaultDeleteWithoutSnapshotsProperty     = "delete-without-snapshots"
 )
 
 // ApplyDefaults applies all the default values to the Properties
@@ -161,8 +163,9 @@ func (p *Properties) ApplyDefaults() {
 	p.SnapshotSentAt = defaultSnapshotSentAtProperty
 	p.SnapshotIgnoreSend = defaultSnapshotIgnoreSendProperty
 	p.SnapshotRetentionCount = defaultSnapshotRetentionCountProperty
+	p.SnapshotIgnoreCountPrune = defaultSnapshotIgnoreCountPruneProperty
 	p.SnapshotRetentionMinutes = defaultSnapshotRetentionMinutesProperty
-	p.SnapshotIgnorePrune = defaultSnapshotIgnorePruneProperty
+	p.SnapshotIgnoreMinutesPrune = defaultSnapshotIgnoreMinutesPruneProperty
 	p.DeleteAt = defaultDeleteAtProperty
 	p.DeleteWithoutSnapshots = defaultDeleteWithoutSnapshotsProperty
 }
@@ -203,12 +206,16 @@ func (p *Properties) snapshotRetentionCount() string {
 	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotRetentionCount)
 }
 
+func (p *Properties) snapshotIgnoreCountPrune() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotIgnoreCountPrune)
+}
+
 func (p *Properties) snapshotRetentionMinutes() string {
 	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotRetentionMinutes)
 }
 
-func (p *Properties) snapshotIgnorePrune() string {
-	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotIgnorePrune)
+func (p *Properties) snapshotIgnoreMinutesPrune() string {
+	return fmt.Sprintf("%s:%s", p.Namespace, p.SnapshotIgnoreMinutesPrune)
 }
 
 func (p *Properties) deleteAt() string {
