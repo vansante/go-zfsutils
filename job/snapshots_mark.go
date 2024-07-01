@@ -101,7 +101,7 @@ func (r *Runner) markExcessDatasetSnapshots(ds *zfs.Dataset, maxCount int64) err
 		}
 		snap := &snaps[i]
 
-		if r.config.IgnoreSnapshotsWithoutCreatedProperty && !propertyIsSet(snap.ExtraProps[createdProp]) {
+		if r.config.PruneSnapshotsIgnoreWithoutCreatedProperty && !propertyIsSet(snap.ExtraProps[createdProp]) {
 			continue // Ignore
 		}
 		currentFound++

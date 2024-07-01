@@ -43,7 +43,12 @@ type Config struct {
 	SendCopySnapshotProperties []string          `json:"SendCopySnapshotProperties" yaml:"SendCopySnapshotProperties"`
 	SendSetSnapshotProperties  map[string]string `json:"SendSetSnapshotProperties" yaml:"SendSetSnapshotProperties"`
 
-	IgnoreSnapshotsWithoutCreatedProperty bool `json:"IgnoreSnapshotsWithoutCreatedProperty" yaml:"IgnoreSnapshotsWithoutCreatedProperty"`
+	//nolint:lll
+	CreateSnapshotsIgnoreWithoutCreatedProperty bool `json:"CreateIgnoreSnapshotsWithoutCreatedProperty" yaml:"CreateIgnoreSnapshotsWithoutCreatedProperty"`
+	//nolint:lll
+	SendSnapshotsIgnoreWithoutCreatedProperty bool `json:"SendSnapshotsIgnoreWithoutCreatedProperty" yaml:"SendSnapshotsIgnoreWithoutCreatedProperty"`
+	//nolint:lll
+	PruneSnapshotsIgnoreWithoutCreatedProperty bool `json:"PruneSnapshotsIgnoreWithoutCreatedProperty" yaml:"PruneSnapshotsIgnoreWithoutCreatedProperty"`
 
 	SendCompressionLevel                 zstd.EncoderLevel `json:"SendCompressionLevel" yaml:"SendCompressionLevel"`
 	SendSpeedBytesPerSecond              int64             `json:"SendSpeedBytesPerSecond" yaml:"SendSpeedBytesPerSecond"`
@@ -69,7 +74,9 @@ func (c *Config) ApplyDefaults() {
 	c.EnableSnapshotPrune = true
 	c.EnableFilesystemPrune = false
 
-	c.IgnoreSnapshotsWithoutCreatedProperty = true
+	c.CreateSnapshotsIgnoreWithoutCreatedProperty = true
+	c.SendSnapshotsIgnoreWithoutCreatedProperty = true
+	c.PruneSnapshotsIgnoreWithoutCreatedProperty = true
 
 	c.SendRoutines = defaultSendRoutines
 	c.SendRaw = true

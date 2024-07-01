@@ -34,23 +34,20 @@ linters:
     - gocyclo
     - gofumpt
     - goimports
+    - gosimple
     - govet
     - lll
-    - megacheck
     - misspell
     - nakedret
     - prealloc
     - revive
+    - staticcheck
     - unconvert
     - unparam
     - unused
   disable:
     - gosec
     - nilerr
-    - deadcode
-    - varcheck
-    - scopelint
-    - structcheck
   presets:
     - bugs
     - unused
