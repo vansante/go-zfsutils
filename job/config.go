@@ -43,9 +43,12 @@ type Config struct {
 	SendCopySnapshotProperties []string          `json:"SendCopySnapshotProperties" yaml:"SendCopySnapshotProperties"`
 	SendSetSnapshotProperties  map[string]string `json:"SendSetSnapshotProperties" yaml:"SendSetSnapshotProperties"`
 
+	//nolint:lll
 	CreateSnapshotsIgnoreWithoutCreatedProperty bool `json:"CreateIgnoreSnapshotsWithoutCreatedProperty" yaml:"CreateIgnoreSnapshotsWithoutCreatedProperty"`
-	SendSnapshotsIgnoreWithoutCreatedProperty   bool `json:"SendSnapshotsIgnoreWithoutCreatedProperty" yaml:"SendSnapshotsIgnoreWithoutCreatedProperty"`
-	PruneSnapshotsIgnoreWithoutCreatedProperty  bool `json:"PruneSnapshotsIgnoreWithoutCreatedProperty" yaml:"PruneSnapshotsIgnoreWithoutCreatedProperty"`
+	//nolint:lll
+	SendSnapshotsIgnoreWithoutCreatedProperty bool `json:"SendSnapshotsIgnoreWithoutCreatedProperty" yaml:"SendSnapshotsIgnoreWithoutCreatedProperty"`
+	//nolint:lll
+	PruneSnapshotsIgnoreWithoutCreatedProperty bool `json:"PruneSnapshotsIgnoreWithoutCreatedProperty" yaml:"PruneSnapshotsIgnoreWithoutCreatedProperty"`
 
 	SendCompressionLevel                 zstd.EncoderLevel `json:"SendCompressionLevel" yaml:"SendCompressionLevel"`
 	SendSpeedBytesPerSecond              int64             `json:"SendSpeedBytesPerSecond" yaml:"SendSpeedBytesPerSecond"`
