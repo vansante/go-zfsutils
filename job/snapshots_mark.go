@@ -205,9 +205,10 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 	createdProp := r.config.Properties.snapshotCreatedAt()
 	deleteProp := r.config.Properties.deleteAt()
 	serverProp := r.config.Properties.snapshotSendTo()
+	ignoreProp := r.config.Properties.snapshotIgnorePrune()
 
 	snaps, err := ds.Snapshots(r.ctx, zfs.ListOptions{
-		ExtraProperties: []string{createdProp, deleteProp, serverProp},
+		ExtraProperties: []string{createdProp, deleteProp, serverProp, ignoreProp},
 	})
 	if err != nil {
 		return fmt.Errorf("error retrieving snapshots for %s: %w", ds.Name, err)
@@ -223,6 +224,9 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 
 		if !propertyIsSet(snap.ExtraProps[createdProp]) {
 			continue // Cannot determine age
+		}
+		if propertyIsSet(snap.ExtraProps[ignoreProp]) {
+			continue // Ignored by property
 		}
 		if propertyIsSet(snap.ExtraProps[deleteProp]) && propertyIsBefore(snap.ExtraProps[deleteProp], deleteAt) {
 			continue // Already being deleted, sooner than we would
