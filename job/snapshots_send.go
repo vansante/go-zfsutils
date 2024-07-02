@@ -109,10 +109,11 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 	sendToProp := r.config.Properties.snapshotSendTo()
 	sendingProp := r.config.Properties.snapshotSending()
 	sentProp := r.config.Properties.snapshotSentAt()
+	ignoreProp := r.config.Properties.snapshotIgnoreSend()
 
 	localSnaps, err := zfs.ListSnapshots(r.ctx, zfs.ListOptions{
 		ParentDataset:   ds.Name,
-		ExtraProperties: []string{createdProp},
+		ExtraProperties: []string{createdProp, ignoreProp},
 	})
 	if err != nil {
 		return fmt.Errorf("error listing local %s snapshots: %w", ds.Name, err)
@@ -144,9 +145,8 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 		return err
 	}
 
-	if r.config.SendSnapshotsIgnoreWithoutCreatedProperty {
-		localSnaps = filterSnapshotsWithoutProp(localSnaps, createdProp)
-	}
+	// Filter out snapshots with the ignore property set
+	localSnaps = filterSnapshotsWithProp(localSnaps, ignoreProp)
 
 	toSend, err := r.reconcileSnapshots(localSnaps, remoteSnaps, server)
 	if err != nil {
