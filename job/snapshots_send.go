@@ -53,8 +53,11 @@ func (r *Runner) sendDatasetSnapshotsByName(routineID int, dataset string) error
 	deleteProp := r.config.Properties.deleteAt()
 
 	ds, err := zfs.GetDataset(r.ctx, dataset, sendToProp, sendingProp, deleteProp)
-	if err != nil {
-		return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
+	switch {
+	case errors.Is(err, zfs.ErrDatasetNotFound):
+		return nil // Dataset was removed meanwhile, continue with the next one
+	case err != nil:
+		return fmt.Errorf("error retrieving sendable dataset %s: %w", dataset, err)
 	}
 
 	server := ds.ExtraProps[sendToProp]
