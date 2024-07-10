@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -132,7 +133,11 @@ func (r *Runner) datasetHasLockProperty(dataset string) bool {
 	prop := r.config.Properties.datasetLocked()
 
 	ds, err := zfs.GetDataset(r.ctx, dataset, prop)
-	if err != nil {
+	switch {
+	case errors.Is(err, zfs.ErrDatasetNotFound):
+		r.logger.Warn("zfs.job.runner.datasetHasLockProperty: Dataset gone", "dataset", dataset, "error", err)
+		return true // Lets not proceed by locking a nonexisting dataset
+	case err != nil:
 		r.logger.Error("zfs.job.runner.datasetHasLockProperty: Error retrieving dataset", "dataset", dataset, "error", err)
 		return true // Lets assume it is locked then!
 	}

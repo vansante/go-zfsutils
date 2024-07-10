@@ -42,7 +42,10 @@ func (r *Runner) markPrunableExcessSnapshots() error {
 		}
 
 		ds, err := zfs.GetDataset(r.ctx, dataset, countProp)
-		if err != nil {
+		switch {
+		case errors.Is(err, zfs.ErrDatasetNotFound):
+			continue // Dataset was removed meanwhile, continue with next one
+		case err != nil:
 			return fmt.Errorf("error retrieving count retention dataset %s: %w", dataset, err)
 		}
 
@@ -170,7 +173,10 @@ func (r *Runner) markPrunableSnapshotsByAge() error {
 		}
 
 		ds, err := zfs.GetDataset(r.ctx, dataset, retentionProp)
-		if err != nil {
+		switch {
+		case errors.Is(err, zfs.ErrDatasetNotFound):
+			continue // Dataset was removed meanwhile, continue with next one
+		case err != nil:
 			return fmt.Errorf("error retrieving time retention dataset %s: %w", dataset, err)
 		}
 

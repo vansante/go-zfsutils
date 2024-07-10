@@ -34,9 +34,13 @@ func (r *Runner) createSnapshots() error {
 		}
 
 		ds, err := zfs.GetDataset(r.ctx, dataset, intervalProp, deleteProp)
-		if err != nil {
+		switch {
+		case errors.Is(err, zfs.ErrDatasetNotFound):
+			continue // Dataset was removed meanwhile, continue with the next one
+		case err != nil:
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
+
 		err = r.createDatasetSnapshot(ds)
 		switch {
 		case isContextError(err):
@@ -74,6 +78,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	if err != nil {
 		return fmt.Errorf("error parsing %s property: %w", intervalMinsProp, err)
 	}
+
 	// Do not create snapshots for datasets marked for deletion
 	if propertyIsSet(ds.ExtraProps[r.config.Properties.deleteAt()]) {
 		return nil

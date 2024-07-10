@@ -66,7 +66,10 @@ func (r *Runner) pruneMarkedSnapshot(snapshot string) error {
 	deleteProp := r.config.Properties.deleteAt()
 
 	snap, err := zfs.GetDataset(r.ctx, snapshot, deleteProp)
-	if err != nil {
+	switch {
+	case errors.Is(err, zfs.ErrDatasetNotFound):
+		return nil // Dataset was removed meanwhile, return early
+	case err != nil:
 		return fmt.Errorf("error getting snapshot %s: %w", snapshot, err)
 	}
 
