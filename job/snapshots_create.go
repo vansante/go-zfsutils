@@ -76,7 +76,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	intervalMinsProp := r.config.Properties.snapshotIntervalMinutes()
 	intervalMins, err := strconv.ParseInt(ds.ExtraProps[intervalMinsProp], 10, 64)
 	if err != nil {
-		return fmt.Errorf("error parsing %s property: %w", intervalMinsProp, err)
+		return fmt.Errorf("error parsing %s property on %s: %w", intervalMinsProp, ds.Name, err)
 	}
 
 	// Do not create snapshots for datasets marked for deletion
@@ -91,7 +91,7 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 		ExtraProperties: []string{createdProp, ignoreProp},
 	})
 	if err != nil {
-		return fmt.Errorf("error listing existing snapshots: %w", err)
+		return fmt.Errorf("error listing existing snapshots on %s: %w", ds.Name, err)
 	}
 	latestSnap := earliestSnapshot // A long, long time ago...
 
