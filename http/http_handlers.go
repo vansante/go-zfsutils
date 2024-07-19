@@ -171,6 +171,10 @@ func (h *HTTP) setProperties(w http.ResponseWriter, req *http.Request, ds *zfs.D
 		return
 	}
 
+	logger.Info("zfs.http.setProperties: Properties set",
+		"dataset", ds.Name, "properties", props,
+	)
+
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(ds)
 	if err != nil {
@@ -308,6 +312,10 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, l
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	logger.Info("zfs.http.handleReceiveSnapshot: Received snapshot",
+		"dataset", receiveDataset, "properties", props,
+	)
 
 	w.WriteHeader(http.StatusCreated)
 	err = json.NewEncoder(w).Encode(ds)
@@ -508,6 +516,8 @@ func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, req *http.Request, logg
 		return
 	}
 
+	logger.Info("zfs.http.handleMakeSnapshot: Snapshot created", "dataset", ds.Name)
+
 	w.WriteHeader(http.StatusCreated)
 	err = json.NewEncoder(w).Encode(ds)
 	if err != nil {
@@ -553,6 +563,11 @@ func (h *HTTP) handleDestroyFilesystem(w http.ResponseWriter, req *http.Request,
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	logger.Info("zfs.http.handleDestroyFilesystem: Filesystem removed",
+		"filesystem", filesystem, "dataset", ds.Name,
+	)
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -598,5 +613,8 @@ func (h *HTTP) handleDestroySnapshot(w http.ResponseWriter, req *http.Request, l
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	logger.Info("zfs.http.handleDestroySnapshot: Snapshot removed", "dataset", ds.Name)
+
 	w.WriteHeader(http.StatusNoContent)
 }
