@@ -168,7 +168,8 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 
 		err = r.setSendSnapshotProperties(client, send.Snapshot.Name)
 		if err != nil {
-			r.logger.Error("zfs.job.Runner.resumeSendSnapshot: Error setting snapshot properties", "error", err, "snapshot", send.Snapshot.Name)
+			r.logger.Error("zfs.job.Runner.resumeSendSnapshot: Error setting snapshot properties",
+				"error", err, "snapshot", send.Snapshot.Name)
 		}
 
 		err = send.Snapshot.SetProperty(r.ctx, sentProp, time.Now().Format(dateTimeFormat))

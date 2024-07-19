@@ -99,7 +99,7 @@ func (r *Runner) pruneAgedFilesystem(filesystem string) error {
 
 	deleteAt, err := parseDatasetTimeProperty(fs, deleteProp)
 	if err != nil {
-		return fmt.Errorf("error parsing %s for %s: %w", deleteProp, filesystem, err)
+		return fmt.Errorf("error parsing %s on %s: %w", deleteProp, filesystem, err)
 	}
 
 	if deleteAt.After(time.Now()) {

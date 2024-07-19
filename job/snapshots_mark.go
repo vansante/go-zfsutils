@@ -51,7 +51,7 @@ func (r *Runner) markPrunableExcessSnapshots() error {
 
 		retentionCount, err := parseDatasetIntProperty(ds, countProp)
 		if err != nil {
-			return fmt.Errorf("error parsing %s property for %s: %w", countProp, dataset, err)
+			return fmt.Errorf("error parsing %s property on %s: %w", countProp, dataset, err)
 		}
 
 		if retentionCount <= 0 { // Zero or less is considered to be Off.
@@ -182,7 +182,7 @@ func (r *Runner) markPrunableSnapshotsByAge() error {
 
 		retentionMinutes, err := parseDatasetIntProperty(ds, retentionProp)
 		if err != nil {
-			return fmt.Errorf("error parsing %s property for %s: %w", retentionProp, dataset, err)
+			return fmt.Errorf("error parsing %s property on %s: %w", retentionProp, dataset, err)
 		}
 
 		if retentionMinutes <= 0 { // Zero or less is considered to be Off.
@@ -240,7 +240,7 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 
 		createdAt, err := parseDatasetTimeProperty(snap, createdProp)
 		if err != nil {
-			return fmt.Errorf("error parsing %s property for %s: %w", createdProp, snap.Name, err)
+			return fmt.Errorf("error parsing %s property on %s: %w", createdProp, snap.Name, err)
 		}
 
 		if createdAt.Add(duration).After(now) {
@@ -249,7 +249,7 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 
 		err = snap.SetProperty(r.ctx, deleteProp, deleteAt.Format(dateTimeFormat))
 		if err != nil {
-			return fmt.Errorf("error setting %s property for %s: %w", deleteProp, snap.Name, err)
+			return fmt.Errorf("error setting %s property on %s: %w", deleteProp, snap.Name, err)
 		}
 
 		err = r.markRemoteDatasetSnapshot(snap, snap.ExtraProps[serverProp], deleteProp, deleteAt)

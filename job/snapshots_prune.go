@@ -83,7 +83,7 @@ func (r *Runner) pruneMarkedSnapshot(snapshot string) error {
 
 	deleteAt, err := parseDatasetTimeProperty(snap, deleteProp)
 	if err != nil {
-		return fmt.Errorf("error parsing %s for %s: %w", deleteProp, snap.Name, err)
+		return fmt.Errorf("error parsing %s on %s: %w", deleteProp, snap.Name, err)
 	}
 
 	if deleteAt.After(time.Now()) {
