@@ -74,6 +74,10 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 	}()
 
 	intervalMinsProp := r.config.Properties.snapshotIntervalMinutes()
+	if !propertyIsSet(ds.ExtraProps[intervalMinsProp]) {
+		return nil // Not set (anymore), skip
+	}
+
 	intervalMins, err := strconv.ParseInt(ds.ExtraProps[intervalMinsProp], 10, 64)
 	if err != nil {
 		return fmt.Errorf("error parsing %s property on %s: %w", intervalMinsProp, ds.Name, err)
