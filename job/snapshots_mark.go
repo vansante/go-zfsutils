@@ -49,6 +49,10 @@ func (r *Runner) markPrunableExcessSnapshots() error {
 			return fmt.Errorf("error retrieving count retention dataset %s: %w", dataset, err)
 		}
 
+		if !propertyIsSet(ds.ExtraProps[countProp]) {
+			continue // Not set (anymore), skip
+		}
+
 		retentionCount, err := parseDatasetIntProperty(ds, countProp)
 		if err != nil {
 			return fmt.Errorf("error parsing %s property on %s: %w", countProp, dataset, err)
@@ -178,6 +182,10 @@ func (r *Runner) markPrunableSnapshotsByAge() error {
 			continue // Dataset was removed meanwhile, continue with next one
 		case err != nil:
 			return fmt.Errorf("error retrieving time retention dataset %s: %w", dataset, err)
+		}
+
+		if !propertyIsSet(ds.ExtraProps[retentionProp]) {
+			continue // Not set (anymore), skip
 		}
 
 		retentionMinutes, err := parseDatasetIntProperty(ds, retentionProp)
