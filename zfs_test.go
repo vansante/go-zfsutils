@@ -328,6 +328,39 @@ func TestSendSnapshot(t *testing.T) {
 	})
 }
 
+func TestSendSnapshotAlreadyExists(t *testing.T) {
+	TestZPool(testZPool, func() {
+		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
+		require.NoError(t, err)
+
+		s, err := f.Snapshot(context.Background(), "test", SnapshotOptions{})
+		require.NoError(t, err)
+
+		for i := range 2 {
+			t.Logf("Sending snapshot %s (%d)", s.Name, i+1)
+			pipeRdr, pipeWrtr := io.Pipe()
+			go func() {
+				err := s.SendSnapshot(context.Background(), pipeWrtr, SendOptions{})
+				require.NoError(t, err)
+				require.NoError(t, pipeWrtr.Close())
+			}()
+
+			_, err = ReceiveSnapshot(context.Background(), pipeRdr, testZPool+"/recv-test@snap", ReceiveOptions{
+				Properties: noMountProps,
+			})
+
+			if i == 0 {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.True(t, errors.Is(err, ErrDatasetExists), err.Error())
+			}
+		}
+	})
+}
+
 func TestSendSnapshotResume(t *testing.T) {
 	TestZPool(testZPool, func() {
 		f, err := CreateFilesystem(context.Background(), testZPool+"/snapshot-test", CreateFilesystemOptions{
