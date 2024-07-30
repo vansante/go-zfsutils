@@ -58,13 +58,7 @@ func createError(cmd *exec.Cmd, stderr string, err error) error {
 		}
 		return fmt.Errorf("%s: %w", stderr, ErrPoolOrDatasetBusy)
 	case strings.Contains(stderr, datasetExistsMessage):
-		idx1 := strings.Index(stderr, "'")
-		idx2 := strings.LastIndex(stderr, "'")
-		dataset := ""
-		if idx1 > 0 && idx2 > 0 {
-			dataset = stderr[idx1+1 : idx2]
-		}
-		return fmt.Errorf("%s: %w", dataset, ErrDatasetExists)
+		return fmt.Errorf("%s: %w", stderr, ErrDatasetExists)
 	case strings.Contains(stderr, resumableErrorMessage):
 		return &ResumableStreamError{
 			CommandError: CommandError{
