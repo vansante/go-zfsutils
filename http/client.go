@@ -233,7 +233,7 @@ func (c *Client) Send(ctx context.Context, send SnapshotSendOptions) (SendResult
 		if err != nil {
 			c.logger.Error("zfs.http.Client.sendWithBase: Error sending incremental snapshot stream",
 				"error", err,
-				"server", c.client,
+				"server", c.server,
 				"snapshot", send.Snapshot.Name,
 				"baseSnapshot", send.IncrementalBase,
 			)
@@ -242,7 +242,7 @@ func (c *Client) Send(ctx context.Context, send SnapshotSendOptions) (SendResult
 		if err != nil {
 			c.logger.Error("zfs.http.Client.sendWithBase: Error closing snapshot pipe",
 				"error", err,
-				"server", c.client,
+				"server", c.server,
 				"snapshot", send.Snapshot.Name,
 				"baseSnapshot", send.IncrementalBase,
 			)
