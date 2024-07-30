@@ -18,7 +18,6 @@ import (
 )
 
 var (
-	ErrDatasetNotFound    = errors.New("dataset not found")
 	ErrInvalidResumeToken = errors.New("invalid resume token given")
 	ErrResumeNotPossible  = errors.New("resume not possible")
 )
@@ -96,7 +95,7 @@ func (c *Client) DatasetSnapshots(ctx context.Context, dataset string, extraProp
 	case http.StatusOK:
 		// Continue
 	case http.StatusNotFound:
-		return nil, ErrDatasetNotFound
+		return nil, zfs.ErrDatasetNotFound
 	default:
 		return nil, fmt.Errorf("unexpected status %d requesting remote snapshots", resp.StatusCode)
 	}
@@ -126,7 +125,7 @@ func (c *Client) ResumableSendToken(ctx context.Context, dataset string) (token 
 		curBytes, _ = strconv.ParseUint(resp.Header.Get(HeaderResumeReceivedBytes), 10, 64)
 		return resp.Header.Get(HeaderResumeReceiveToken), curBytes, nil
 	case http.StatusNotFound:
-		return "", 0, ErrDatasetNotFound
+		return "", 0, zfs.ErrDatasetNotFound
 	case http.StatusPreconditionFailed:
 		return "", 0, nil // Nothing to resume
 	default:
@@ -295,12 +294,14 @@ func (c *Client) doSendStream(req *http.Request, pipeWrtr *io.PipeWriter, cancel
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		return nil
+	case http.StatusNotFound:
+		return zfs.ErrDatasetNotFound
 	case http.StatusConflict:
+		return zfs.ErrDatasetExists
+	case http.StatusExpectationFailed:
 		return ErrInvalidResumeToken
 	case http.StatusPreconditionFailed:
 		return ErrResumeNotPossible
-	case http.StatusNotFound:
-		return ErrDatasetNotFound
 	default:
 		return fmt.Errorf("unexpected status %d sending stream, server error: %s", resp.StatusCode, resp.Header.Get(HeaderError))
 	}

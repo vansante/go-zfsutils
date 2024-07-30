@@ -32,7 +32,7 @@ func (r *Runner) remoteDatasetSnapshots(client *zfshttp.Client, remoteDataset st
 	remoteSnaps, err := client.DatasetSnapshots(ctx, remoteDataset, []string{r.config.Properties.snapshotCreatedAt()})
 	cancel()
 	switch {
-	case errors.Is(err, zfshttp.ErrDatasetNotFound):
+	case errors.Is(err, zfs.ErrDatasetNotFound):
 		// Not an error, just means we have to send everything
 	case err != nil:
 		return nil, fmt.Errorf("error listing remote %s snapshots for %s: %w", client.Server(), remoteDataset, err)

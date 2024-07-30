@@ -11,11 +11,15 @@ const (
 	datasetNotFoundMessage = "dataset does not exist"
 	resumableErrorMessage  = "resuming stream can be generated on the sending system"
 	datasetBusyMessage     = "pool or dataset is busy"
+	datasetExistsMessage   = "exists"
 )
 
 var (
 	// ErrDatasetNotFound is returned when the dataset was not found
 	ErrDatasetNotFound = errors.New("dataset not found")
+
+	// ErrDatasetExists is returned when the dataset already exists and overwrite is off
+	ErrDatasetExists = errors.New("dataset already exists")
 
 	// ErrOnlySnapshotsSupported is returned when a snapshot only action is executed on another type of dataset
 	ErrOnlySnapshotsSupported = errors.New("only snapshots are supported for this action")
@@ -36,7 +40,7 @@ type CommandError struct {
 }
 
 // ResumableStreamError is returned when a zfs send is interrupted and contains the token
-// with which the send can be resumed.
+// with which send can be resumed.
 type ResumableStreamError struct {
 	CommandError
 
@@ -53,6 +57,8 @@ func createError(cmd *exec.Cmd, stderr string, err error) error {
 			stderr = stderr[:idx]
 		}
 		return fmt.Errorf("%s: %w", stderr, ErrPoolOrDatasetBusy)
+	case strings.Contains(stderr, datasetExistsMessage):
+		return fmt.Errorf("%s: %w", stderr, ErrDatasetExists)
 	case strings.Contains(stderr, resumableErrorMessage):
 		return &ResumableStreamError{
 			CommandError: CommandError{

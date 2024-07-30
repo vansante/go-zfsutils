@@ -288,7 +288,7 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, l
 			"actualResumeToken", datasetResumeToken,
 		)
 		w.Header().Set(HeaderError, "invalid resume token")
-		w.WriteHeader(http.StatusConflict)
+		w.WriteHeader(http.StatusExpectationFailed)
 		return
 	}
 
@@ -306,7 +306,13 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, l
 		Resumable:           resumable,
 		Properties:          props,
 	})
-	if err != nil {
+	switch {
+	case errors.Is(err, zfs.ErrDatasetExists):
+		logger.Warn("zfs.http.handleReceiveSnapshot: Dataset already exists")
+		w.Header().Set(HeaderError, err.Error())
+		w.WriteHeader(http.StatusConflict)
+		return
+	case err != nil:
 		logger.Error("zfs.http.handleReceiveSnapshot: Error storing", "error", err)
 		w.Header().Set(HeaderError, err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
