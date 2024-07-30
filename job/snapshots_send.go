@@ -196,7 +196,7 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 	switch {
 	case isContextError(err):
 		return false, nil // context expired, no problem
-	case errors.Is(err, zfshttp.ErrDatasetNotFound):
+	case errors.Is(err, zfs.ErrDatasetNotFound):
 		// Nothing to do.
 	case err != nil:
 		return false, fmt.Errorf("error checking resumable sends: %w", err)
@@ -295,7 +295,17 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 
 	result, err := client.Send(ctx, send)
 	cancel()
-	if err != nil {
+	switch {
+	case errors.Is(err, zfs.ErrDatasetExists):
+		r.logger.Warn("zfs.job.Runner.sendDatasetSnapshots: Dataset exists",
+			"error", err,
+			"snapshot", send.Snapshot.Name,
+			"server", client.Server(),
+			"sendSnapshotName", send.SnapshotName,
+		)
+		r.clearRemoteDatasetCache(client.Server(), datasetName(send.Snapshot.Name, true))
+		return nil
+	case err != nil:
 		return fmt.Errorf("error sending %s@%s (sent %d bytes in %s): %w",
 			send.DatasetName, send.SnapshotName, result.BytesSent, result.TimeTaken, err,
 		)
