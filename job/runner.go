@@ -20,7 +20,7 @@ const (
 	requestTimeout = time.Second * 20
 
 	createSnapshotInterval   = 5 * time.Minute
-	sendSnapshotInterval     = 5 * time.Minute
+	sendSnapshotInterval     = 10 * time.Minute // Effectively divided by the amount of send routines configured (default 3)
 	pruneRemoteCacheInterval = 5 * time.Minute
 	markSnapshotInterval     = 5 * time.Minute
 	pruneSnapshotInterval    = 5 * time.Minute
