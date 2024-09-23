@@ -8,10 +8,11 @@ import (
 )
 
 const (
-	datasetNotFoundMessage = "dataset does not exist"
-	resumableErrorMessage  = "resuming stream can be generated on the sending system"
-	datasetBusyMessage     = "pool or dataset is busy"
-	datasetExistsMessage   = "exists"
+	datasetNotFoundMessage       = "dataset does not exist"
+	resumableErrorMessage        = "resuming stream can be generated on the sending system"
+	datasetBusyMessage           = "pool or dataset is busy"
+	datasetNoLongerExistsMessage = "no longer exists"
+	datasetExistsMessage         = "exists"
 )
 
 var (
@@ -57,6 +58,8 @@ func createError(cmd *exec.Cmd, stderr string, err error) error {
 			stderr = stderr[:idx]
 		}
 		return fmt.Errorf("%s: %w", stderr, ErrPoolOrDatasetBusy)
+	case strings.Contains(stderr, datasetNoLongerExistsMessage):
+		return fmt.Errorf("%s: %w", stderr, ErrDatasetNotFound)
 	case strings.Contains(stderr, datasetExistsMessage):
 		return fmt.Errorf("%s: %w", stderr, ErrDatasetExists)
 	case strings.Contains(stderr, resumableErrorMessage):
