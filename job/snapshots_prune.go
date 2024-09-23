@@ -39,6 +39,14 @@ func (r *Runner) pruneSnapshots() error {
 				"full", snapshot,
 			)
 			return nil // Return no error
+		case errors.Is(err, zfs.ErrSnapshotHasDependentClones):
+			r.logger.Warn("zfs.job.Runner.pruneSnapshots: Snapshot in use",
+				"error", err,
+				"dataset", datasetName(snapshot, true),
+				"snapshot", snapshotName(snapshot),
+				"full", snapshot,
+			)
+			continue // Nothing to do here, next
 		case err != nil:
 			r.logger.Error("zfs.job.Runner.pruneSnapshots: Error pruning snapshot",
 				"error", err,

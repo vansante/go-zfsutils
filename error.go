@@ -12,7 +12,9 @@ const (
 	resumableErrorMessage        = "resuming stream can be generated on the sending system"
 	datasetBusyMessage           = "pool or dataset is busy"
 	datasetNoLongerExistsMessage = "no longer exists"
-	datasetExistsMessage         = "exists"
+	snapshotHasDependentsMessage = "snapshot has dependent clones"
+	datasetExistsMessage1        = "destination '"
+	datasetExistsMessage2        = "' exists"
 )
 
 var (
@@ -30,6 +32,9 @@ var (
 
 	// ErrPoolOrDatasetBusy is returned when an action fails because ZFS is doing another action
 	ErrPoolOrDatasetBusy = errors.New("pool or dataset busy")
+
+	// ErrSnapshotHasDependentClones is returned when the snapshot has dependent clones
+	ErrSnapshotHasDependentClones = errors.New("snapshot has dependent clones")
 )
 
 // CommandError is an error which is returned when the `zfs` or `zpool` shell
@@ -60,8 +65,10 @@ func createError(cmd *exec.Cmd, stderr string, err error) error {
 		return fmt.Errorf("%s: %w", stderr, ErrPoolOrDatasetBusy)
 	case strings.Contains(stderr, datasetNoLongerExistsMessage):
 		return fmt.Errorf("%s: %w", stderr, ErrDatasetNotFound)
-	case strings.Contains(stderr, datasetExistsMessage):
+	case strings.Contains(stderr, datasetExistsMessage1) && strings.Contains(stderr, datasetExistsMessage2):
 		return fmt.Errorf("%s: %w", stderr, ErrDatasetExists)
+	case strings.Contains(stderr, snapshotHasDependentsMessage):
+		return fmt.Errorf("%s: %w", stderr, ErrSnapshotHasDependentClones)
 	case strings.Contains(stderr, resumableErrorMessage):
 		return &ResumableStreamError{
 			CommandError: CommandError{
