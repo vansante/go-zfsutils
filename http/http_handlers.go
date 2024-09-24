@@ -302,13 +302,15 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, l
 
 	h.receiveMutex.Lock()
 	if h.receiveCount >= h.config.MaximumConcurrentReceives {
+		h.receiveMutex.Unlock()
+		logger.Warn("zfs.http.handleReceiveSnapshot: Returning Too Many Requests")
 		w.Header().Set(HeaderError, fmt.Sprintf("maximum concurrent receives of %d exceeded", h.config.MaximumConcurrentReceives))
 		w.WriteHeader(http.StatusTooManyRequests)
-		h.receiveMutex.Unlock()
 		return
 	}
 	// Reserve a slot
 	h.receiveCount++
+	logger.Debug("zfs.http.handleReceiveSnapshot: Receive slot claimed", "concurrency", h.receiveCount)
 	h.receiveMutex.Unlock()
 
 	defer func() {

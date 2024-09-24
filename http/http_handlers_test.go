@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -484,5 +485,68 @@ func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
 		ds, err = zfs.GetDataset(context.Background(), newFullSnap)
 		require.NoError(t, err)
 		require.Equal(t, ds.Name, newFullSnap)
+	})
+}
+
+func TestHTTP_handleReceiveSnapshotMaxConcurrent(t *testing.T) {
+	httpHandlerTest(t, func(url string) {
+		startMutex := sync.RWMutex{}
+		startMutex.Lock()
+		endWg := sync.WaitGroup{}
+
+		const snapName = "snappy"
+
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
+		require.NoError(t, err)
+
+		ds, err = ds.Snapshot(context.Background(), snapName, zfs.SnapshotOptions{})
+		require.NoError(t, err)
+
+		const newSnap = "recv"
+		var countError, countTooMany int32
+		endWg.Add(4)
+		for i, name := range []string{"bla1", "bla2", "bla3", "bla4"} {
+			go func(i int, name string) {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
+				defer cancel()
+
+				body := bytes.NewBuffer([]byte{0, 0, 7})
+				req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s",
+					url, name,
+					newSnap,
+					GETParamReceiveProperties, ReceiveProperties{
+						zfs.PropertyCanMount: zfs.ValueOff,
+					}.Encode(),
+				), body)
+
+				startMutex.RLock()
+				defer startMutex.RUnlock()
+
+				resp, err := http.DefaultClient.Do(req)
+				require.NoError(t, err)
+				_ = resp.Body.Close()
+
+				switch resp.StatusCode {
+				case http.StatusInternalServerError:
+					atomic.AddInt32(&countError, 1)
+					endWg.Done()
+					t.Logf("%d: Received OK", i)
+				case http.StatusTooManyRequests:
+					atomic.AddInt32(&countTooMany, 1)
+					endWg.Done()
+					t.Logf("%d: Received too many requests", i)
+				default:
+					endWg.Done()
+					t.Logf("%d: Got unexpected status code %d", i, resp.StatusCode)
+					t.Fail()
+				}
+			}(i, name)
+		}
+		startMutex.Unlock()
+		time.Sleep(10 * time.Millisecond)
+		endWg.Wait()
+
+		require.GreaterOrEqual(t, countTooMany, int32(1), "CountTooMany not returned")
+		require.GreaterOrEqual(t, countError, int32(2), "CountError is not at least 2")
 	})
 }

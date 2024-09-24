@@ -14,7 +14,7 @@ func TestHTTPZPool(testZPool, prefix, testFs string, fn func(server *httptest.Se
 			ParentDataset:  testZPool,
 			HTTPPathPrefix: prefix,
 
-			MaximumConcurrentReceives: 3,
+			MaximumConcurrentReceives: 2,
 
 			Permissions: Permissions{
 				AllowSpeedOverride:      true,
