@@ -300,6 +300,24 @@ func (h *HTTP) handleReceiveSnapshot(w http.ResponseWriter, req *http.Request, l
 		receiveDataset = fmt.Sprintf("%s/%s", h.config.ParentDataset, filesystem)
 	}
 
+	h.receiveMutex.Lock()
+	if h.receiveCount >= h.config.MaximumConcurrentReceives {
+		w.Header().Set(HeaderError, fmt.Sprintf("maximum concurrent receives of %d exceeded", h.config.MaximumConcurrentReceives))
+		w.WriteHeader(http.StatusTooManyRequests)
+		h.receiveMutex.Unlock()
+		return
+	}
+	// Reserve a slot
+	h.receiveCount++
+	h.receiveMutex.Unlock()
+
+	defer func() {
+		// Unlock the slot at request completion
+		h.receiveMutex.Lock()
+		h.receiveCount--
+		h.receiveMutex.Unlock()
+	}()
+
 	ds, err := zfs.ReceiveSnapshot(req.Context(), req.Body, receiveDataset, zfs.ReceiveOptions{
 		EnableDecompression: h.getEnableDecompression(req),
 		ForceRollback:       h.getReceiveForceRollback(req),

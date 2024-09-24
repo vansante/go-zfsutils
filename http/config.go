@@ -1,7 +1,8 @@
 package http
 
 const (
-	defaultBytesPerSecond = 100 * 1024 * 1024
+	defaultBytesPerSecond            = 100 * 1024 * 1024
+	defaultMaximumConcurrentReceives = 3
 )
 
 // Config specifies the configuration for the zfs http server
@@ -9,6 +10,8 @@ type Config struct {
 	HTTPPathPrefix      string `json:"HTTPPathPrefix" yaml:"HTTPPathPrefix"`
 	ParentDataset       string `json:"ParentDataset" yaml:"ParentDataset"`
 	SpeedBytesPerSecond int64  `json:"SpeedBytesPerSecond" yaml:"SpeedBytesPerSecond"`
+
+	MaximumConcurrentReceives int `json:"MaximumConcurrentReceives" yaml:"MaximumConcurrentReceives"`
 
 	Permissions Permissions `json:"Permissions" yaml:"Permissions"`
 }
@@ -25,4 +28,5 @@ type Permissions struct {
 // ApplyDefaults sets all config values to their defaults (if they have one)
 func (c *Config) ApplyDefaults() {
 	c.SpeedBytesPerSecond = defaultBytesPerSecond
+	c.MaximumConcurrentReceives = defaultMaximumConcurrentReceives
 }

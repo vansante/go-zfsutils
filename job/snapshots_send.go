@@ -133,12 +133,14 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 
 	// If we have a sending property, its worth checking whether we can resume a transfer
 	if propertyIsSet(ds.ExtraProps[sendingProp]) {
-		hasSent, err := r.resumeSendSnapshot(client, ds, remoteDataset, ds.ExtraProps[sendingProp])
+		resumable, err := r.resumeSendSnapshot(client, ds, remoteDataset, ds.ExtraProps[sendingProp])
 		if err != nil {
 			// TODO:FIXME We should probably force a full re-send after throwing away the partial data on the remote server here
 			return err
 		}
-		if hasSent {
+		if resumable {
+			// Clear remote cache, because we have resumed snapshots, its no longer correct
+			r.clearRemoteDatasetCache(client.Server(), remoteDataset)
 			return nil
 		}
 	}
@@ -245,7 +247,17 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 	})
 	cancel()
 	result.BytesSent += int64(curBytes)
-	if err != nil {
+	switch {
+	case errors.Is(err, zfshttp.ErrTooManyRequests):
+		r.logger.Info("zfs.job.Runner.resumeSendSnapshot: Too many receives, delaying",
+			"error", err,
+			"snapshot", ds.Name,
+			"server", client.Server(),
+			"snapshotName", sendingSnapName,
+			"snapshot", fullSnapName,
+		)
+		return true, nil
+	case err != nil:
 		return false, fmt.Errorf("error resuming send of %s (sent %d bytes in %s): %w",
 			fullSnapName, result.BytesSent, result.TimeTaken, err,
 		)
@@ -304,6 +316,14 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 			"sendSnapshotName", send.SnapshotName,
 		)
 		r.clearRemoteDatasetCache(client.Server(), datasetName(send.Snapshot.Name, true))
+		return nil
+	case errors.Is(err, zfshttp.ErrTooManyRequests):
+		r.logger.Info("zfs.job.Runner.sendDatasetSnapshots: Too many receives, delaying",
+			"error", err,
+			"snapshot", send.Snapshot.Name,
+			"server", client.Server(),
+			"sendSnapshotName", send.SnapshotName,
+		)
 		return nil
 	case err != nil:
 		return fmt.Errorf("error sending %s@%s (sent %d bytes in %s): %w",
