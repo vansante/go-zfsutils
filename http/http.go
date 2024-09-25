@@ -6,16 +6,19 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/klauspost/compress/zstd"
 )
 
 // HTTP is the main object for serving the ZFS HTTP server
 type HTTP struct {
-	router *http.ServeMux
-	config Config
-	logger *slog.Logger
-	ctx    context.Context
+	router       *http.ServeMux
+	config       Config
+	logger       *slog.Logger
+	receiveCount int
+	receiveMutex sync.Mutex
+	ctx          context.Context
 }
 
 type handle func(http.ResponseWriter, *http.Request, *slog.Logger)

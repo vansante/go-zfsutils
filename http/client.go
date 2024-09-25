@@ -20,6 +20,7 @@ import (
 var (
 	ErrInvalidResumeToken = errors.New("invalid resume token given")
 	ErrResumeNotPossible  = errors.New("resume not possible")
+	ErrTooManyRequests    = errors.New("too many requests")
 )
 
 const clientUserAgent = "go-zfsutils@%s"
@@ -302,6 +303,8 @@ func (c *Client) doSendStream(req *http.Request, pipeWrtr *io.PipeWriter, cancel
 		return ErrInvalidResumeToken
 	case http.StatusPreconditionFailed:
 		return ErrResumeNotPossible
+	case http.StatusTooManyRequests:
+		return ErrTooManyRequests
 	default:
 		return fmt.Errorf("unexpected status %d sending stream, server error: %s", resp.StatusCode, resp.Header.Get(HeaderError))
 	}
