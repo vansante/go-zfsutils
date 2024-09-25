@@ -11,6 +11,7 @@ type Config struct {
 	ParentDataset       string `json:"ParentDataset" yaml:"ParentDataset"`
 	SpeedBytesPerSecond int64  `json:"SpeedBytesPerSecond" yaml:"SpeedBytesPerSecond"`
 
+	// MaximumConcurrentReceives limits the concurrent amount of ZFS receives, set to zero to disable limits
 	MaximumConcurrentReceives int `json:"MaximumConcurrentReceives" yaml:"MaximumConcurrentReceives"`
 
 	Permissions Permissions `json:"Permissions" yaml:"Permissions"`
