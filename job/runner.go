@@ -20,11 +20,11 @@ const (
 	requestTimeout = time.Second * 20
 
 	createSnapshotInterval   = 5 * time.Minute
-	sendSnapshotInterval     = 10 * time.Minute // Effectively divided by the amount of send routines configured (default 3)
+	sendSnapshotInterval     = 15 * time.Minute // Effectively divided by the amount of send routines configured (default 3)
 	pruneRemoteCacheInterval = 5 * time.Minute
-	markSnapshotInterval     = 5 * time.Minute
-	pruneSnapshotInterval    = 5 * time.Minute
-	pruneFilesystemInterval  = 5 * time.Minute
+	markSnapshotInterval     = 10 * time.Minute
+	pruneSnapshotInterval    = 10 * time.Minute
+	pruneFilesystemInterval  = 10 * time.Minute
 )
 
 // NewRunner creates a new job runner
@@ -184,15 +184,15 @@ func (r *Runner) Run() {
 	}
 
 	if r.config.EnableSnapshotMark {
-		go r.runMarkSnapshots()
+		go r.runMarkSnapshots(time.Minute)
 	}
 
 	if r.config.EnableSnapshotPrune {
-		go r.runPruneSnapshots()
+		go r.runPruneSnapshots(time.Minute * 2)
 	}
 
 	if r.config.EnableFilesystemPrune {
-		go r.runPruneFilesystems()
+		go r.runPruneFilesystems(time.Minute * 3)
 	}
 }
 
@@ -241,8 +241,8 @@ func (r *Runner) runCreateSnapshots() {
 
 func (r *Runner) runSendSnapshotRoutine(id int) {
 	// Add some sleep, so not all send routines start at the same time:
-	sleepTime := time.Duration(int(sendSnapshotInterval) / r.config.SendRoutines * (id - 1))
-	time.Sleep(sleepTime)
+	initDelay := time.Duration(int(sendSnapshotInterval) / r.config.SendRoutines * (id - 1))
+	time.Sleep(initDelay)
 
 	dur := randomizeDuration(sendSnapshotInterval)
 	ticker := time.NewTicker(dur)
@@ -285,7 +285,9 @@ func (r *Runner) runPruneRemoteCache() {
 	}
 }
 
-func (r *Runner) runMarkSnapshots() {
+func (r *Runner) runMarkSnapshots(initDelay time.Duration) {
+	time.Sleep(initDelay)
+
 	dur := randomizeDuration(markSnapshotInterval)
 	ticker := time.NewTicker(dur)
 	defer ticker.Stop()
@@ -309,7 +311,9 @@ func (r *Runner) runMarkSnapshots() {
 	}
 }
 
-func (r *Runner) runPruneSnapshots() {
+func (r *Runner) runPruneSnapshots(initDelay time.Duration) {
+	time.Sleep(initDelay)
+
 	dur := randomizeDuration(pruneSnapshotInterval)
 	ticker := time.NewTicker(dur)
 	defer ticker.Stop()
@@ -333,7 +337,9 @@ func (r *Runner) runPruneSnapshots() {
 	}
 }
 
-func (r *Runner) runPruneFilesystems() {
+func (r *Runner) runPruneFilesystems(initDelay time.Duration) {
+	time.Sleep(initDelay)
+
 	dur := randomizeDuration(pruneFilesystemInterval)
 	ticker := time.NewTicker(dur)
 	defer ticker.Stop()
