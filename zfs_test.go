@@ -549,7 +549,7 @@ func TestDataset_UnloadKey(t *testing.T) {
 		f, err := CreateFilesystem(context.Background(), testZPool+"/enc_test", CreateFilesystemOptions{
 			Properties: map[string]string{
 				PropertyEncryption:  EncryptionAES128CCM,
-				PropertyKeyFormat:   KeyFormatHex,
+				PropertyKeyFormat:   KeyFormatRaw,
 				PropertyKeyLocation: KeyLocationPrompt,
 				PropertyCanMount:    CanMountNoAuto,
 			},
