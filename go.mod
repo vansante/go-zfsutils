@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/juju/ratelimit v1.0.2
-	github.com/klauspost/compress v1.17.7
+	github.com/klauspost/compress v1.17.11
 	github.com/stretchr/testify v1.9.0
 	github.com/vansante/go-event-emitter v1.0.2
 )
