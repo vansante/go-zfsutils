@@ -541,7 +541,7 @@ func TestRollback(t *testing.T) {
 	})
 }
 
-func TestDataset_UnloadKey(t *testing.T) {
+func TestDataset_LoadKey_UnloadKey(t *testing.T) {
 	TestZPool(testZPool, func() {
 		encKey := make([]byte, 32)
 		_, _ = rand.Read(encKey)
@@ -561,12 +561,18 @@ func TestDataset_UnloadKey(t *testing.T) {
 			KeyLocation: KeyLocationPrompt,
 			KeyReader:   bytes.NewReader(encKey),
 		})
-		require.NoError(t, err)
+		require.ErrorIs(t, err, ErrKeyAlreadyLoaded)
 
 		err = f.UnloadKey(context.Background(), UnloadKeyOptions{})
 		require.NoError(t, err)
 
 		err = f.UnloadKey(context.Background(), UnloadKeyOptions{})
 		require.ErrorIs(t, err, ErrKeyAlreadyUnloaded)
+
+		err = f.LoadKey(context.Background(), LoadKeyOptions{
+			KeyLocation: KeyLocationPrompt,
+			KeyReader:   bytes.NewReader(encKey),
+		})
+		require.NoError(t, err)
 	})
 }
