@@ -1,7 +1,9 @@
 package zfs
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
@@ -536,5 +538,41 @@ func TestRollback(t *testing.T) {
 
 		require.NoError(t, s1.Destroy(context.Background(), DestroyOptions{}))
 		require.NoError(t, f.Destroy(context.Background(), DestroyOptions{}))
+	})
+}
+
+func TestDataset_LoadKey_UnloadKey(t *testing.T) {
+	TestZPool(testZPool, func() {
+		encKey := make([]byte, 32)
+		_, _ = rand.Read(encKey)
+
+		f, err := CreateFilesystem(context.Background(), testZPool+"/enc_test", CreateFilesystemOptions{
+			Properties: map[string]string{
+				PropertyEncryption:  EncryptionAES128CCM,
+				PropertyKeyFormat:   KeyFormatRaw,
+				PropertyKeyLocation: KeyLocationPrompt,
+				PropertyCanMount:    CanMountNoAuto,
+			},
+			Stdin: bytes.NewReader(encKey),
+		})
+		require.NoError(t, err)
+
+		err = f.LoadKey(context.Background(), LoadKeyOptions{
+			KeyLocation: KeyLocationPrompt,
+			KeyReader:   bytes.NewReader(encKey),
+		})
+		require.ErrorIs(t, err, ErrKeyAlreadyLoaded)
+
+		err = f.UnloadKey(context.Background(), UnloadKeyOptions{})
+		require.NoError(t, err)
+
+		err = f.UnloadKey(context.Background(), UnloadKeyOptions{})
+		require.ErrorIs(t, err, ErrKeyAlreadyUnloaded)
+
+		err = f.LoadKey(context.Background(), LoadKeyOptions{
+			KeyLocation: KeyLocationPrompt,
+			KeyReader:   bytes.NewReader(encKey),
+		})
+		require.NoError(t, err)
 	})
 }
