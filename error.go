@@ -13,6 +13,7 @@ const (
 	datasetBusyMessage           = "pool or dataset is busy"
 	datasetNoLongerExistsMessage = "no longer exists"
 	snapshotHasDependentsMessage = "snapshot has dependent clones"
+	keyAlreadyUnloadedMessage    = "Key already unloaded for"
 	datasetExistsMessage1        = "destination '"
 	datasetExistsMessage2        = "' exists"
 )
@@ -35,6 +36,9 @@ var (
 
 	// ErrSnapshotHasDependentClones is returned when the snapshot has dependent clones
 	ErrSnapshotHasDependentClones = errors.New("snapshot has dependent clones")
+
+	// ErrKeyAlreadyUnloaded is returned when unloading a key that is already unloaded
+	ErrKeyAlreadyUnloaded = errors.New("key is already unloaded")
 )
 
 // CommandError is an error which is returned when the `zfs` or `zpool` shell
@@ -69,6 +73,8 @@ func createError(cmd *exec.Cmd, stderr string, err error) error {
 		return fmt.Errorf("%s: %w", stderr, ErrDatasetExists)
 	case strings.Contains(stderr, snapshotHasDependentsMessage):
 		return fmt.Errorf("%s: %w", stderr, ErrSnapshotHasDependentClones)
+	case strings.Contains(stderr, keyAlreadyUnloadedMessage):
+		return fmt.Errorf("%s: %w", stderr, ErrKeyAlreadyUnloaded)
 	case strings.Contains(stderr, resumableErrorMessage):
 		return &ResumableStreamError{
 			CommandError: CommandError{
