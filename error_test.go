@@ -19,6 +19,7 @@ func TestError(t *testing.T) {
 		{errors.New("exit status foo"), "/sbin/foo bar qux", "command not found"},
 		// Quoted error
 		{errors.New("exit status quoted"), "\"/sbin/foo\" bar qux", "\"some\" 'random' `quotes`"},
+		{ErrFilesystemAlreadyMounted, "does not matter", "cannot mount 'fh27/115125': filesystem already mounted"},
 	}
 
 	for _, test := range tests {
