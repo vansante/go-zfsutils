@@ -11,6 +11,7 @@ const (
 	datasetNotFoundMessage       = "dataset does not exist"
 	resumableErrorMessage        = "resuming stream can be generated on the sending system"
 	datasetBusyMessage           = "pool or dataset is busy"
+	poolIOSuspendedMessage       = "pool I/O is currently suspended"
 	datasetNoLongerExistsMessage = "no longer exists"
 	snapshotHasDependentsMessage = "snapshot has dependent clones"
 	keyAlreadyLoadedMessage      = "Key already loaded for"
@@ -35,6 +36,9 @@ var (
 
 	// ErrPoolOrDatasetBusy is returned when an action fails because ZFS is doing another action
 	ErrPoolOrDatasetBusy = errors.New("pool or dataset busy")
+
+	// ErrPoolIOSuspended is returned when the ZPool has been suspended
+	ErrPoolIOSuspended = errors.New("pool I/O suspended")
 
 	// ErrSnapshotHasDependentClones is returned when the snapshot has dependent clones
 	ErrSnapshotHasDependentClones = errors.New("snapshot has dependent clones")
@@ -75,6 +79,8 @@ func createError(cmd *exec.Cmd, stderr string, err error) error {
 			stderr = stderr[:idx]
 		}
 		return fmt.Errorf("%s: %w", stderr, ErrPoolOrDatasetBusy)
+	case strings.Contains(stderr, poolIOSuspendedMessage):
+		return fmt.Errorf("%s: %w", stderr, ErrPoolIOSuspended)
 	case strings.Contains(stderr, datasetNoLongerExistsMessage):
 		return fmt.Errorf("%s: %w", stderr, ErrDatasetNotFound)
 	case strings.Contains(stderr, datasetExistsMessage1) && strings.Contains(stderr, datasetExistsMessage2):
