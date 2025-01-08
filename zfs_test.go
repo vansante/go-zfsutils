@@ -67,9 +67,9 @@ func TestDatasetGetProperty(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "off", prop)
 
-		prop, err = ds.GetProperty(context.Background(), PropertyCompression)
+		prop, err = ds.GetProperty(context.Background(), PropertyMounted)
 		require.NoError(t, err)
-		require.Equal(t, "off", prop)
+		require.Equal(t, ValueYes, prop)
 	})
 }
 
