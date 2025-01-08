@@ -230,6 +230,8 @@ func (r *Runner) runCreateSnapshots() {
 			switch {
 			case isContextError(err):
 				r.logger.Info("zfs.job.Runner.runCreateSnapshots: Job interrupted", "error", err)
+			case errors.Is(err, zfs.ErrPoolIOSuspended), errors.Is(err, zfs.ErrDatasetNotFound):
+				r.logger.Warn("zfs.job.Runner.runCreateSnapshots: Cannot query datasets", "error", err)
 			case err != nil:
 				r.logger.Error("zfs.job.Runner.runCreateSnapshots: Error making snapshots", "error", err)
 			}
@@ -258,6 +260,8 @@ func (r *Runner) runSendSnapshotRoutine(id int) {
 			switch {
 			case isContextError(err):
 				r.logger.Info("zfs.job.Runner.runSendSnapshots: Job interrupted", "error", err)
+			case errors.Is(err, zfs.ErrPoolIOSuspended), errors.Is(err, zfs.ErrDatasetNotFound):
+				r.logger.Warn("zfs.job.Runner.runSendSnapshots: Cannot query datasets", "error", err)
 			case err != nil:
 				r.logger.Error("zfs.job.Runner.runSendSnapshots: Error sending snapshots", "error", err)
 			}
@@ -302,6 +306,8 @@ func (r *Runner) runMarkSnapshots(initDelay time.Duration) {
 			switch {
 			case isContextError(err):
 				r.logger.Info("zfs.job.Runner.runMarkSnapshots: Job interrupted", "error", err)
+			case errors.Is(err, zfs.ErrPoolIOSuspended), errors.Is(err, zfs.ErrDatasetNotFound):
+				r.logger.Warn("zfs.job.Runner.runCreateSnapshots: Cannot query datasets", "error", err)
 			case err != nil:
 				r.logger.Error("zfs.job.Runner.runMarkSnapshots: Error marking snapshots", "error", err)
 			}
@@ -328,6 +334,8 @@ func (r *Runner) runPruneSnapshots(initDelay time.Duration) {
 			switch {
 			case isContextError(err):
 				r.logger.Info("zfs.job.Runner.runPruneSnapshots: Job interrupted", "error", err)
+			case errors.Is(err, zfs.ErrPoolIOSuspended), errors.Is(err, zfs.ErrDatasetNotFound):
+				r.logger.Warn("zfs.job.Runner.runPruneSnapshots: Cannot query datasets", "error", err)
 			case err != nil:
 				r.logger.Error("zfs.job.Runner.runPruneSnapshots: Error pruning snapshots", "error", err)
 			}
@@ -354,6 +362,8 @@ func (r *Runner) runPruneFilesystems(initDelay time.Duration) {
 			switch {
 			case isContextError(err):
 				r.logger.Info("zfs.job.Runner.runPruneFilesystems: Job interrupted", "error", err)
+			case errors.Is(err, zfs.ErrPoolIOSuspended), errors.Is(err, zfs.ErrDatasetNotFound):
+				r.logger.Warn("zfs.job.Runner.runPruneFilesystems: Cannot query datasets", "error", err)
 			case err != nil:
 				r.logger.Error("zfs.job.Runner.runPruneFilesystems: Error pruning filesystems", "error", err)
 			}
