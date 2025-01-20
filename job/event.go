@@ -7,6 +7,7 @@ const (
 	StartSendingSnapshotEvent    eventemitter.EventType = "start-sending-snapshot"
 	SnapshotSendingProgressEvent eventemitter.EventType = "snapshot-sending-progress"
 	ResumeSendingSnapshotEvent   eventemitter.EventType = "resume-sending-snapshot"
+	SendSnapshotErrorEvent       eventemitter.EventType = "send-snapshot-error"
 	SentSnapshotEvent            eventemitter.EventType = "sent-snapshot"
 	MarkSnapshotDeletionEvent    eventemitter.EventType = "mark-snapshot-deletion"
 	DeletedSnapshotEvent         eventemitter.EventType = "deleted-snapshot"
