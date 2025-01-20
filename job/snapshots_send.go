@@ -258,6 +258,8 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		)
 		return true, nil
 	case err != nil:
+		r.EmitEvent(SendSnapshotErrorEvent, fullSnapName, client.Server(), err)
+
 		return false, fmt.Errorf("error resuming send of %s (sent %d bytes in %s): %w",
 			fullSnapName, result.BytesSent, result.TimeTaken, err,
 		)
@@ -326,6 +328,8 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 		)
 		return nil
 	case err != nil:
+		r.EmitEvent(SendSnapshotErrorEvent, send.Snapshot.Name, client.Server(), err)
+
 		return fmt.Errorf("error sending %s@%s (sent %d bytes in %s): %w",
 			send.DatasetName, send.SnapshotName, result.BytesSent, result.TimeTaken, err,
 		)

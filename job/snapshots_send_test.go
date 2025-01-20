@@ -173,8 +173,21 @@ func TestRunner_sendCancelSnapshots(t *testing.T) {
 			sends[0].CancelSend()
 		})
 
+		gotErr := false
+		runner.AddListener(SendSnapshotErrorEvent, func(args ...interface{}) {
+			require.Len(t, args, 3)
+
+			require.Equal(t, testFilesystem+"@"+sendSnaps[0], args[0])
+			require.Equal(t, url, args[1])
+			require.Error(t, args[2].(error))
+
+			t.Logf("got error: %#v", args[2])
+			gotErr = true
+		})
+
 		err := runner.sendSnapshots(1)
 		require.ErrorIs(t, err, context.Canceled)
+		require.True(t, gotErr)
 	})
 }
 
