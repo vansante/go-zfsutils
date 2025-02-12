@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/juju/ratelimit"
@@ -62,7 +63,7 @@ func (r *CountReader) SetProgressCallback(every time.Duration, progressFn Progre
 
 func (r *CountReader) Read(p []byte) (int, error) {
 	n, err := r.Reader.Read(p)
-	r.n += int64(n)
+	atomic.AddInt64(&r.n, int64(n))
 	r.progress()
 	return n, err
 }
@@ -75,10 +76,10 @@ func (r *CountReader) progress() {
 		return
 	}
 
-	r.progressFn(r.n)
+	r.progressFn(atomic.LoadInt64(&r.n))
 	r.last = time.Now()
 }
 
 func (r *CountReader) Count() int64 {
-	return r.n
+	return atomic.LoadInt64(&r.n)
 }
