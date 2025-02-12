@@ -26,8 +26,8 @@ linters-settings:
 linters:
   enable:
     - asciicheck
+    - copyloopvar
     - dogsled
-    - exportloopref
     - funlen
     - goconst
     - gocritic
