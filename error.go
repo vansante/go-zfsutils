@@ -17,8 +17,9 @@ const (
 	keyAlreadyLoadedMessage      = "Key already loaded for"
 	keyAlreadyUnloadedMessage    = "Key already unloaded for"
 	filesystemAlreadyMounted     = "filesystem already mounted"
-	datasetExistsMessage1        = "destination '"
-	datasetExistsMessage2        = "' exists"
+	datasetExistsMessage         = "dataset already exists"
+	destinationExistsMessage1    = "destination '"
+	destinationExistsMessage2    = "' exists"
 )
 
 var (
@@ -83,7 +84,8 @@ func createError(cmd *exec.Cmd, stderr string, err error) error {
 		return fmt.Errorf("%s: %w", stderr, ErrPoolIOSuspended)
 	case strings.Contains(stderr, datasetNoLongerExistsMessage):
 		return fmt.Errorf("%s: %w", stderr, ErrDatasetNotFound)
-	case strings.Contains(stderr, datasetExistsMessage1) && strings.Contains(stderr, datasetExistsMessage2):
+	case strings.Contains(stderr, datasetExistsMessage),
+		strings.Contains(stderr, destinationExistsMessage1) && strings.Contains(stderr, destinationExistsMessage2):
 		return fmt.Errorf("%s: %w", stderr, ErrDatasetExists)
 	case strings.Contains(stderr, snapshotHasDependentsMessage):
 		return fmt.Errorf("%s: %w", stderr, ErrSnapshotHasDependentClones)
