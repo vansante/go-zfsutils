@@ -545,7 +545,12 @@ func (h *HTTP) handleMakeSnapshot(w http.ResponseWriter, req *http.Request, logg
 	}
 
 	ds, err = ds.Snapshot(req.Context(), snapshot, zfs.SnapshotOptions{})
-	if err != nil {
+	switch {
+	case errors.Is(err, zfs.ErrDatasetExists):
+		logger.Warn("zfs.http.handleMakeSnapshot: Dataset already exists", "error", err)
+		w.WriteHeader(http.StatusConflict)
+		return
+	case err != nil:
 		logger.Error("zfs.http.handleMakeSnapshot: Error making snapshot", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
