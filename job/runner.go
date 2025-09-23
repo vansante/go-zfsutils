@@ -126,6 +126,9 @@ func (r *Runner) onSendComplete(snapName string) {
 }
 
 func (r *Runner) fullDatasetName(dataset string) string {
+	if r.config.ParentDataset == "" {
+		return dataset
+	}
 	return fmt.Sprintf("%s/%s", strings.TrimRight(r.config.ParentDataset, "/"), dataset)
 }
 
