@@ -21,10 +21,19 @@ func Test_datasetName(t *testing.T) {
 			"none", true, "none",
 		},
 		{
+			"none@ew", true, "none",
+		},
+		{
+			"none@ew", false, "none@ew",
+		},
+		{
 			"parent/fs@now", true, "fs",
 		},
 		{
 			"parent/fs@now", false, "fs@now",
+		},
+		{
+			"/fs@now", false, "fs@now",
 		},
 	}
 

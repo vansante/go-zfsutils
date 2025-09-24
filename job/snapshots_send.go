@@ -133,6 +133,10 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 	}
 
 	server := ds.ExtraProps[sendToProp]
+	if server == "" {
+		return fmt.Errorf("%s property is empty on %s", sendToProp, ds.Name)
+	}
+
 	client := r.getServerClient(server)
 	remoteDataset := datasetName(ds.Name, true)
 

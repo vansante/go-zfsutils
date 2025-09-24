@@ -10,6 +10,7 @@ import (
 
 func TestHTTPZPool(testZPool, prefix, testFs string, fn func(server *httptest.Server)) {
 	zfs.TestZPool(testZPool, func() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
 		h := NewHTTP(context.Background(), Config{
 			ParentDataset:  testZPool,
 			HTTPPathPrefix: prefix,

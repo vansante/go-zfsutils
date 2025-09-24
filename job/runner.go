@@ -95,7 +95,9 @@ func (r *Runner) onSendStart(snapName string) {
 	dsName := r.fullDatasetName(datasetName(snapName, true))
 	ds, err := zfs.GetDataset(r.ctx, dsName)
 	if err != nil {
-		r.logger.Error("zfs.job.runner.onSendStart: Error retrieving dataset", "error", err, "snapName", snapName)
+		r.logger.Error("zfs.job.runner.onSendStart: Error retrieving dataset",
+			"error", err, "dataset", dsName, "snapName", snapName,
+		)
 		return
 	}
 	err = ds.SetProperty(r.ctx, r.config.Properties.snapshotSending(), snapshotName(snapName))
@@ -112,7 +114,9 @@ func (r *Runner) onSendComplete(snapName string) {
 	dsName := r.fullDatasetName(datasetName(snapName, true))
 	ds, err := zfs.GetDataset(r.ctx, dsName)
 	if err != nil {
-		r.logger.Error("zfs.job.runner.onSendComplete: Error retrieving dataset", "error", err, "snapName", snapName)
+		r.logger.Error("zfs.job.runner.onSendComplete: Error retrieving dataset",
+			"error", err, "dataset", dsName, "snapName", snapName,
+		)
 		return
 	}
 	err = ds.InheritProperty(r.ctx, r.config.Properties.snapshotSending())
