@@ -60,6 +60,11 @@ func (r *Runner) sendDatasetSnapshotsByName(routineID int, dataset string) error
 		return fmt.Errorf("error retrieving sendable dataset %s: %w", dataset, err)
 	}
 
+	if ds.Type == zfs.DatasetSnapshot {
+		// We dont send individual snapshots
+		return nil
+	}
+
 	server := ds.ExtraProps[sendToProp]
 	if !propertyIsSet(server) {
 		r.logger.Debug("zfs.job.Runner.sendDatasetSnapshotsByName: No server specified",

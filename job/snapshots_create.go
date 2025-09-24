@@ -41,6 +41,11 @@ func (r *Runner) createSnapshots() error {
 			return fmt.Errorf("error retrieving snapshottable dataset %s: %w", dataset, err)
 		}
 
+		if ds.Type == zfs.DatasetSnapshot {
+			// We dont do individual snapshots
+			return nil
+		}
+
 		err = r.createDatasetSnapshot(ds)
 		switch {
 		case isContextError(err):

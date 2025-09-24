@@ -49,6 +49,11 @@ func (r *Runner) markPrunableExcessSnapshots() error {
 			return fmt.Errorf("error retrieving count retention dataset %s: %w", dataset, err)
 		}
 
+		if ds.Type == zfs.DatasetSnapshot {
+			// We dont do individual snapshots
+			return nil
+		}
+
 		if !propertyIsSet(ds.ExtraProps[countProp]) {
 			continue // Not set (anymore), skip
 		}
@@ -182,6 +187,11 @@ func (r *Runner) markPrunableSnapshotsByAge() error {
 			continue // Dataset was removed meanwhile, continue with next one
 		case err != nil:
 			return fmt.Errorf("error retrieving time retention dataset %s: %w", dataset, err)
+		}
+
+		if ds.Type == zfs.DatasetSnapshot {
+			// We dont do individual snapshots
+			return nil
 		}
 
 		if !propertyIsSet(ds.ExtraProps[retentionProp]) {
