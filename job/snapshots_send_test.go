@@ -455,6 +455,7 @@ func TestRunner_reconcileSnapshots(t *testing.T) {
 
 func TestRunner_sendRoot(t *testing.T) {
 	runnerTest(t, func(url string, runner *Runner) {
+		runner.config.ParentDataset = ""
 		sendToProp := runner.config.Properties.snapshotSendTo()
 
 		dataset, err := zfs.GetDataset(t.Context(), testFilesystem)
