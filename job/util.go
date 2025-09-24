@@ -39,7 +39,7 @@ func parseDatasetIntProperty(ds *zfs.Dataset, prop string) (int64, error) {
 
 func datasetName(name string, stripSnap bool) string {
 	idx := strings.LastIndex(name, "/")
-	if idx > 0 {
+	if idx >= 0 {
 		name = name[idx+1:]
 	}
 	if !stripSnap {

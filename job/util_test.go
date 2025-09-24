@@ -32,6 +32,9 @@ func Test_datasetName(t *testing.T) {
 		{
 			"parent/fs@now", false, "fs@now",
 		},
+		{
+			"/fs@now", false, "fs@now",
+		},
 	}
 
 	for _, tt := range tests {
