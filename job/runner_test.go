@@ -1,7 +1,6 @@
 package job
 
 import (
-	"context"
 	"log/slog"
 	"net/http/httptest"
 	"testing"
@@ -35,7 +34,7 @@ func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 					DatasetType:   zfs.DatasetFilesystem,
 				},
 				logger: slog.Default(),
-				ctx:    context.Background(),
+				ctx:    t.Context(),
 			}
 			r.attachListeners()
 
@@ -48,7 +47,7 @@ func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 				defaultNamespace + ":" + defaultSnapshotCreatedAtProperty,
 			}
 
-			_, err := zfs.CreateFilesystem(context.Background(), testFilesystem, zfs.CreateFilesystemOptions{
+			_, err := zfs.CreateFilesystem(t.Context(), testFilesystem, zfs.CreateFilesystemOptions{
 				Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 			})
 			if err != nil {

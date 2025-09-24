@@ -1,7 +1,6 @@
 package job
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -16,7 +15,7 @@ func TestRunner_createSnapshots(t *testing.T) {
 		intervalProp := runner.config.Properties.snapshotIntervalMinutes()
 		createProp := runner.config.Properties.snapshotCreatedAt()
 
-		ds, err := zfs.CreateFilesystem(context.Background(), testZPool+"/"+fsName, zfs.CreateFilesystemOptions{
+		ds, err := zfs.CreateFilesystem(t.Context(), testZPool+"/"+fsName, zfs.CreateFilesystemOptions{
 			Properties: map[string]string{
 				intervalProp:         "1",
 				zfs.PropertyCanMount: zfs.ValueOff,
@@ -37,7 +36,7 @@ func TestRunner_createSnapshots(t *testing.T) {
 			createTm := arguments[2].(time.Time)
 			require.WithinDuration(t, tm, createTm, time.Second)
 
-			snaps, err := ds.Snapshots(context.Background(), zfs.ListOptions{ExtraProperties: []string{createProp}})
+			snaps, err := ds.Snapshots(t.Context(), zfs.ListOptions{ExtraProperties: []string{createProp}})
 			require.NoError(t, err)
 			require.Len(t, snaps, 1)
 			require.Equal(t, snaps[0].Name, testZPool+"/"+fsName+"@"+name)
