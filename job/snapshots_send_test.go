@@ -452,3 +452,36 @@ func TestRunner_reconcileSnapshots(t *testing.T) {
 		require.Empty(t, toSend)
 	})
 }
+
+func TestRunner_sendRoot(t *testing.T) {
+	runnerTest(t, func(url string, runner *Runner) {
+		datasets, err := zfs.ListDatasets(t.Context(), zfs.ListOptions{
+			ParentDataset: testZPool,
+			DatasetType:   testFilesystem,
+		})
+		require.NoError(t, err)
+
+		for _, dataset := range datasets {
+			require.NoError(t, dataset.Destroy(t.Context(), zfs.DestroyOptions{Recursive: true}))
+		}
+
+		root, err := zfs.GetDataset(t.Context(), testZPool)
+		require.NoError(t, err)
+		require.NoError(t, root.SetProperty(t.Context(), runner.config.Properties.snapshotSendTo(), url))
+
+		snap, err := root.Snapshot(t.Context(), "hithere", zfs.SnapshotOptions{})
+		require.NoError(t, err)
+
+		err = runner.sendDatasetSnapshots(root)
+		require.NoError(t, err)
+
+		zfs.ListDatasets(t.Context(), zfs.ListOptions{
+			ParentDataset:   testHTTPZPool,
+			DatasetType:     zfs.DatasetAll,
+			ExtraProperties: nil,
+			Recursive:       false,
+			Depth:           0,
+			FilterSelf:      false,
+		})
+	})
+}
