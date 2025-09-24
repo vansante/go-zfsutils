@@ -119,7 +119,7 @@ func ListWithProperty(ctx context.Context, property string, options ListWithProp
 
 	args := make([]string, 0, 16)
 	args = append(args, "get")
-	if options.ParentDataset != "" {
+	if options.DatasetType != "" {
 		args = append(args, "-t", string(options.DatasetType))
 	}
 	args = append(args, "-Hp", "-o", "name,value", "-r")
