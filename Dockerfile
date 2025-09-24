@@ -1,4 +1,4 @@
-FROM ubuntu:jammy AS golang-zfs
+FROM ubuntu:noble AS golang-zfs
 
 # Install zfsutils
 RUN apt-get update \

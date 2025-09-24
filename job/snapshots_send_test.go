@@ -455,33 +455,37 @@ func TestRunner_reconcileSnapshots(t *testing.T) {
 
 func TestRunner_sendRoot(t *testing.T) {
 	runnerTest(t, func(url string, runner *Runner) {
-		datasets, err := zfs.ListDatasets(t.Context(), zfs.ListOptions{
-			ParentDataset: testZPool,
-			DatasetType:   testFilesystem,
-		})
+		sendToProp := runner.config.Properties.snapshotSendTo()
+
+		dataset, err := zfs.GetDataset(t.Context(), testFilesystem)
 		require.NoError(t, err)
 
-		for _, dataset := range datasets {
-			require.NoError(t, dataset.Destroy(t.Context(), zfs.DestroyOptions{Recursive: true}))
-		}
+		require.NoError(t, dataset.Destroy(t.Context(), zfs.DestroyOptions{Recursive: true}))
+		t.Logf("Destroyed dataset: %s", dataset.Name)
 
 		root, err := zfs.GetDataset(t.Context(), testZPool)
 		require.NoError(t, err)
-		require.NoError(t, root.SetProperty(t.Context(), runner.config.Properties.snapshotSendTo(), url))
+		require.NoError(t, root.SetProperty(t.Context(), sendToProp, url))
 
-		snap, err := root.Snapshot(t.Context(), "hithere", zfs.SnapshotOptions{})
+		_, err = root.Snapshot(t.Context(), "hithere", zfs.SnapshotOptions{})
 		require.NoError(t, err)
 
-		err = runner.sendDatasetSnapshots(root)
+		err = runner.sendDatasetSnapshotsByName(42, root.Name)
 		require.NoError(t, err)
 
-		zfs.ListDatasets(t.Context(), zfs.ListOptions{
+		datasets, err := zfs.ListDatasets(t.Context(), zfs.ListOptions{
 			ParentDataset:   testHTTPZPool,
 			DatasetType:     zfs.DatasetAll,
 			ExtraProperties: nil,
-			Recursive:       false,
-			Depth:           0,
-			FilterSelf:      false,
+			Recursive:       true,
+			FilterSelf:      true,
 		})
+		require.NoError(t, err)
+		require.Len(t, datasets, 2)
+
+		require.Equal(t, testHTTPZPool+"/"+testZPool, datasets[0].Name)
+		require.Equal(t, zfs.DatasetFilesystem, datasets[0].Type)
+		require.Equal(t, testHTTPZPool+"/"+testZPool+"@hithere", datasets[1].Name)
+		require.Equal(t, zfs.DatasetSnapshot, datasets[1].Type)
 	})
 }
