@@ -24,6 +24,7 @@ func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 	zfshttp.TestHTTPZPool(testHTTPZPool, testPrefix, "", func(server *httptest.Server) {
 		// Create another zpool as 'source':
 		zfs.TestZPool(testZPool, func() {
+			slog.SetLogLoggerLevel(slog.LevelDebug)
 			r := &Runner{
 				Emitter:     eventemitter.NewEmitter(false),
 				datasetLock: make(map[string]struct{}),
