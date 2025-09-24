@@ -59,6 +59,7 @@ type CountReader struct {
 func (r *CountReader) SetProgressCallback(every time.Duration, progressFn ProgressCallback) {
 	r.progressFn = progressFn
 	r.every = every
+	r.last = time.Now()
 }
 
 func (r *CountReader) Read(p []byte) (int, error) {
