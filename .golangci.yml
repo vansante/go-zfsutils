@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   # exit code when at least one issue was found, default is 1
   issues-exit-code: 1
@@ -5,51 +7,93 @@ run:
   # include test files or not, default is true
   tests: false
 
-# all available settings of specific linters
-linters-settings:
-  funlen:
-    lines: 120
-    statements: 65
-  gocyclo:
-    min-complexity: 40
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-  depguard:
-  lll:
-    line-length: 150
-  nakedret:
-    max-func-lines: 0
-
 linters:
   enable:
+    - asasalint
     - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
     - copyloopvar
     - dogsled
+    - durationcheck
+    - errchkjson
+    - errorlint
+    - exhaustive
     - funlen
+    - gocheckcompilerdirectives
+    - gochecksumtype
     - goconst
     - gocritic
     - gocyclo
-    - gofumpt
-    - goimports
-    - gosimple
+    - gosmopolitan
     - govet
     - lll
+    - loggercheck
+    - makezero
     - misspell
+    - musttag
     - nakedret
+    - nilnesserr
+    - noctx
     - prealloc
+    - protogetter
+    - reassign
+    - recvcheck
     - revive
+    - rowserrcheck
+    - spancheck
+    - sqlclosecheck
     - staticcheck
+    - testifylint
     - unconvert
     - unparam
     - unused
+    - zerologlint
   disable:
     - gosec
     - nilerr
-  presets:
-    - bugs
-    - unused
-  fast: false
+  # all available settings of specific linters
+  settings:
+    dupl:
+      threshold: 100
+    funlen:
+      lines: 120
+      statements: 65
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    gocyclo:
+      min-complexity: 40
+    lll:
+      line-length: 150
+    nakedret:
+      max-func-lines: 0
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # ZFS permission names in the test helper coincide with zfs subcommand names,
+      # they are unrelated and should not share constants
+      - path: test_util\.go
+        linters:
+          - goconst
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

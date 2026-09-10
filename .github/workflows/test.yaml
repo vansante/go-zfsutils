@@ -1,25 +1,30 @@
-on: [push, pull_request]
 name: Test
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
-        go-version: [1.25.x]
+        go-version: [1.26.x, 1.27.x]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name:   Checkout code
+        uses:   actions/checkout@v5
+
       - name:   Install Linux packages
         if:     matrix.os == 'ubuntu-latest'
-        run:    sudo apt install -y --no-install-recommends zfsutils-linux
+        run:    sudo apt-get install -y --no-install-recommends zfsutils-linux
 
       - name:   Install Go
-        uses:   actions/setup-go@v4
+        uses:   actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
-
-      - name:   Checkout code
-        uses:   actions/checkout@v4
 
       - name:   Test
         run:    go test -v -timeout 1m ./...
