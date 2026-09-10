@@ -695,8 +695,14 @@ func TestDatasetRenameOptions(t *testing.T) {
 		fs, err = GetDataset(context.Background(), forceDst)
 		require.NoError(t, err)
 
+		// The mountpoint is inherited, so the parent created below is not mounted either
+		_, err = CreateFilesystem(context.Background(), testZPool+"/rename_parent", CreateFilesystemOptions{
+			Properties: map[string]string{PropertyCanMount: ValueOff, PropertyMountPoint: ValueNone},
+		})
+		require.NoError(t, err)
+
 		// Renaming into a nonexistent parent needs the create parent option
-		const nestedDst = testZPool + "/rename_parent/renamed_nested"
+		const nestedDst = testZPool + "/rename_parent/nested/renamed_nested"
 		require.Error(t, fs.Rename(context.Background(), nestedDst, RenameOptions{}))
 
 		fs, err = GetDataset(context.Background(), forceDst)

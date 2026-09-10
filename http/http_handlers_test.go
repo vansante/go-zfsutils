@@ -168,8 +168,7 @@ func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
 		pipeRdr, pipeWrtr := io.Pipe()
 		wg := sync.WaitGroup{}
 		wg.Go(func() {
-
-			_, err = zfs.ReceiveSnapshot(context.Background(), pipeRdr, newFilesys, zfs.ReceiveOptions{
+			_, err := zfs.ReceiveSnapshot(context.Background(), pipeRdr, newFilesys, zfs.ReceiveOptions{
 				Resumable:  false,
 				Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 			})

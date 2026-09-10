@@ -64,18 +64,21 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 	wg := sync.WaitGroup{}
 	sendingCount := 0
 	runner.AddListener(StartSendingSnapshotEvent, func(arguments ...any) {
-		verifyArgs(false, sendingCount, arguments)
+		// The listener is called synchronously, so the counter is only touched here
+		idx := sendingCount
+		sendingCount++
+
+		verifyArgs(false, idx, arguments)
 
 		wg.Go(func() {
-
 			ds, err := zfs.GetDataset(t.Context(), testFilesystem, runner.config.Properties.snapshotSending())
 			require.NoError(t, err)
-			require.Equal(t, sendSnaps[sendingCount], ds.ExtraProps[runner.config.Properties.snapshotSending()])
+			require.Equal(t, sendSnaps[idx], ds.ExtraProps[runner.config.Properties.snapshotSending()])
 
 			sends := runner.ListCurrentSends()
 			found := false
 			for _, send := range sends {
-				if send.Dataset() == testFilesystem+"@"+sendSnaps[sendingCount] {
+				if send.Dataset() == testFilesystem+"@"+sendSnaps[idx] {
 					found = true
 					require.Equal(t, arguments[1], send.Host())
 					require.NotNil(t, send.CancelSend)
@@ -84,8 +87,6 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 				}
 			}
 			require.True(t, found)
-
-			sendingCount++
 		})
 	})
 
@@ -232,7 +233,7 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 
 		pipeRdr, pipeWrtr := io.Pipe()
 		go func() {
-			err = ds.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
+			err := ds.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()
@@ -387,7 +388,7 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 
 		pipeRdr, pipeWrtr := io.Pipe()
 		go func() {
-			err = ds.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
+			err := ds.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()
@@ -442,17 +443,17 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 
 func TestRunner_sendNoCommonSnapshots(t *testing.T) {
 	sendTest(t, func(url string, runner *Runner) {
-		ds, err := zfs.GetDataset(t.Context(), testFilesystem+"@"+sendSnaps[2])
+		srcSnap, err := zfs.GetDataset(t.Context(), testFilesystem+"@"+sendSnaps[2])
 		require.NoError(t, err)
 
 		pipeRdr, pipeWrtr := io.Pipe()
 		go func() {
-			err = ds.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
+			err := srcSnap.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()
 
-		ds, err = zfs.ReceiveSnapshot(t.Context(), pipeRdr, testHTTPZPool+"/"+datasetName(ds.Name, true), zfs.ReceiveOptions{
+		ds, err := zfs.ReceiveSnapshot(t.Context(), pipeRdr, testHTTPZPool+"/"+datasetName(srcSnap.Name, true), zfs.ReceiveOptions{
 			Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 		})
 		require.NoError(t, err)
