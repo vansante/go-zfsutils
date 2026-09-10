@@ -3,12 +3,14 @@ package http
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -540,5 +542,83 @@ func TestHTTP_handleReceiveSnapshotMaxConcurrent(t *testing.T) {
 
 		require.GreaterOrEqual(t, countTooMany, int32(1), "CountTooMany not returned")
 		require.GreaterOrEqual(t, countError, int32(2), "CountError is not at least 2")
+	})
+}
+
+func Test_validIdentifier(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{"filesys1", true},
+		{"FileSys_1-2", true},
+		{"a", true},
+		{strings.Repeat("a", 100), true},
+		{"", false},
+		{strings.Repeat("a", 101), false},
+		{"pool/filesys1", false},
+		{"filesys1@snapshot", false},
+		{"filesys.1", false},
+		{"..", false},
+		{"with space", false},
+		{"nl.test:prop", false},
+		{"filesys1\n", false},
+		{"%20", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, validIdentifier(tt.name))
+		})
+	}
+}
+
+func TestReceiveProperties_EncodeDecode(t *testing.T) {
+	tests := []struct {
+		name  string
+		props ReceiveProperties
+	}{
+		{
+			"empty",
+			ReceiveProperties{},
+		},
+		{
+			"single",
+			ReceiveProperties{zfs.PropertyCanMount: zfs.ValueOff},
+		},
+		{
+			"multiple",
+			ReceiveProperties{
+				zfs.PropertyCanMount:   zfs.ValueOff,
+				"nl.test:hiephoi":      "42",
+				"nl.test:with/slashes": "a+b=c",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decoded, err := DecodeReceiveProperties(tt.props.Encode())
+			require.NoError(t, err)
+			require.Equal(t, tt.props, decoded)
+		})
+	}
+}
+
+func TestDecodeReceiveProperties_malformed(t *testing.T) {
+	t.Run("invalidBase64", func(t *testing.T) {
+		props, err := DecodeReceiveProperties("not base64 !!")
+		require.Error(t, err)
+		require.Equal(t, ReceiveProperties{}, props)
+	})
+
+	t.Run("invalidJSON", func(t *testing.T) {
+		_, err := DecodeReceiveProperties(base64.URLEncoding.EncodeToString([]byte("{invalid")))
+		require.Error(t, err)
+	})
+
+	t.Run("wrongJSONType", func(t *testing.T) {
+		_, err := DecodeReceiveProperties(base64.URLEncoding.EncodeToString([]byte(`["a","b"]`)))
+		require.Error(t, err)
 	})
 }
