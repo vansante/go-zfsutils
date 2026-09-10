@@ -129,6 +129,50 @@ func TestRunner_markPrunableSnapshotsByAge(t *testing.T) {
 	})
 }
 
+func TestRunner_markPrunableSnapshotsByAgeRemote(t *testing.T) {
+	runnerTest(t, func(url string, runner *Runner) {
+		runner.config.EnableSnapshotMarkRemote = true
+
+		retentionProp := runner.config.Properties.snapshotRetentionMinutes()
+		createdProp := runner.config.Properties.snapshotCreatedAt()
+		deleteProp := runner.config.Properties.deleteAt()
+		sendToProp := runner.config.Properties.snapshotSendTo()
+
+		ds, err := zfs.GetDataset(t.Context(), testFilesystem)
+		require.NoError(t, err)
+		require.NoError(t, ds.SetProperty(t.Context(), sendToProp, url))
+		require.NoError(t, ds.SetProperty(t.Context(), retentionProp, "5"))
+
+		const snap1 = "s1"
+		now := time.Now()
+
+		snap, err := ds.Snapshot(t.Context(), snap1, zfs.SnapshotOptions{})
+		require.NoError(t, err)
+		require.NoError(t, snap.SetProperty(t.Context(), createdProp, now.Add(-time.Minute*10).Format(dateTimeFormat)))
+
+		// Send the snapshot first, so it exists on the remote server
+		require.NoError(t, runner.sendDatasetSnapshotsByName(1, testFilesystem))
+
+		events := 0
+		runner.AddListener(MarkSnapshotDeletionEvent, func(arguments ...any) {
+			events++
+		})
+
+		require.NoError(t, runner.markPrunableSnapshotsByAge())
+		require.Equal(t, 1, events)
+
+		remoteSnap, err := zfs.GetDataset(t.Context(),
+			testHTTPZPool+"/"+datasetName(testFilesystem, true)+"@"+snap1,
+			deleteProp,
+		)
+		require.NoError(t, err)
+
+		tm, err := parseDatasetTimeProperty(remoteSnap, deleteProp)
+		require.NoError(t, err)
+		require.WithinDuration(t, now.Add(deleteAfter), tm, time.Minute)
+	})
+}
+
 func TestRunner_markPrunableSnapshotsWithParentDeleteAt(t *testing.T) {
 	runnerTest(t, func(url string, runner *Runner) {
 		retentionProp := runner.config.Properties.snapshotRetentionMinutes()

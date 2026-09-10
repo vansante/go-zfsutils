@@ -64,18 +64,21 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 	wg := sync.WaitGroup{}
 	sendingCount := 0
 	runner.AddListener(StartSendingSnapshotEvent, func(arguments ...any) {
-		verifyArgs(false, sendingCount, arguments)
+		// The listener is called synchronously, so the counter is only touched here
+		idx := sendingCount
+		sendingCount++
+
+		verifyArgs(false, idx, arguments)
 
 		wg.Go(func() {
-
 			ds, err := zfs.GetDataset(t.Context(), testFilesystem, runner.config.Properties.snapshotSending())
 			require.NoError(t, err)
-			require.Equal(t, sendSnaps[sendingCount], ds.ExtraProps[runner.config.Properties.snapshotSending()])
+			require.Equal(t, sendSnaps[idx], ds.ExtraProps[runner.config.Properties.snapshotSending()])
 
 			sends := runner.ListCurrentSends()
 			found := false
 			for _, send := range sends {
-				if send.Dataset() == testFilesystem+"@"+sendSnaps[sendingCount] {
+				if send.Dataset() == testFilesystem+"@"+sendSnaps[idx] {
 					found = true
 					require.Equal(t, arguments[1], send.Host())
 					require.NotNil(t, send.CancelSend)
@@ -84,8 +87,6 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 				}
 			}
 			require.True(t, found)
-
-			sendingCount++
 		})
 	})
 
@@ -121,6 +122,42 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 func TestRunner_sendSnapshots(t *testing.T) {
 	sendTest(t, func(url string, runner *Runner) {
 		testSendSnapshots(t, url, runner)
+	})
+}
+
+func TestRunner_SendDataset(t *testing.T) {
+	sendTest(t, func(url string, runner *Runner) {
+		runner.config.EnableSnapshotCreate = false
+		runner.config.EnableSnapshotSend = true
+		runner.config.EnableSnapshotMark = false
+		runner.config.EnableSnapshotPrune = false
+		runner.config.EnableFilesystemPrune = false
+		runner.config.SendRoutines = 1
+
+		sent := make(chan string, len(sendSnaps))
+		runner.AddListener(SentSnapshotEvent, func(arguments ...any) {
+			sent <- arguments[0].(string)
+		})
+
+		runner.Run()
+
+		// Blocks until one of the send routines picks up the dataset
+		runner.SendDataset(testFilesystem)
+
+		for i := range sendSnaps {
+			select {
+			case name := <-sent:
+				require.Equal(t, testFilesystem+"@"+sendSnaps[i], name)
+			case <-time.After(time.Minute):
+				t.Fatalf("timeout waiting for snapshot %s to be sent", sendSnaps[i])
+			}
+		}
+
+		snaps, err := zfs.ListSnapshots(t.Context(), zfs.ListOptions{
+			ParentDataset: testHTTPZPool + "/" + datasetName(testFilesystem, true),
+		})
+		require.NoError(t, err)
+		require.Len(t, snaps, 5)
 	})
 }
 
@@ -196,7 +233,7 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 
 		pipeRdr, pipeWrtr := io.Pipe()
 		go func() {
-			err = ds.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
+			err := ds.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()
@@ -351,7 +388,7 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 
 		pipeRdr, pipeWrtr := io.Pipe()
 		go func() {
-			err = ds.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
+			err := ds.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()
@@ -406,17 +443,17 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 
 func TestRunner_sendNoCommonSnapshots(t *testing.T) {
 	sendTest(t, func(url string, runner *Runner) {
-		ds, err := zfs.GetDataset(t.Context(), testFilesystem+"@"+sendSnaps[2])
+		srcSnap, err := zfs.GetDataset(t.Context(), testFilesystem+"@"+sendSnaps[2])
 		require.NoError(t, err)
 
 		pipeRdr, pipeWrtr := io.Pipe()
 		go func() {
-			err = ds.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
+			err := srcSnap.SendSnapshot(t.Context(), pipeWrtr, zfs.SendOptions{IncludeProperties: true})
 			require.NoError(t, err)
 			require.NoError(t, pipeWrtr.Close())
 		}()
 
-		ds, err = zfs.ReceiveSnapshot(t.Context(), pipeRdr, testHTTPZPool+"/"+datasetName(ds.Name, true), zfs.ReceiveOptions{
+		ds, err := zfs.ReceiveSnapshot(t.Context(), pipeRdr, testHTTPZPool+"/"+datasetName(srcSnap.Name, true), zfs.ReceiveOptions{
 			Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 		})
 		require.NoError(t, err)

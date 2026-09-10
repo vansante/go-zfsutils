@@ -576,3 +576,166 @@ func TestDataset_LoadKey_UnloadKey(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+func TestDatasetUnmountMount(t *testing.T) {
+	TestZPool(testZPool, func() {
+		ds, err := GetDataset(context.Background(), testZPool)
+		require.NoError(t, err)
+
+		mounted, err := ds.GetProperty(context.Background(), PropertyMounted)
+		require.NoError(t, err)
+		require.Equal(t, ValueYes, mounted)
+
+		err = ds.Unmount(context.Background(), UnmountOptions{Force: true})
+		if err != nil {
+			// Unmounting requires root on Linux, even with the mount permission delegated.
+			t.Skipf("cannot unmount %s in this environment: %v", ds.Name, err)
+		}
+
+		mounted, err = ds.GetProperty(context.Background(), PropertyMounted)
+		require.NoError(t, err)
+		require.Equal(t, ValueNo, mounted)
+
+		require.NoError(t, ds.Mount(context.Background(), MountOptions{}))
+
+		mounted, err = ds.GetProperty(context.Background(), PropertyMounted)
+		require.NoError(t, err)
+		require.Equal(t, ValueYes, mounted)
+
+		err = ds.Mount(context.Background(), MountOptions{})
+		require.ErrorIs(t, err, ErrFilesystemAlreadyMounted)
+	})
+}
+
+func TestDatasetMountOptions(t *testing.T) {
+	TestZPool(testZPool, func() {
+		ds, err := GetDataset(context.Background(), testZPool)
+		require.NoError(t, err)
+
+		err = ds.Unmount(context.Background(), UnmountOptions{Force: true})
+		if err != nil {
+			t.Skipf("cannot unmount %s in this environment: %v", ds.Name, err)
+		}
+
+		err = ds.Mount(context.Background(), MountOptions{
+			OverlayMount: true,
+			Options:      []string{"ro"},
+		})
+		require.NoError(t, err)
+
+		mounted, err := ds.GetProperty(context.Background(), PropertyMounted)
+		require.NoError(t, err)
+		require.Equal(t, ValueYes, mounted)
+
+		readonly, err := ds.GetProperty(context.Background(), PropertyReadOnly)
+		require.NoError(t, err)
+		require.Equal(t, ValueOn, readonly)
+	})
+}
+
+func TestDatasetMountUnmountSnapshot(t *testing.T) {
+	TestZPool(testZPool, func() {
+		fs, err := CreateFilesystem(context.Background(), testZPool+"/mount_test", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
+		require.NoError(t, err)
+
+		snap, err := fs.Snapshot(context.Background(), "snappie", SnapshotOptions{})
+		require.NoError(t, err)
+
+		require.ErrorIs(t, snap.Mount(context.Background(), MountOptions{}), ErrSnapshotsNotSupported)
+		require.ErrorIs(t, snap.Unmount(context.Background(), UnmountOptions{}), ErrSnapshotsNotSupported)
+	})
+}
+
+func TestDatasetRename(t *testing.T) {
+	TestZPool(testZPool, func() {
+		const src = testZPool + "/rename_me"
+		const dst = testZPool + "/renamed"
+
+		fs, err := CreateFilesystem(context.Background(), src, CreateFilesystemOptions{Properties: noMountProps})
+		require.NoError(t, err)
+
+		require.NoError(t, fs.Rename(context.Background(), dst, RenameOptions{}))
+
+		_, err = GetDataset(context.Background(), src)
+		require.ErrorIs(t, err, ErrDatasetNotFound)
+
+		ds, err := GetDataset(context.Background(), dst)
+		require.NoError(t, err)
+		require.Equal(t, dst, ds.Name)
+
+		// Renaming onto an existing dataset must fail
+		other, err := CreateFilesystem(context.Background(), src, CreateFilesystemOptions{Properties: noMountProps})
+		require.NoError(t, err)
+		require.ErrorIs(t, other.Rename(context.Background(), dst, RenameOptions{}), ErrDatasetExists)
+
+		// The dataset is still there under its original name
+		_, err = GetDataset(context.Background(), src)
+		require.NoError(t, err)
+	})
+}
+
+func TestDatasetRenameOptions(t *testing.T) {
+	TestZPool(testZPool, func() {
+		fs, err := CreateFilesystem(context.Background(), testZPool+"/rename_me", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
+		require.NoError(t, err)
+
+		const noMountDst = testZPool + "/renamed_nomount"
+		require.NoError(t, fs.Rename(context.Background(), noMountDst, RenameOptions{NoMount: true}))
+
+		fs, err = GetDataset(context.Background(), noMountDst)
+		require.NoError(t, err)
+
+		const forceDst = testZPool + "/renamed_force"
+		require.NoError(t, fs.Rename(context.Background(), forceDst, RenameOptions{Force: true}))
+
+		fs, err = GetDataset(context.Background(), forceDst)
+		require.NoError(t, err)
+
+		// The mountpoint is inherited, so the parent created below is not mounted either
+		_, err = CreateFilesystem(context.Background(), testZPool+"/rename_parent", CreateFilesystemOptions{
+			Properties: map[string]string{PropertyCanMount: ValueOff, PropertyMountPoint: ValueNone},
+		})
+		require.NoError(t, err)
+
+		// Renaming into a nonexistent parent needs the create parent option
+		const nestedDst = testZPool + "/rename_parent/nested/renamed_nested"
+		require.Error(t, fs.Rename(context.Background(), nestedDst, RenameOptions{}))
+
+		fs, err = GetDataset(context.Background(), forceDst)
+		require.NoError(t, err)
+		require.NoError(t, fs.Rename(context.Background(), nestedDst, RenameOptions{CreateParent: true}))
+
+		fs, err = GetDataset(context.Background(), nestedDst)
+		require.NoError(t, err)
+		require.Equal(t, nestedDst, fs.Name)
+	})
+}
+
+func TestDatasetRenameSnapshotRecursive(t *testing.T) {
+	TestZPool(testZPool, func() {
+		parent, err := CreateFilesystem(context.Background(), testZPool+"/rename_parent", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
+		require.NoError(t, err)
+
+		_, err = CreateFilesystem(context.Background(), testZPool+"/rename_parent/child", CreateFilesystemOptions{
+			Properties: noMountProps,
+		})
+		require.NoError(t, err)
+
+		snap, err := parent.Snapshot(context.Background(), "before", SnapshotOptions{Recursive: true})
+		require.NoError(t, err)
+
+		require.NoError(t, snap.Rename(context.Background(), "@after", RenameOptions{Recursive: true}))
+
+		snaps, err := ListSnapshots(context.Background(), ListOptions{ParentDataset: parent.Name})
+		require.NoError(t, err)
+		require.Len(t, snaps, 2)
+		require.Equal(t, testZPool+"/rename_parent@after", snaps[0].Name)
+		require.Equal(t, testZPool+"/rename_parent/child@after", snaps[1].Name)
+	})
+}
