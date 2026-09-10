@@ -35,7 +35,7 @@ func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 				datasetLock: make(map[string]struct{}),
 				remoteCache: make(map[string]map[string]*datasetCache),
 				sendChan:    make(chan string),
-				sendClient:  zfshttp.NewClient(nil, slog.Default()),
+				zfsClient:   zfshttp.NewClient(nil, slog.Default()),
 				config: Config{
 					ParentDataset: testZPool,
 					DatasetType:   zfs.DatasetFilesystem,
@@ -89,14 +89,14 @@ func TestNewRunner(t *testing.T) {
 	require.NotNil(t, r.datasetLock)
 	require.NotNil(t, r.remoteCache)
 	require.NotNil(t, r.sendChan)
-	require.NotNil(t, r.sendClient)
+	require.NotNil(t, r.zfsClient)
 	require.Equal(t, testZPool, r.config.ParentDataset)
 	require.Equal(t, defaultSendRoutines, r.config.SendRoutines)
 	require.Equal(t, defaultNamespace, r.config.Properties.Namespace)
 	require.Empty(t, r.ListCurrentSends())
 
 	// The configured HTTP headers must be wired into the send client
-	snaps, err := r.sendClient.DatasetSnapshots(t.Context(), server.URL, "testfs1", nil)
+	snaps, err := r.zfsClient.DatasetSnapshots(t.Context(), server.URL, "testfs1", nil)
 	require.NoError(t, err)
 	require.Empty(t, snaps)
 	require.Equal(t, "hello", gotHeader)

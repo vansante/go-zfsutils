@@ -20,7 +20,7 @@ func cacheRunner(t *testing.T, cacheAgeSeconds int64) *Runner {
 
 	return &Runner{
 		remoteCache: make(map[string]map[string]*datasetCache),
-		sendClient:  zfshttp.NewClient(nil, slog.Default()),
+		zfsClient:   zfshttp.NewClient(nil, slog.Default()),
 		config: Config{
 			MaximumRemoteSnapshotCacheAgeSeconds: cacheAgeSeconds,
 		},
