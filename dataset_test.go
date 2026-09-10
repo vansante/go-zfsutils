@@ -1,6 +1,8 @@
 package zfs
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -30,6 +32,35 @@ func Test_readDatasets(t *testing.T) {
 		require.Equal(t, "42", ds[i].ExtraProps[prop1])
 		require.Equal(t, "ja", ds[i].ExtraProps[prop2])
 	}
+}
+
+func Test_readDatasets_invalidLineCount(t *testing.T) {
+	in := splitOutput(testInput)
+
+	// Drop a line so the total is no longer a multiple of the property count
+	_, err := readDatasets(in[:len(in)-1], []string{"nl.test:hiephoi", "nl.test:eigenschap"})
+	require.ErrorContains(t, err, "output invalid")
+}
+
+func Test_readDatasets_invalidFieldCount(t *testing.T) {
+	// Keep exactly one dataset worth of lines, so the multiple check passes
+	lines := strings.Split(testInput, "\n")[:len(dsPropList)]
+	lines[2] = "testpool/ds0\torigin"
+
+	_, err := readDatasets(splitOutput(strings.Join(lines, "\n")+"\n"), nil)
+	require.ErrorContains(t, err, "output contains line with 2 fields")
+}
+
+func Test_readDatasets_invalidUint(t *testing.T) {
+	in := splitOutput(strings.Replace(testInput,
+		"testpool/ds1\tused\t196416",
+		"testpool/ds1\tused\tnotanumber",
+		1,
+	))
+
+	_, err := readDatasets(in, []string{"nl.test:hiephoi", "nl.test:eigenschap"})
+	require.ErrorContains(t, err, "error in dataset 1 (testpool/ds1) field used [notanumber]")
+	require.ErrorIs(t, err, strconv.ErrSyntax)
 }
 
 const testInput = `testpool/ds0	name	testpool/ds0
