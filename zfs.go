@@ -14,6 +14,9 @@ import (
 
 const (
 	Binary = "zfs"
+
+	cmdCreate = "create"
+	cmdSend   = "send"
 )
 
 // ListOptions are options you can specify to customize the ListDatasets and other List commands
@@ -428,7 +431,7 @@ func (d *Dataset) SendSnapshot(ctx context.Context, output io.Writer, options Se
 	}
 
 	args := make([]string, 1, 8)
-	args[0] = "send"
+	args[0] = cmdSend
 
 	if options.Raw {
 		args = append(args, "-w")
@@ -483,7 +486,7 @@ func ResumeSend(ctx context.Context, output io.Writer, resumeToken string, optio
 		ctx:    ctx,
 		stdout: output,
 	}
-	args := append([]string{"send"}, "-t", resumeToken)
+	args := append([]string{cmdSend}, "-t", resumeToken)
 	_, err = c.Run(args...)
 	return err
 }
@@ -516,7 +519,7 @@ type CreateVolumeOptions struct {
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
 func CreateVolume(ctx context.Context, name string, size uint64, options CreateVolumeOptions) (*Dataset, error) {
 	args := make([]string, 3, 10)
-	args[0] = "create"
+	args[0] = cmdCreate
 	args[1] = "-V"
 	args[2] = strconv.FormatUint(size, 10)
 
@@ -695,7 +698,7 @@ type CreateFilesystemOptions struct {
 // https://openzfs.github.io/openzfs-docs/man/7/zfsprops.7.html.
 func CreateFilesystem(ctx context.Context, name string, options CreateFilesystemOptions) (*Dataset, error) {
 	args := make([]string, 1, 10)
-	args[0] = "create"
+	args[0] = cmdCreate
 
 	if options.Properties != nil {
 		args = append(args, propsSlice(options.Properties)...)

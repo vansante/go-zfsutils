@@ -152,6 +152,6 @@ func (r *Runner) createDatasetSnapshot(ds *zfs.Dataset) error {
 		"previousSnapshot", latestSnap,
 		"interval", interval,
 	)
-	r.Emitter.EmitEvent(CreatedSnapshotEvent, ds.Name, name, tm)
+	r.EmitEvent(CreatedSnapshotEvent, ds.Name, name, tm)
 	return nil
 }
