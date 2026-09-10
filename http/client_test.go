@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -79,4 +80,55 @@ func TestClient_Send(t *testing.T) {
 		require.Equal(t, fullNewFs+"@lala1", snaps[0].Name)
 		require.Equal(t, fullNewFs+"@lala2", snaps[1].Name)
 	})
+}
+
+func TestClient_SetFilesystemProperties(t *testing.T) {
+	clientTest(t, func(client *Client, host string) {
+		const testProp = "nl.vansante:pipo"
+		const testPropVal = "clown"
+
+		err := client.SetFilesystemProperties(context.Background(), host, testFilesystemName, SetProperties{
+			Set: map[string]string{testProp: testPropVal},
+		})
+		require.NoError(t, err)
+
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem, testProp)
+		require.NoError(t, err)
+		require.Equal(t, testPropVal, ds.ExtraProps[testProp])
+
+		err = client.SetFilesystemProperties(context.Background(), host, testFilesystemName, SetProperties{
+			Unset: []string{testProp},
+		})
+		require.NoError(t, err)
+
+		ds, err = zfs.GetDataset(context.Background(), testFilesystem, testProp)
+		require.NoError(t, err)
+		require.Empty(t, ds.ExtraProps[testProp])
+
+		err = client.SetFilesystemProperties(context.Background(), host, "doesnotexist", SetProperties{
+			Set: map[string]string{testProp: testPropVal},
+		})
+		require.Error(t, err)
+	})
+}
+
+func TestClient_SetClientSetHeader(t *testing.T) {
+	var gotHeader, gotUserAgent string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		gotHeader = req.Header.Get("X-Test")
+		gotUserAgent = req.UserAgent()
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("[]"))
+	}))
+	defer server.Close()
+
+	c := NewClient(nil, slog.Default())
+	c.SetClient(server.Client())
+	c.SetHeader("X-Test", "hello")
+
+	snaps, err := c.DatasetSnapshots(t.Context(), server.URL, "testfs1", nil)
+	require.NoError(t, err)
+	require.Empty(t, snaps)
+	require.Equal(t, "hello", gotHeader)
+	require.Contains(t, gotUserAgent, "go-zfsutils@")
 }

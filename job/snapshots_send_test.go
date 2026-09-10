@@ -124,6 +124,42 @@ func TestRunner_sendSnapshots(t *testing.T) {
 	})
 }
 
+func TestRunner_SendDataset(t *testing.T) {
+	sendTest(t, func(url string, runner *Runner) {
+		runner.config.EnableSnapshotCreate = false
+		runner.config.EnableSnapshotSend = true
+		runner.config.EnableSnapshotMark = false
+		runner.config.EnableSnapshotPrune = false
+		runner.config.EnableFilesystemPrune = false
+		runner.config.SendRoutines = 1
+
+		sent := make(chan string, len(sendSnaps))
+		runner.AddListener(SentSnapshotEvent, func(arguments ...any) {
+			sent <- arguments[0].(string)
+		})
+
+		runner.Run()
+
+		// Blocks until one of the send routines picks up the dataset
+		runner.SendDataset(testFilesystem)
+
+		for i := range sendSnaps {
+			select {
+			case name := <-sent:
+				require.Equal(t, testFilesystem+"@"+sendSnaps[i], name)
+			case <-time.After(time.Minute):
+				t.Fatalf("timeout waiting for snapshot %s to be sent", sendSnaps[i])
+			}
+		}
+
+		snaps, err := zfs.ListSnapshots(t.Context(), zfs.ListOptions{
+			ParentDataset: testHTTPZPool + "/" + datasetName(testFilesystem, true),
+		})
+		require.NoError(t, err)
+		require.Len(t, snaps, 5)
+	})
+}
+
 func TestRunner_sendSnapshotsSnapshotProps(t *testing.T) {
 	const testProp = "nl.vansante:haha"
 	const propVal = "hihi"

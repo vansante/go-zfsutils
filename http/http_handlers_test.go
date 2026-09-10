@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -620,5 +621,326 @@ func TestDecodeReceiveProperties_malformed(t *testing.T) {
 	t.Run("wrongJSONType", func(t *testing.T) {
 		_, err := DecodeReceiveProperties(base64.URLEncoding.EncodeToString([]byte(`["a","b"]`)))
 		require.Error(t, err)
+	})
+}
+
+// httpHandlerPermissionsTest is like httpHandlerTest, but builds the server with the given permissions
+func httpHandlerPermissionsTest(t *testing.T, permissions Permissions, fn func(url string)) {
+	t.Helper()
+	zfs.TestZPool(testZPool, func() {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+		h := NewHTTP(context.Background(), Config{
+			ParentDataset:  testZPool,
+			HTTPPathPrefix: testPrefix,
+
+			MaximumConcurrentReceives: 2,
+
+			Permissions: permissions,
+		}, slog.Default())
+
+		_, err := zfs.CreateFilesystem(context.Background(), testFilesystem, zfs.CreateFilesystemOptions{
+			Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
+		})
+		require.NoError(t, err)
+
+		server := httptest.NewServer(h)
+		defer server.Close()
+
+		fn(server.URL + testPrefix)
+	})
+}
+
+func TestHTTP_handleListSnapshots(t *testing.T) {
+	httpHandlerTest(t, func(url string) {
+		const snapName1 = "snappie1"
+		const snapName2 = "snappie2"
+		const testProp = "nl.test:hello"
+
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
+		require.NoError(t, err)
+
+		snap, err := ds.Snapshot(context.Background(), snapName1, zfs.SnapshotOptions{})
+		require.NoError(t, err)
+		require.NoError(t, snap.SetProperty(context.Background(), testProp, "world"))
+
+		_, err = ds.Snapshot(context.Background(), snapName2, zfs.SnapshotOptions{})
+		require.NoError(t, err)
+
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/snapshots?%s=%s",
+			url, testFilesystemName,
+			GETParamExtraProperties, testProp,
+		), nil)
+		require.NoError(t, err)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.EqualValues(t, http.StatusOK, resp.StatusCode)
+
+		var list []zfs.Dataset
+		err = json.NewDecoder(resp.Body).Decode(&list)
+		require.NoError(t, err)
+		require.Len(t, list, 2)
+		require.Equal(t, testFilesystem+"@"+snapName1, list[0].Name)
+		require.Equal(t, "world", list[0].ExtraProps[testProp])
+		require.Equal(t, testFilesystem+"@"+snapName2, list[1].Name)
+		require.Empty(t, list[1].ExtraProps[testProp])
+	})
+}
+
+func TestHTTP_handleListSnapshotsErrors(t *testing.T) {
+	httpHandlerTest(t, func(url string) {
+		tests := []struct {
+			filesystem string
+			status     int
+		}{
+			{"doesnotexist", http.StatusNotFound},
+			{"inv.alid", http.StatusBadRequest},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.filesystem, func(t *testing.T) {
+				req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/snapshots",
+					url, tt.filesystem,
+				), nil)
+				require.NoError(t, err)
+
+				resp, err := http.DefaultClient.Do(req)
+				require.NoError(t, err)
+				defer resp.Body.Close()
+				require.EqualValues(t, tt.status, resp.StatusCode)
+			})
+		}
+	})
+}
+
+func TestHTTP_handleGetResumeTokenNone(t *testing.T) {
+	httpHandlerTest(t, func(url string) {
+		tests := []struct {
+			filesystem string
+			status     int
+		}{
+			{testFilesystemName, http.StatusPreconditionFailed},
+			{"doesnotexist", http.StatusNotFound},
+			{"inv.alid", http.StatusBadRequest},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.filesystem, func(t *testing.T) {
+				req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/filesystems/%s/resume-token",
+					url, tt.filesystem,
+				), nil)
+				require.NoError(t, err)
+
+				resp, err := http.DefaultClient.Do(req)
+				require.NoError(t, err)
+				defer resp.Body.Close()
+				require.EqualValues(t, tt.status, resp.StatusCode)
+			})
+		}
+	})
+}
+
+func TestHTTP_handleSetSnapshotProps(t *testing.T) {
+	httpHandlerTest(t, func(url string) {
+		const snapName = "snappie"
+		const setProp = "nl.test:test"
+		const unsetProp = "nl.test:removeme"
+
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
+		require.NoError(t, err)
+
+		snap, err := ds.Snapshot(context.Background(), snapName, zfs.SnapshotOptions{})
+		require.NoError(t, err)
+		require.NoError(t, snap.SetProperty(context.Background(), unsetProp, "gone"))
+
+		props := SetProperties{
+			Set:   map[string]string{setProp: "helloworld"},
+			Unset: []string{unsetProp},
+		}
+		data, err := json.Marshal(&props)
+		require.NoError(t, err)
+
+		req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%s/filesystems/%s/snapshots/%s?%s=%s",
+			url, testFilesystemName,
+			snapName,
+			GETParamExtraProperties, fmt.Sprintf("%s,%s", setProp, unsetProp),
+		), bytes.NewBuffer(data))
+		require.NoError(t, err)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.EqualValues(t, http.StatusOK, resp.StatusCode)
+
+		var result zfs.Dataset
+		err = json.NewDecoder(resp.Body).Decode(&result)
+		require.NoError(t, err)
+		require.Equal(t, testFilesystem+"@"+snapName, result.Name)
+		require.Equal(t, zfs.DatasetSnapshot, result.Type)
+		require.Equal(t, "helloworld", result.ExtraProps[setProp])
+		require.Empty(t, result.ExtraProps[unsetProp])
+	})
+}
+
+func TestHTTP_handleSetSnapshotPropsErrors(t *testing.T) {
+	httpHandlerTest(t, func(url string) {
+		data, err := json.Marshal(&SetProperties{Set: map[string]string{"nl.test:test": "helloworld"}})
+		require.NoError(t, err)
+
+		tests := []struct {
+			name       string
+			filesystem string
+			snapshot   string
+			body       []byte
+			status     int
+		}{
+			{"notFound", testFilesystemName, "doesnotexist", data, http.StatusNotFound},
+			{"invalidFilesystem", "inv.alid", "snappie", data, http.StatusBadRequest},
+			{"invalidSnapshot", testFilesystemName, "inv.alid", data, http.StatusBadRequest},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("%s/filesystems/%s/snapshots/%s",
+					url, tt.filesystem, tt.snapshot,
+				), bytes.NewBuffer(tt.body))
+				require.NoError(t, err)
+
+				resp, err := http.DefaultClient.Do(req)
+				require.NoError(t, err)
+				defer resp.Body.Close()
+				require.EqualValues(t, tt.status, resp.StatusCode)
+			})
+		}
+	})
+}
+
+func TestHTTP_handleDestroySnapshot(t *testing.T) {
+	httpHandlerTest(t, func(url string) {
+		const snapName = "snappie"
+
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
+		require.NoError(t, err)
+
+		_, err = ds.Snapshot(context.Background(), snapName, zfs.SnapshotOptions{})
+		require.NoError(t, err)
+
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/filesystems/%s/snapshots/%s",
+			url, testFilesystemName, snapName,
+		), nil)
+		require.NoError(t, err)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.EqualValues(t, http.StatusNoContent, resp.StatusCode)
+
+		snaps, err := ds.Snapshots(context.Background(), zfs.ListOptions{})
+		require.NoError(t, err)
+		require.Empty(t, snaps)
+
+		// A second destroy must report the snapshot as gone
+		req, err = http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/filesystems/%s/snapshots/%s",
+			url, testFilesystemName, snapName,
+		), nil)
+		require.NoError(t, err)
+
+		resp, err = http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.EqualValues(t, http.StatusNotFound, resp.StatusCode)
+
+		req, err = http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/filesystems/%s/snapshots/%s",
+			url, testFilesystemName, "inv.alid",
+		), nil)
+		require.NoError(t, err)
+
+		resp, err = http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.EqualValues(t, http.StatusBadRequest, resp.StatusCode)
+	})
+}
+
+func TestHTTP_handleDestroySnapshotForbidden(t *testing.T) {
+	httpHandlerPermissionsTest(t, Permissions{AllowDestroyFilesystems: true}, func(url string) {
+		const snapName = "snappie"
+
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
+		require.NoError(t, err)
+
+		_, err = ds.Snapshot(context.Background(), snapName, zfs.SnapshotOptions{})
+		require.NoError(t, err)
+
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/filesystems/%s/snapshots/%s",
+			url, testFilesystemName, snapName,
+		), nil)
+		require.NoError(t, err)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.EqualValues(t, http.StatusForbidden, resp.StatusCode)
+
+		snaps, err := ds.Snapshots(context.Background(), zfs.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, snaps, 1)
+	})
+}
+
+func TestHTTP_handleDestroyFilesystem(t *testing.T) {
+	httpHandlerTest(t, func(url string) {
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/filesystems/%s",
+			url, testFilesystemName,
+		), nil)
+		require.NoError(t, err)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.EqualValues(t, http.StatusNoContent, resp.StatusCode)
+
+		_, err = zfs.GetDataset(context.Background(), testFilesystem)
+		require.ErrorIs(t, err, zfs.ErrDatasetNotFound)
+
+		// A second destroy must report the filesystem as gone
+		req, err = http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/filesystems/%s",
+			url, testFilesystemName,
+		), nil)
+		require.NoError(t, err)
+
+		resp, err = http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.EqualValues(t, http.StatusNotFound, resp.StatusCode)
+
+		req, err = http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/filesystems/%s",
+			url, "inv.alid",
+		), nil)
+		require.NoError(t, err)
+
+		resp, err = http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.EqualValues(t, http.StatusBadRequest, resp.StatusCode)
+	})
+}
+
+func TestHTTP_handleDestroyFilesystemForbidden(t *testing.T) {
+	httpHandlerPermissionsTest(t, Permissions{AllowDestroySnapshots: true}, func(url string) {
+		req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/filesystems/%s",
+			url, testFilesystemName,
+		), nil)
+		require.NoError(t, err)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.EqualValues(t, http.StatusForbidden, resp.StatusCode)
+
+		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
+		require.NoError(t, err)
+		require.Equal(t, testFilesystem, ds.Name)
 	})
 }
