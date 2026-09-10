@@ -296,16 +296,15 @@ func (r *Runner) markAgingDatasetSnapshots(ds *zfs.Dataset, duration time.Durati
 	return nil
 }
 
-func (r *Runner) markRemoteDatasetSnapshot(localSnap *zfs.Dataset, server, deleteProp string, deleteAt time.Time) error {
-	if !r.config.EnableSnapshotMarkRemote || !propertyIsSet(server) {
+func (r *Runner) markRemoteDatasetSnapshot(localSnap *zfs.Dataset, host, deleteProp string, deleteAt time.Time) error {
+	if !r.config.EnableSnapshotMarkRemote || !propertyIsSet(host) {
 		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(r.ctx, 5*time.Minute)
 	defer cancel()
 
-	client := r.getServerClient(server)
-	return client.SetSnapshotProperties(ctx, datasetName(localSnap.Name, true), snapshotName(localSnap.Name), zfshttp.SetProperties{
+	return r.sendClient.SetSnapshotProperties(ctx, host, datasetName(localSnap.Name, true), snapshotName(localSnap.Name), zfshttp.SetProperties{
 		Set: map[string]string{
 			deleteProp: deleteAt.Format(dateTimeFormat),
 		},

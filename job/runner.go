@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -35,9 +36,15 @@ func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
 		datasetLock: make(map[string]struct{}),
 		remoteCache: make(map[string]map[string]*datasetCache),
 		sendChan:    make(chan string),
+		sendClient:  zfshttp.NewClient(http.DefaultClient, logger),
 		logger:      logger,
 		ctx:         ctx,
 	}
+
+	for hdr := range r.config.HTTPHeaders {
+		r.sendClient.SetHeader(hdr, r.config.HTTPHeaders[hdr])
+	}
+
 	r.attachListeners()
 	return r
 }
@@ -54,20 +61,13 @@ type Runner struct {
 	remoteCache map[string]map[string]*datasetCache // Snapshots indexed by server, then dataset name
 	cacheLock   sync.RWMutex
 
-	sendChan chan string
-	sends    []*zfsSend
-	sendLock sync.RWMutex
+	sendChan   chan string
+	sends      []*zfsSend
+	sendLock   sync.RWMutex
+	sendClient *zfshttp.Client
 
 	logger *slog.Logger
 	ctx    context.Context
-}
-
-func (r *Runner) getServerClient(server string) *zfshttp.Client {
-	client := zfshttp.NewClient(server, r.logger)
-	for hdr := range r.config.HTTPHeaders {
-		client.SetHeader(hdr, r.config.HTTPHeaders[hdr])
-	}
-	return client
 }
 
 func (r *Runner) attachListeners() {
