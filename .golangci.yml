@@ -76,12 +76,6 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
-    rules:
-      # ZFS permission names in the test helper coincide with zfs subcommand names,
-      # they are unrelated and should not share constants
-      - path: test_util\.go
-        linters:
-          - goconst
     paths:
       - third_party$
       - builtin$
