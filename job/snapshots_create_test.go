@@ -24,7 +24,7 @@ func TestRunner_createSnapshots(t *testing.T) {
 		require.NoError(t, err)
 
 		emitCount := 0
-		runner.Emitter.AddListener(CreatedSnapshotEvent, func(arguments ...interface{}) {
+		runner.Emitter.AddListener(CreatedSnapshotEvent, func(arguments ...any) {
 			emitCount++
 
 			require.Len(t, arguments, 3)

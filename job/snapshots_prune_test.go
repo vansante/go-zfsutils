@@ -38,7 +38,7 @@ func TestRunner_pruneSnapshots(t *testing.T) {
 		require.NoError(t, snap.SetProperty(t.Context(), createdProp, now.Add(time.Minute).Format(dateTimeFormat)))
 
 		events := 0
-		runner.AddListener(DeletedSnapshotEvent, func(arguments ...interface{}) {
+		runner.AddListener(DeletedSnapshotEvent, func(arguments ...any) {
 			events++
 
 			require.Len(t, arguments, 3)

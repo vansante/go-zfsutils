@@ -53,7 +53,7 @@ func TestZPool(zpool string, fn func()) {
 		"zpool", "create", zpool,
 	}
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		f, err := os.CreateTemp(os.TempDir(), "test-zpool-")
 		noErr(err, fmt.Sprintf("create zpool file %d", i), "")
 		err = f.Truncate(pow2(29))

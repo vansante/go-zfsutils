@@ -56,7 +56,7 @@ func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 				panic(err)
 			}
 
-			r.AddCapturer(func(event eventemitter.EventType, arguments ...interface{}) {
+			r.AddCapturer(func(event eventemitter.EventType, arguments ...any) {
 				t.Logf("EVENT: %s %#v", event, arguments)
 			})
 
