@@ -54,11 +54,11 @@ func datasetName(name string, stripSnap bool) string {
 }
 
 func stripDatasetSnapshot(name string) string {
-	idx := strings.Index(name, "@")
-	if idx < 0 {
+	before, _, ok := strings.Cut(name, "@")
+	if !ok {
 		return name
 	}
-	return name[:idx]
+	return before
 }
 
 func snapshotName(name string) string {

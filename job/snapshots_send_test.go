@@ -48,7 +48,7 @@ func sendTest(t *testing.T, fn func(url string, runner *Runner)) {
 }
 
 func testSendSnapshots(t *testing.T, url string, runner *Runner) {
-	verifyArgs := func(sent bool, i int, args []interface{}) {
+	verifyArgs := func(sent bool, i int, args []any) {
 		require.Equal(t, testFilesystem+"@"+sendSnaps[i], args[0])
 		require.Equal(t, url, args[1])
 		if sent {
@@ -63,12 +63,10 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 
 	wg := sync.WaitGroup{}
 	sendingCount := 0
-	runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
+	runner.AddListener(StartSendingSnapshotEvent, func(arguments ...any) {
 		verifyArgs(false, sendingCount, arguments)
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			ds, err := zfs.GetDataset(t.Context(), testFilesystem, runner.config.Properties.snapshotSending())
 			require.NoError(t, err)
@@ -88,11 +86,11 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 			require.True(t, found)
 
 			sendingCount++
-		}()
+		})
 	})
 
 	sentCount := 0
-	runner.AddListener(SentSnapshotEvent, func(arguments ...interface{}) {
+	runner.AddListener(SentSnapshotEvent, func(arguments ...any) {
 		verifyArgs(true, sentCount, arguments)
 		sentCount++
 	})
@@ -165,7 +163,7 @@ func TestRunner_sendSnapshotsWithSpeedAndCompression(t *testing.T) {
 
 func TestRunner_sendCancelSnapshots(t *testing.T) {
 	sendTest(t, func(url string, runner *Runner) {
-		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
+		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...any) {
 			sends := runner.ListCurrentSends()
 			require.Len(t, sends, 1)
 
@@ -174,7 +172,7 @@ func TestRunner_sendCancelSnapshots(t *testing.T) {
 		})
 
 		gotErr := false
-		runner.AddListener(SendSnapshotErrorEvent, func(args ...interface{}) {
+		runner.AddListener(SendSnapshotErrorEvent, func(args ...any) {
 			require.Len(t, args, 3)
 
 			require.Equal(t, testFilesystem+"@"+sendSnaps[0], args[0])
@@ -208,7 +206,7 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		verifyArgs := func(sent bool, i int, args []interface{}) {
+		verifyArgs := func(sent bool, i int, args []any) {
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i+1], args[0])
 			require.Equal(t, url, args[1])
 			if sent {
@@ -222,14 +220,14 @@ func TestRunner_sendPartialSnapshots(t *testing.T) {
 		}
 
 		sendingCount := 0
-		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
+		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...any) {
 			verifyArgs(false, sendingCount, arguments)
 			sendingCount++
 			t.Logf("Sending snapshot %s", arguments[0])
 		})
 
 		sentCount := 0
-		runner.AddListener(SentSnapshotEvent, func(arguments ...interface{}) {
+		runner.AddListener(SentSnapshotEvent, func(arguments ...any) {
 			verifyArgs(true, sentCount, arguments)
 			sentCount++
 			t.Logf("Sent snapshot %s", arguments[0])
@@ -286,7 +284,7 @@ func TestRunner_sendResumeSnapshot(t *testing.T) {
 		require.NoError(t, ds.SetProperty(t.Context(), runner.config.Properties.snapshotSending(), sendSnaps[0]))
 
 		// Now start the test by seeing if it resumes
-		verifyArgs := func(sent bool, i int, args []interface{}) {
+		verifyArgs := func(sent bool, i int, args []any) {
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i], args[0])
 			require.Equal(t, url, args[1])
 			if sent {
@@ -300,7 +298,7 @@ func TestRunner_sendResumeSnapshot(t *testing.T) {
 		}
 
 		resumeCount := 0
-		runner.AddListener(ResumeSendingSnapshotEvent, func(args ...interface{}) {
+		runner.AddListener(ResumeSendingSnapshotEvent, func(args ...any) {
 			require.Equal(t, testFilesystem+"@"+sendSnaps[0], args[0])
 			require.Equal(t, url, args[1])
 			require.NotZero(t, args[2])
@@ -310,14 +308,14 @@ func TestRunner_sendResumeSnapshot(t *testing.T) {
 		})
 
 		sendingCount := 1
-		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
+		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...any) {
 			verifyArgs(false, sendingCount, arguments)
 			sendingCount++
 			t.Logf("Sending snapshot %s", arguments[0])
 		})
 
 		sentCount := 0
-		runner.AddListener(SentSnapshotEvent, func(arguments ...interface{}) {
+		runner.AddListener(SentSnapshotEvent, func(arguments ...any) {
 			verifyArgs(true, sentCount, arguments)
 			sentCount++
 			t.Logf("Sent snapshot %s", arguments[0])
@@ -363,7 +361,7 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		verifyArgs := func(sent bool, i int, args []interface{}) {
+		verifyArgs := func(sent bool, i int, args []any) {
 			require.Equal(t, testFilesystem+"@"+sendSnaps[i+3], args[0])
 			require.Equal(t, url, args[1])
 			if sent {
@@ -377,13 +375,13 @@ func TestRunner_sendWithMissingSnapshots(t *testing.T) {
 		}
 
 		sendingCount := 0
-		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...interface{}) {
+		runner.AddListener(StartSendingSnapshotEvent, func(arguments ...any) {
 			verifyArgs(false, sendingCount, arguments)
 			sendingCount++
 		})
 
 		sentCount := 0
-		runner.AddListener(SentSnapshotEvent, func(arguments ...interface{}) {
+		runner.AddListener(SentSnapshotEvent, func(arguments ...any) {
 			verifyArgs(true, sentCount, arguments)
 			sentCount++
 		})

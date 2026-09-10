@@ -2,6 +2,7 @@ package job
 
 import (
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/klauspost/compress/zstd"
@@ -97,17 +98,13 @@ func (c *Config) maximumRemoteSnapshotCacheAge() time.Duration {
 
 func (c *Config) sendSetProperties() map[string]string {
 	props := make(map[string]string, len(c.SendSetProperties)+len(c.SendCopyProperties))
-	for k, v := range c.SendSetProperties {
-		props[k] = v
-	}
+	maps.Copy(props, c.SendSetProperties)
 	return props
 }
 
 func (c *Config) sendSetSnapshotProperties() map[string]string {
 	props := make(map[string]string, len(c.SendSetSnapshotProperties)+len(c.SendCopySnapshotProperties))
-	for k, v := range c.SendSetSnapshotProperties {
-		props[k] = v
-	}
+	maps.Copy(props, c.SendSetSnapshotProperties)
 	return props
 }
 

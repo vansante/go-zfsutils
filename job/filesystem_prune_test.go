@@ -47,7 +47,7 @@ func TestRunner_pruneFilesystems(t *testing.T) {
 		require.NoError(t, fs.SetProperty(t.Context(), delProp, time.Now().Add(time.Second*3).Format(dateTimeFormat)))
 
 		events := 0
-		runner.AddListener(DeletedFilesystemEvent, func(arguments ...interface{}) {
+		runner.AddListener(DeletedFilesystemEvent, func(arguments ...any) {
 			events++
 
 			require.Len(t, arguments, 2)

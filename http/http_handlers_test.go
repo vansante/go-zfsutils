@@ -164,16 +164,14 @@ func TestHTTP_handleGetSnapshotIncremental(t *testing.T) {
 		const newFilesys = testZPool + "/inctest"
 		pipeRdr, pipeWrtr := io.Pipe()
 		wg := sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			_, err = zfs.ReceiveSnapshot(context.Background(), pipeRdr, newFilesys, zfs.ReceiveOptions{
 				Resumable:  false,
 				Properties: map[string]string{zfs.PropertyCanMount: zfs.ValueOff},
 			})
 			require.NoError(t, err)
-		}()
+		})
 		err = snap1.SendSnapshot(context.Background(), pipeWrtr, zfs.SendOptions{Raw: true})
 		require.NoError(t, err)
 		require.NoError(t, pipeWrtr.Close())
@@ -289,9 +287,7 @@ func TestHTTP_handleReceiveSnapshot(t *testing.T) {
 		require.NoError(t, err)
 
 		wg := sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			resp, err := http.DefaultClient.Do(req)
 			require.NoError(t, err)
@@ -312,7 +308,7 @@ func TestHTTP_handleReceiveSnapshot(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, snaps, 1)
 			require.Equal(t, name, snaps[0].Name)
-		}()
+		})
 
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
 		require.NoError(t, err)
@@ -344,9 +340,7 @@ func TestHTTP_handleReceiveSnapshotNoExplicitName(t *testing.T) {
 		require.NoError(t, err)
 
 		wg := sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			resp, err := http.DefaultClient.Do(req)
 			require.NoError(t, err)
@@ -364,7 +358,7 @@ func TestHTTP_handleReceiveSnapshotNoExplicitName(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, snaps, 1)
 			require.Equal(t, fmt.Sprintf("%s/%s@%s", testZPool, newFilesystem, snapName), snaps[0].Name)
-		}()
+		})
 
 		ds, err := zfs.GetDataset(context.Background(), testFilesystem)
 		require.NoError(t, err)
@@ -453,9 +447,7 @@ func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
 		req.Header.Set(HeaderResumeReceiveToken, token)
 
 		wg = sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			resp, err := http.DefaultClient.Do(req)
 			require.NoError(t, err)
@@ -474,7 +466,7 @@ func TestHTTP_handleReceiveSnapshotResume(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, snaps, 1)
 			require.Equal(t, name, snaps[0].Name)
-		}()
+		})
 
 		err = zfs.ResumeSend(context.Background(), pipeWrtr, token, zfs.ResumeSendOptions{})
 		require.NoError(t, err)

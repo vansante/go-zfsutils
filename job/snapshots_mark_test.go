@@ -37,7 +37,7 @@ func TestRunner_markPrunableExcessSnapshots(t *testing.T) {
 		require.NoError(t, snap.SetProperty(t.Context(), createdProp, now.Format(dateTimeFormat)))
 
 		events := 0
-		runner.AddListener(MarkSnapshotDeletionEvent, func(arguments ...interface{}) {
+		runner.AddListener(MarkSnapshotDeletionEvent, func(arguments ...any) {
 			events++
 
 			require.Len(t, arguments, 3)
@@ -98,7 +98,7 @@ func TestRunner_markPrunableSnapshotsByAge(t *testing.T) {
 		require.NoError(t, snap.SetProperty(t.Context(), createdProp, now.Add(time.Minute*3).Format(dateTimeFormat)))
 
 		events := 0
-		runner.AddListener(MarkSnapshotDeletionEvent, func(arguments ...interface{}) {
+		runner.AddListener(MarkSnapshotDeletionEvent, func(arguments ...any) {
 			events++
 
 			require.Len(t, arguments, 3)
@@ -153,7 +153,7 @@ func TestRunner_markPrunableSnapshotsWithParentDeleteAt(t *testing.T) {
 		// Setup done, start
 
 		events := 0
-		runner.AddListener(MarkSnapshotDeletionEvent, func(arguments ...interface{}) {
+		runner.AddListener(MarkSnapshotDeletionEvent, func(arguments ...any) {
 			events++
 		})
 

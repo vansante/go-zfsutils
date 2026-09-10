@@ -71,7 +71,7 @@ func Test_snapshotName(t *testing.T) {
 }
 
 func Test_randomizeDuration(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		dur := randomizeDuration(5 * time.Minute)
 		if dur < time.Second*280 {
 			t.Errorf("randomizeDuration() = %v < %v", dur, time.Second*57)
