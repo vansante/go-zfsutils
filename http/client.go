@@ -27,19 +27,20 @@ const clientUserAgent = "go-zfsutils@%s"
 
 // Client is the struct used to send requests to a zfs http server
 type Client struct {
-	server  string
+	client  *http.Client
 	headers map[string]string
 	logger  *slog.Logger
-	client  *http.Client
 }
 
 // NewClient creates a new client for a zfs http server
-func NewClient(server string, logger *slog.Logger) *Client {
+func NewClient(httpClient *http.Client, logger *slog.Logger) *Client {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
 	client := &Client{
-		server:  server,
+		client:  httpClient,
 		headers: make(map[string]string, 8),
 		logger:  logger,
-		client:  http.DefaultClient,
 	}
 	host, _ := os.Hostname()
 	client.headers["User-Agent"] = fmt.Sprintf(
@@ -60,13 +61,8 @@ func (c *Client) SetHeader(name, value string) {
 	c.headers[name] = value
 }
 
-// Server returns the server
-func (c *Client) Server() string {
-	return c.server
-}
-
-func (c *Client) request(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s", c.server, url), body)
+func (c *Client) request(ctx context.Context, host, method, url string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, fmt.Sprintf("%s/%s", host, url), body)
 	if err != nil {
 		return nil, err
 	}
@@ -77,8 +73,8 @@ func (c *Client) request(ctx context.Context, method, url string, body io.Reader
 }
 
 // DatasetSnapshots requests the snapshots for a remote dataset
-func (c *Client) DatasetSnapshots(ctx context.Context, dataset string, extraProps []string) ([]zfs.Dataset, error) {
-	req, err := c.request(ctx, http.MethodGet, fmt.Sprintf("filesystems/%s/snapshots?%s=%s",
+func (c *Client) DatasetSnapshots(ctx context.Context, host, dataset string, extraProps []string) ([]zfs.Dataset, error) {
+	req, err := c.request(ctx, host, http.MethodGet, fmt.Sprintf("filesystems/%s/snapshots?%s=%s",
 		dataset,
 		GETParamExtraProperties, strings.Join(extraProps, ","),
 	), nil)
@@ -107,8 +103,8 @@ func (c *Client) DatasetSnapshots(ctx context.Context, dataset string, extraProp
 }
 
 // ResumableSendToken requests the resume token for a remote dataset, if there is one
-func (c *Client) ResumableSendToken(ctx context.Context, dataset string) (token string, curBytes uint64, err error) {
-	req, err := c.request(ctx, http.MethodGet, fmt.Sprintf("filesystems/%s/resume-token",
+func (c *Client) ResumableSendToken(ctx context.Context, host, dataset string) (token string, curBytes uint64, err error) {
+	req, err := c.request(ctx, host, http.MethodGet, fmt.Sprintf("filesystems/%s/resume-token",
 		dataset,
 	), nil)
 	if err != nil {
@@ -145,7 +141,7 @@ type ResumeSendOptions struct {
 }
 
 // ResumeSend resumes a send for a dataset given the resume token
-func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, options ResumeSendOptions) (SendResult, error) {
+func (c *Client) ResumeSend(ctx context.Context, host, dataset, resumeToken string, options ResumeSendOptions) (SendResult, error) {
 	pipeRdr, pipeWrtr := io.Pipe()
 
 	sendCtx, cancelSend := context.WithCancel(ctx)
@@ -154,7 +150,7 @@ func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, op
 		if err != nil {
 			c.logger.Error("zfs.http.Client.ResumeSend: Error sending resume stream",
 				"error", err,
-				"server", c.server,
+				"host", host,
 				"dataset", dataset,
 				"resumeToken", resumeToken,
 			)
@@ -163,7 +159,7 @@ func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, op
 		if err != nil {
 			c.logger.Error("zfs.http.Client.sendWithBase: Error closing snapshot pipe",
 				"error", err,
-				"server", c.server,
+				"host", host,
 				"dataset", dataset,
 				"resumeToken", resumeToken,
 			)
@@ -173,7 +169,7 @@ func (c *Client) ResumeSend(ctx context.Context, dataset, resumeToken string, op
 	startTime := time.Now()
 	countReader := zfs.NewCountReader(pipeRdr)
 	countReader.SetProgressCallback(options.ProgressEvery, options.ProgressFn)
-	req, err := c.request(ctx, http.MethodPut, fmt.Sprintf("filesystems/%s/snapshots?%s=%s&%s=%s",
+	req, err := c.request(ctx, host, http.MethodPut, fmt.Sprintf("filesystems/%s/snapshots?%s=%s&%s=%s",
 		dataset,
 		GETParamResumable, "true",
 		GETParamEnableDecompression, strconv.FormatBool(options.CompressionLevel > 0),
@@ -224,7 +220,7 @@ type SendResult struct {
 }
 
 // Send sends the snapshot job to the remote server
-func (c *Client) Send(ctx context.Context, send SnapshotSendOptions) (SendResult, error) {
+func (c *Client) Send(ctx context.Context, host string, send SnapshotSendOptions) (SendResult, error) {
 	pipeRdr, pipeWrtr := io.Pipe()
 
 	sendCtx, cancelSend := context.WithCancel(ctx)
@@ -233,7 +229,7 @@ func (c *Client) Send(ctx context.Context, send SnapshotSendOptions) (SendResult
 		if err != nil {
 			c.logger.Error("zfs.http.Client.sendWithBase: Error sending incremental snapshot stream",
 				"error", err,
-				"server", c.server,
+				"host", host,
 				"snapshot", send.Snapshot.Name,
 				"baseSnapshot", send.IncrementalBase,
 			)
@@ -242,7 +238,7 @@ func (c *Client) Send(ctx context.Context, send SnapshotSendOptions) (SendResult
 		if err != nil {
 			c.logger.Error("zfs.http.Client.sendWithBase: Error closing snapshot pipe",
 				"error", err,
-				"server", c.server,
+				"host", host,
 				"snapshot", send.Snapshot.Name,
 				"baseSnapshot", send.IncrementalBase,
 			)
@@ -257,7 +253,7 @@ func (c *Client) Send(ctx context.Context, send SnapshotSendOptions) (SendResult
 	startTime := time.Now()
 	countReader := zfs.NewCountReader(pipeRdr)
 	countReader.SetProgressCallback(send.ProgressEvery, send.ProgressFn)
-	req, err := c.request(ctx, http.MethodPut, url, countReader)
+	req, err := c.request(ctx, host, http.MethodPut, url, countReader)
 	if err != nil {
 		cancelSend()
 		return SendResult{}, fmt.Errorf("error creating incremental send request: %w", err)
@@ -311,13 +307,13 @@ func (c *Client) doSendStream(req *http.Request, pipeWrtr *io.PipeWriter, cancel
 }
 
 // SetFilesystemProperties sets and/or unsets properties on the remote zfs filesystem
-func (c *Client) SetFilesystemProperties(ctx context.Context, filesystem string, props SetProperties) error {
+func (c *Client) SetFilesystemProperties(ctx context.Context, host, filesystem string, props SetProperties) error {
 	payload, err := json.Marshal(&props)
 	if err != nil {
 		return fmt.Errorf("error encoding payload json: %w", err)
 	}
 
-	req, err := c.request(ctx, http.MethodPatch, fmt.Sprintf("filesystems/%s",
+	req, err := c.request(ctx, host, http.MethodPatch, fmt.Sprintf("filesystems/%s",
 		filesystem,
 	), bytes.NewBuffer(payload))
 	if err != nil {
@@ -335,13 +331,13 @@ func (c *Client) SetFilesystemProperties(ctx context.Context, filesystem string,
 }
 
 // SetSnapshotProperties sets and/or unsets properties on the remote zfs snapshot
-func (c *Client) SetSnapshotProperties(ctx context.Context, filesystem, snapshot string, props SetProperties) error {
+func (c *Client) SetSnapshotProperties(ctx context.Context, host, filesystem, snapshot string, props SetProperties) error {
 	payload, err := json.Marshal(&props)
 	if err != nil {
 		return fmt.Errorf("error encoding payload json: %w", err)
 	}
 
-	req, err := c.request(ctx, http.MethodPatch, fmt.Sprintf("filesystems/%s/snapshots/%s",
+	req, err := c.request(ctx, host, http.MethodPatch, fmt.Sprintf("filesystems/%s/snapshots/%s",
 		filesystem, snapshot,
 	), bytes.NewBuffer(payload))
 	if err != nil {

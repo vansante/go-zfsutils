@@ -7,7 +7,6 @@ import (
 	"time"
 
 	zfs "github.com/vansante/go-zfsutils"
-	zfshttp "github.com/vansante/go-zfsutils/http"
 )
 
 type datasetCache struct {
@@ -16,9 +15,9 @@ type datasetCache struct {
 }
 
 // remoteDatasetSnapshots retrieves the remote datasets snapshots, but caches that data for a time
-func (r *Runner) remoteDatasetSnapshots(client *zfshttp.Client, remoteDataset string) ([]zfs.Dataset, error) {
+func (r *Runner) remoteDatasetSnapshots(host, remoteDataset string) ([]zfs.Dataset, error) {
 	r.cacheLock.RLock()
-	serverCache, ok := r.remoteCache[client.Server()]
+	serverCache, ok := r.remoteCache[host]
 	if ok {
 		dsCache, ok := serverCache[remoteDataset]
 		if ok && time.Since(dsCache.cachedAt) < r.config.maximumRemoteSnapshotCacheAge() {
@@ -29,28 +28,28 @@ func (r *Runner) remoteDatasetSnapshots(client *zfshttp.Client, remoteDataset st
 	r.cacheLock.RUnlock()
 
 	ctx, cancel := context.WithTimeout(r.ctx, requestTimeout)
-	remoteSnaps, err := client.DatasetSnapshots(ctx, remoteDataset, []string{r.config.Properties.snapshotCreatedAt()})
+	remoteSnaps, err := r.sendClient.DatasetSnapshots(ctx, host, remoteDataset, []string{r.config.Properties.snapshotCreatedAt()})
 	cancel()
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
 		// Not an error, just means we have to send everything
 	case err != nil:
-		return nil, fmt.Errorf("error listing remote %s snapshots for %s: %w", client.Server(), remoteDataset, err)
+		return nil, fmt.Errorf("error listing remote %s snapshots for %s: %w", host, remoteDataset, err)
 	}
 
-	r.setRemoteDatasetCache(client.Server(), remoteDataset, remoteSnaps)
+	r.setRemoteDatasetCache(host, remoteDataset, remoteSnaps)
 
 	return remoteSnaps, nil
 }
 
-func (r *Runner) setRemoteDatasetCache(server, remoteDataset string, snapshots []zfs.Dataset) {
+func (r *Runner) setRemoteDatasetCache(host, remoteDataset string, snapshots []zfs.Dataset) {
 	r.cacheLock.Lock()
 	defer r.cacheLock.Unlock()
 
-	serverCache, ok := r.remoteCache[server]
+	serverCache, ok := r.remoteCache[host]
 	if !ok {
 		serverCache = make(map[string]*datasetCache)
-		r.remoteCache[server] = serverCache
+		r.remoteCache[host] = serverCache
 	}
 
 	dsCache, ok := serverCache[remoteDataset]
@@ -62,11 +61,11 @@ func (r *Runner) setRemoteDatasetCache(server, remoteDataset string, snapshots [
 	dsCache.snapshots = snapshots
 }
 
-func (r *Runner) clearRemoteDatasetCache(server, remoteDataset string) {
+func (r *Runner) clearRemoteDatasetCache(host, remoteDataset string) {
 	r.cacheLock.Lock()
 	defer r.cacheLock.Unlock()
 
-	serverCache, ok := r.remoteCache[server]
+	serverCache, ok := r.remoteCache[host]
 	if !ok {
 		return
 	}

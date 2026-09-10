@@ -132,29 +132,28 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 		return nil
 	}
 
-	server := ds.ExtraProps[sendToProp]
-	if server == "" {
+	host := ds.ExtraProps[sendToProp]
+	if host == "" {
 		return fmt.Errorf("%s property is empty on %s", sendToProp, ds.Name)
 	}
 
-	client := r.getServerClient(server)
 	remoteDataset := datasetName(ds.Name, true)
 
 	// If we have a sending property, its worth checking whether we can resume a transfer
 	if propertyIsSet(ds.ExtraProps[sendingProp]) {
-		resumable, err := r.resumeSendSnapshot(client, ds, remoteDataset, ds.ExtraProps[sendingProp])
+		resumable, err := r.resumeSendSnapshot(host, ds, remoteDataset, ds.ExtraProps[sendingProp])
 		if err != nil {
 			// TODO:FIXME We should probably force a full re-send after throwing away the partial data on the remote server here
 			return err
 		}
 		if resumable {
 			// Clear remote cache, because we have resumed snapshots, its no longer correct
-			r.clearRemoteDatasetCache(client.Server(), remoteDataset)
+			r.clearRemoteDatasetCache(host, remoteDataset)
 			return nil
 		}
 	}
 
-	remoteSnaps, err := r.remoteDatasetSnapshots(client, remoteDataset)
+	remoteSnaps, err := r.remoteDatasetSnapshots(host, remoteDataset)
 	if err != nil {
 		return err
 	}
@@ -162,7 +161,7 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 	// Filter out snapshots with the ignore property set
 	localSnaps = filterSnapshotsWithProp(localSnaps, ignoreProp)
 
-	toSend, err := r.reconcileSnapshots(localSnaps, remoteSnaps, server)
+	toSend, err := r.reconcileSnapshots(localSnaps, remoteSnaps, host)
 	if err != nil {
 		return fmt.Errorf("error reconciling %s snapshots: %w", ds.Name, err)
 	}
@@ -172,12 +171,12 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 			return nil // context expired, no problem
 		}
 
-		err := r.sendSnapshot(client, send)
+		err := r.sendSnapshot(host, send)
 		if err != nil {
 			return err
 		}
 
-		err = r.setSendSnapshotProperties(client, send.Snapshot.Name)
+		err = r.setSendSnapshotProperties(host, send.Snapshot.Name)
 		if err != nil {
 			r.logger.Error("zfs.job.Runner.resumeSendSnapshot: Error setting snapshot properties",
 				"error", err, "snapshot", send.Snapshot.Name)
@@ -195,14 +194,14 @@ func (r *Runner) sendDatasetSnapshots(ds *zfs.Dataset) error {
 		}
 
 		// Clear remote cache, because we are sending snapshots, its no longer correct
-		r.clearRemoteDatasetCache(client.Server(), remoteDataset)
+		r.clearRemoteDatasetCache(host, remoteDataset)
 	}
 	return nil
 }
 
-func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, remoteDataset, sendingSnapName string) (bool, error) {
+func (r *Runner) resumeSendSnapshot(host string, ds *zfs.Dataset, remoteDataset, sendingSnapName string) (bool, error) {
 	ctx, cancel := context.WithTimeout(r.ctx, requestTimeout)
-	resumeToken, curBytes, err := client.ResumableSendToken(ctx, remoteDataset)
+	resumeToken, curBytes, err := r.sendClient.ResumableSendToken(ctx, host, remoteDataset)
 	cancel()
 	switch {
 	case isContextError(err):
@@ -221,7 +220,7 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 
 	r.logger.Debug("zfs.job.Runner.resumeSendSnapshot: Resuming sending snapshot",
 		"dataset", ds.Name,
-		"server", client.Server(),
+		"host", host,
 		"snapshotName", sendingSnapName,
 		"snapshot", fullSnapName,
 		"curBytes", curBytes,
@@ -231,7 +230,7 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 	ctx, cancel = context.WithTimeout(r.ctx, r.config.maximumSendTime())
 	sending := &zfsSend{
 		dataset: fullSnapName,
-		server:  client.Server(),
+		host:    host,
 		updated: now,
 		started: now,
 		cancel:  cancel,
@@ -242,16 +241,16 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		r.clearSendingState(sending)
 	}()
 
-	r.EmitEvent(ResumeSendingSnapshotEvent, fullSnapName, client.Server(), curBytes)
+	r.EmitEvent(ResumeSendingSnapshotEvent, fullSnapName, host, curBytes)
 
-	result, err := client.ResumeSend(ctx, datasetName(ds.Name, true), resumeToken, zfshttp.ResumeSendOptions{
+	result, err := r.sendClient.ResumeSend(ctx, host, datasetName(ds.Name, true), resumeToken, zfshttp.ResumeSendOptions{
 		ResumeSendOptions: zfs.ResumeSendOptions{
 			BytesPerSecond:   r.config.SendSpeedBytesPerSecond,
 			CompressionLevel: r.config.SendCompressionLevel,
 		},
 		ProgressEvery: r.config.sendProgressInterval(),
 		ProgressFn: func(bytes int64) {
-			r.EmitEvent(SnapshotSendingProgressEvent, fullSnapName, client.Server(), int64(curBytes)+bytes)
+			r.EmitEvent(SnapshotSendingProgressEvent, fullSnapName, host, int64(curBytes)+bytes)
 		},
 	})
 	cancel()
@@ -261,41 +260,41 @@ func (r *Runner) resumeSendSnapshot(client *zfshttp.Client, ds *zfs.Dataset, rem
 		r.logger.Info("zfs.job.Runner.resumeSendSnapshot: Too many receives, delaying",
 			"error", err,
 			"snapshot", ds.Name,
-			"server", client.Server(),
+			"host", host,
 			"snapshotName", sendingSnapName,
 			"snapshot", fullSnapName,
 		)
 		return true, nil
 	case err != nil:
-		r.EmitEvent(SendSnapshotErrorEvent, fullSnapName, client.Server(), err)
+		r.EmitEvent(SendSnapshotErrorEvent, fullSnapName, host, err)
 
 		return false, fmt.Errorf("error resuming send of %s (sent %d bytes in %s): %w",
 			fullSnapName, result.BytesSent, result.TimeTaken, err,
 		)
 	}
 
-	err = r.setSendSnapshotProperties(client, fullSnapName)
+	err = r.setSendSnapshotProperties(host, fullSnapName)
 	if err != nil {
 		r.logger.Error("zfs.job.Runner.resumeSendSnapshot: Error setting snapshot properties", "error", err, "snapshot", fullSnapName)
 	}
 
 	r.logger.Debug("zfs.job.Runner.resumeSendSnapshot: Sent snapshot",
 		"snapshot", ds.Name,
-		"server", client.Server(),
+		"host", host,
 		"snapshotName", sendingSnapName,
 		"snapshot", fullSnapName,
 		"bytesSent", result.BytesSent,
 		"timeTaken", result.TimeTaken.String(),
 	)
 
-	r.EmitEvent(SentSnapshotEvent, fullSnapName, client.Server(), result.BytesSent, result.TimeTaken)
+	r.EmitEvent(SentSnapshotEvent, fullSnapName, host, result.BytesSent, result.TimeTaken)
 	return true, nil
 }
 
-func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendOptions) error {
+func (r *Runner) sendSnapshot(host string, send zfshttp.SnapshotSendOptions) error {
 	r.logger.Debug("zfs.job.Runner.sendDatasetSnapshots: Sending snapshot",
 		"snapshot", send.Snapshot.Name,
-		"server", client.Server(),
+		"host", host,
 		"sendSnapshotName", send.SnapshotName,
 	)
 
@@ -303,7 +302,7 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 	ctx, cancel := context.WithTimeout(r.ctx, r.config.maximumSendTime())
 	sending := &zfsSend{
 		dataset: send.Snapshot.Name,
-		server:  client.Server(),
+		host:    host,
 		updated: now,
 		started: now,
 		cancel:  cancel,
@@ -314,30 +313,30 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 		r.clearSendingState(sending)
 	}()
 
-	r.EmitEvent(StartSendingSnapshotEvent, send.Snapshot.Name, client.Server())
+	r.EmitEvent(StartSendingSnapshotEvent, send.Snapshot.Name, host)
 
-	result, err := client.Send(ctx, send)
+	result, err := r.sendClient.Send(ctx, host, send)
 	cancel()
 	switch {
 	case errors.Is(err, zfs.ErrDatasetExists):
 		r.logger.Warn("zfs.job.Runner.sendDatasetSnapshots: Dataset exists",
 			"error", err,
 			"snapshot", send.Snapshot.Name,
-			"server", client.Server(),
+			"host", host,
 			"sendSnapshotName", send.SnapshotName,
 		)
-		r.clearRemoteDatasetCache(client.Server(), datasetName(send.Snapshot.Name, true))
+		r.clearRemoteDatasetCache(host, datasetName(send.Snapshot.Name, true))
 		return nil
 	case errors.Is(err, zfshttp.ErrTooManyRequests):
 		r.logger.Info("zfs.job.Runner.sendDatasetSnapshots: Too many receives, delaying",
 			"error", err,
 			"snapshot", send.Snapshot.Name,
-			"server", client.Server(),
+			"host", host,
 			"sendSnapshotName", send.SnapshotName,
 		)
 		return nil
 	case err != nil:
-		r.EmitEvent(SendSnapshotErrorEvent, send.Snapshot.Name, client.Server(), err)
+		r.EmitEvent(SendSnapshotErrorEvent, send.Snapshot.Name, host, err)
 
 		return fmt.Errorf("error sending %s@%s (sent %d bytes in %s): %w",
 			send.DatasetName, send.SnapshotName, result.BytesSent, result.TimeTaken, err,
@@ -346,17 +345,17 @@ func (r *Runner) sendSnapshot(client *zfshttp.Client, send zfshttp.SnapshotSendO
 
 	r.logger.Debug("zfs.job.Runner.sendDatasetSnapshots: Snapshot sent",
 		"snapshot", send.Snapshot.Name,
-		"server", client.Server(),
+		"host", host,
 		"sendSnapshotName", send.SnapshotName,
 		"bytesSent", result.BytesSent,
 		"timeTaken", result.TimeTaken.String(),
 	)
 
-	r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, client.Server(), result.BytesSent, result.TimeTaken)
+	r.EmitEvent(SentSnapshotEvent, send.Snapshot.Name, host, result.BytesSent, result.TimeTaken)
 	return nil
 }
 
-func (r *Runner) setSendSnapshotProperties(client *zfshttp.Client, snapName string) error {
+func (r *Runner) setSendSnapshotProperties(host, snapName string) error {
 	snapProps, err := r.getSendSnapshotProperties(snapName)
 	if err != nil {
 		return fmt.Errorf("error getting properties for snapshot %s: %w", snapName, err)
@@ -370,14 +369,14 @@ func (r *Runner) setSendSnapshotProperties(client *zfshttp.Client, snapName stri
 		Set: snapProps,
 	}
 
-	err = client.SetSnapshotProperties(r.ctx, datasetName(snapName, true), snapshotName(snapName), setProps)
+	err = r.sendClient.SetSnapshotProperties(r.ctx, host, datasetName(snapName, true), snapshotName(snapName), setProps)
 	if err != nil {
 		return fmt.Errorf("error setting snapshot properties for snapshot %s: %w", snapName, err)
 	}
 	return nil
 }
 
-func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, server string) ([]zfshttp.SnapshotSendOptions, error) {
+func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, host string) ([]zfshttp.SnapshotSendOptions, error) {
 	toSend := make([]zfshttp.SnapshotSendOptions, 0, 8)
 	var prevRemoteSnap *zfs.Dataset
 	for i := range local {
@@ -414,7 +413,7 @@ func (r *Runner) reconcileSnapshots(local, remote []zfs.Dataset, server string) 
 			Properties:           dsProps,
 			ProgressEvery:        r.config.sendProgressInterval(),
 			ProgressFn: func(bytes int64) {
-				r.EmitEvent(SnapshotSendingProgressEvent, snap.Name, server, bytes)
+				r.EmitEvent(SnapshotSendingProgressEvent, snap.Name, host, bytes)
 			},
 		})
 

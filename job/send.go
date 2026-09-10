@@ -13,8 +13,8 @@ type ZFSSend interface {
 	DatasetName() string
 	// SnapshotName returns the snapshot name
 	SnapshotName() string
-	// Server returns the URL the snapshot is being sent to
-	Server() string
+	// Host returns the host/URL where the snapshot is being sent to
+	Host() string
 	// BytesSent returns how many bytes have been sent
 	BytesSent() int64
 	// UpdatedAt returns when this was last updated
@@ -27,7 +27,7 @@ type ZFSSend interface {
 
 type zfsSend struct {
 	dataset   string
-	server    string
+	host      string
 	bytesSent int64
 	started   time.Time
 	updated   time.Time
@@ -46,8 +46,8 @@ func (z zfsSend) SnapshotName() string {
 	return snapshotName(z.dataset)
 }
 
-func (z zfsSend) Server() string {
-	return z.server
+func (z zfsSend) Host() string {
+	return z.host
 }
 
 func (z zfsSend) BytesSent() int64 {

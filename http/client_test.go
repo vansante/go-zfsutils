@@ -12,16 +12,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func clientTest(t *testing.T, fn func(client *Client)) {
+func clientTest(t *testing.T, fn func(client *Client, host string)) {
 	t.Helper()
 	TestHTTPZPool(testZPool, testPrefix, testFilesystem, func(server *httptest.Server) {
-		c := NewClient(server.URL+testPrefix, slog.Default())
-		fn(c)
+		c := NewClient(nil, slog.Default())
+		fn(c, server.URL+testPrefix)
 	})
 }
 
 func TestClient_Send(t *testing.T) {
-	clientTest(t, func(client *Client) {
+	clientTest(t, func(client *Client, host string) {
 		const fsName = testZPool + "/" + testFilesystemName
 		ds, err := zfs.GetDataset(context.Background(), fsName)
 		require.NoError(t, err)
@@ -39,7 +39,7 @@ func TestClient_Send(t *testing.T) {
 		const testProp = "nl.vansante:pipo"
 		const testPropVal = "clown"
 
-		results, err := client.Send(ctx, SnapshotSendOptions{
+		results, err := client.Send(ctx, host, SnapshotSendOptions{
 			DatasetName: newFs,
 			Snapshot:    snap1,
 			Properties: ReceiveProperties{
@@ -50,7 +50,7 @@ func TestClient_Send(t *testing.T) {
 		require.NotZero(t, results.BytesSent)
 		require.NotZero(t, results.TimeTaken)
 
-		results, err = client.Send(ctx, SnapshotSendOptions{
+		results, err = client.Send(ctx, host, SnapshotSendOptions{
 			DatasetName: newFs,
 			Snapshot:    snap2,
 			Properties: ReceiveProperties{

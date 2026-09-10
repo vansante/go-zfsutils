@@ -30,6 +30,7 @@ func runnerTest(t *testing.T, fn func(url string, runner *Runner)) {
 				datasetLock: make(map[string]struct{}),
 				remoteCache: make(map[string]map[string]*datasetCache),
 				sendChan:    make(chan string),
+				sendClient:  zfshttp.NewClient(nil, slog.Default()),
 				config: Config{
 					ParentDataset: testZPool,
 					DatasetType:   zfs.DatasetFilesystem,
