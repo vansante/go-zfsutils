@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -30,19 +29,28 @@ const (
 
 // NewRunner creates a new job runner
 func NewRunner(ctx context.Context, conf Config, logger *slog.Logger) *Runner {
+	return NewRunnerWithCustomClient(ctx, nil, conf, logger)
+}
+
+// NewRunnerWithCustomClient creates a new job runner with a custom zfshttp.Client
+func NewRunnerWithCustomClient(ctx context.Context, zfsClient *zfshttp.Client, conf Config, logger *slog.Logger) *Runner {
+	if zfsClient == nil {
+		zfsClient = zfshttp.NewClient(nil, logger)
+	}
+
 	r := &Runner{
 		Emitter:     eventemitter.NewEmitter(false),
 		config:      conf,
 		datasetLock: make(map[string]struct{}),
 		remoteCache: make(map[string]map[string]*datasetCache),
 		sendChan:    make(chan string),
-		sendClient:  zfshttp.NewClient(http.DefaultClient, logger),
+		zfsClient:   zfsClient,
 		logger:      logger,
 		ctx:         ctx,
 	}
 
 	for hdr := range r.config.HTTPHeaders {
-		r.sendClient.SetHeader(hdr, r.config.HTTPHeaders[hdr])
+		r.zfsClient.SetHeader(hdr, r.config.HTTPHeaders[hdr])
 	}
 
 	r.attachListeners()
@@ -61,10 +69,11 @@ type Runner struct {
 	remoteCache map[string]map[string]*datasetCache // Snapshots indexed by server, then dataset name
 	cacheLock   sync.RWMutex
 
-	sendChan   chan string
-	sends      []*zfsSend
-	sendLock   sync.RWMutex
-	sendClient *zfshttp.Client
+	sendChan chan string
+	sends    []*zfsSend
+	sendLock sync.RWMutex
+
+	zfsClient *zfshttp.Client
 
 	logger *slog.Logger
 	ctx    context.Context

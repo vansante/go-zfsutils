@@ -28,7 +28,7 @@ func (r *Runner) remoteDatasetSnapshots(host, remoteDataset string) ([]zfs.Datas
 	r.cacheLock.RUnlock()
 
 	ctx, cancel := context.WithTimeout(r.ctx, requestTimeout)
-	remoteSnaps, err := r.sendClient.DatasetSnapshots(ctx, host, remoteDataset, []string{r.config.Properties.snapshotCreatedAt()})
+	remoteSnaps, err := r.zfsClient.DatasetSnapshots(ctx, host, remoteDataset, []string{r.config.Properties.snapshotCreatedAt()})
 	cancel()
 	switch {
 	case errors.Is(err, zfs.ErrDatasetNotFound):
