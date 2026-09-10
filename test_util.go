@@ -49,20 +49,16 @@ func TestZPool(zpool string, fn func()) {
 			panic(err)
 		}
 	}
+
+	zFile, err := os.CreateTemp(os.TempDir(), "test-zpool-")
+	noErr(err, "create zpool file", "")
+	err = zFile.Truncate(pow2(28))
+	noErr(err, "truncate zpool file", "")
+	noErr(zFile.Close(), "close zpool file", "")
+	defer os.Remove(zFile.Name())
+
 	args := []string{
-		"zpool", "create", zpool,
-	}
-
-	for i := range 3 {
-		f, err := os.CreateTemp(os.TempDir(), "test-zpool-")
-		noErr(err, fmt.Sprintf("create zpool file %d", i), "")
-		err = f.Truncate(pow2(29))
-		noErr(err, fmt.Sprintf("truncate zpool file %d", i), "")
-		noErr(f.Close(), fmt.Sprintf("close zpool file %d", i), "")
-
-		args = append(args, f.Name())
-
-		defer os.Remove(f.Name()) // nolint:revive // its ok to defer to end of func
+		"zpool", "create", zpool, zFile.Name(),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
