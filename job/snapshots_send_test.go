@@ -79,7 +79,7 @@ func testSendSnapshots(t *testing.T, url string, runner *Runner) {
 			for _, send := range sends {
 				if send.Dataset() == testFilesystem+"@"+sendSnaps[sendingCount] {
 					found = true
-					require.Equal(t, arguments[1], send.Server())
+					require.Equal(t, arguments[1], send.Host())
 					require.NotNil(t, send.CancelSend)
 
 					t.Logf("Found sending struct: %#v", send)

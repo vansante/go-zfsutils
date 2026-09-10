@@ -230,7 +230,7 @@ func (r *Runner) resumeSendSnapshot(host string, ds *zfs.Dataset, remoteDataset,
 	ctx, cancel = context.WithTimeout(r.ctx, r.config.maximumSendTime())
 	sending := &zfsSend{
 		dataset: fullSnapName,
-		server:  host,
+		host:    host,
 		updated: now,
 		started: now,
 		cancel:  cancel,
@@ -302,7 +302,7 @@ func (r *Runner) sendSnapshot(host string, send zfshttp.SnapshotSendOptions) err
 	ctx, cancel := context.WithTimeout(r.ctx, r.config.maximumSendTime())
 	sending := &zfsSend{
 		dataset: send.Snapshot.Name,
-		server:  host,
+		host:    host,
 		updated: now,
 		started: now,
 		cancel:  cancel,
